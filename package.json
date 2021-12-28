@@ -1,0 +1,53 @@
+{
+  "name": "touchportal-dynamic-icons",
+  "version": "1.0.0",
+  "description": "Generate Dynamic Icons for Touch Portal on Actions and 0-100% values",
+  "main": "src/index.js",
+  "bin": {
+    "touchportal-dynamic-icons": "dist/index.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "pkg": "pkg .",
+    "pkg-win": "pkg --targets node12-win-x64 .",
+    "build-win": "pkg --targets node12-win-x64 . && move touchportal-dynamic-icons.exe base/Windows/TPDyanmicIcons/touchportal-dynamic-icons.exe && del Resources\\TPDynamicIcons.tpp && cd base && 7z a -tzip ../Resources/TPDynamicIcons.tpp TPDynamicIcons && del Windows\touchportal-dynamic-icons.exe",
+    "tsc": "tsc",
+    "build": "npm run tsc && npm run bundle:app",
+    "jest": "jest",
+    "ts-node-dev": "ts-node-dev",
+    "bundle:app": "webpack",
+    "dev": "nodemon -e ts --exec \"npm run build && node ./bundle/iTunesPlugin.js\"",
+    "lint": "eslint ./src/**/*.ts --no-cache",
+    "lint:fix": "eslint ./src/**/*.ts --fix",
+    "lint:watch": "nodemon --watch .eslintrc.js --exec \"npm run lint\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spdermn02/TouchPortal-Dynamic-Icons.git"
+  },
+  "keywords": [
+    "TouchPortal",
+    "TouchPortalPlugin"
+  ],
+  "author": "Jameson Allen aka Spdermn02",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/spdermn02/TouchPortal-Dynamic-Icons/issues"
+  },
+  "homepage": "https://github.com/spdermn02/TouchPortal-Dynamic-Icons#readme",
+  "dependencies": {
+    "skia-canvas": "^0.9.25",
+    "touchportal-api": "*"
+  },
+  "devDependencies": {
+    "@types/skia-canvas": "^0.9.1",
+    "@typescript-eslint/eslint-plugin": "^4.30.0",
+    "eslint": "^7.32.0",
+    "ts-node": "^10.2.1",
+    "typescript": "^4.4.2",
+    "uglifyjs-webpack-plugin": "^2.2.0",
+    "webpack": "^4.46.0",
+    "webpack-cli": "^4.8.0",
+    "webpack-node-externals": "^3.0.0"
+  }
+}

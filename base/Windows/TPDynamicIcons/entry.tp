@@ -1,0 +1,121 @@
+{
+    "sdk": 3,
+    "version": 1000,
+    "TPDiscord_Version": "1.0.0",
+    "name": "Touch Portal Dynamic Icons",
+    "id": "Touch Portal Dynamic Icons",
+    "plugin_start_cmd": "\"%TP_PLUGIN_FOLDER%TPDynamicIcons\\touchportal-dynamic-icons.exe\"",
+    "configuration": {
+        "colorDark": "#23272A",
+        "colorLight": "#7289DA"
+    },
+    "settings": [
+    ],
+    "categories": [
+        {
+            "id": "TP Dynamic Icons",
+            "name": "Dynamic Icons",
+            "imagepath": "%TP_PLUGIN_FOLDER%TPDynamicIcons/tp-dynamic-icons.png",
+            "actions": [
+                 {  "id": "generate_gauge_icon",
+                    "prefix": "Dynamic Icons:",
+                    "name":"Gauge Icon",
+                    "type":"communicate",
+                    "tryInline":"true",
+                    "format":"Dynamic Icons: Create a {$dynamic_icons_gauge_type$} icon with name {$dynamic_icons_gauge_name$} with shadow {$dynamic_icons_gauge_shadow$} and color {$dynamic_icons_gauge_shadow_color$} using color {$dynamic_icons_gauge_color$} with highlight {$dynamic_icons_gauge_highlight$} starting at degree {$dynamic_icons_gauge_start_degree$} at value {$dynamics_icon_gauge_value$} wiht cap style {$dynamics_icon_gauge_cap$} with background color {$dynamic_icons_gague_background_color$}",
+                    "hasHoldFunctionality": true,
+                    "data" :[
+                        {
+                            "id":"dynamic_icons_gauge_type",
+                            "type": "choice",
+                            "label":  "Gauge Type",
+                            "default": "Regular",
+                            "valueChoices":[
+                                "Regular",
+                                "Gradient"
+                            ]
+                        },
+                        {
+                            "id":"dynamic_icons_gauge_name",
+                            "type": "string",
+                            "label":  "Gague Name",
+                            "default": ""
+                        },
+                        {
+                            "id":"dynamic_icons_gauge_shadow",
+                            "type":"choice",
+                            "label":"Gague Shadow",
+                            "default":"On",
+                            "valueChoices":[
+                                "On",
+                                "Off"
+                            ]
+                        },
+                        {
+                            "id":"dynamic_icons_gauge_shadow_color",
+                            "type": "color",
+                            "label":  "Gague Shadow Color",
+                            "default": "#282828FF"
+                        },
+                        {
+                            "id":"dynamic_icons_gauge_color",
+                            "type": "color",
+                            "label":  "Gague Color",
+                            "default": "#FFA500FF"
+                        },
+                        {
+                            "id":"dynamic_icons_gauge_highlight",
+                            "type":"choice",
+                            "label":"Gague Highlight",
+                            "default":"On",
+                            "valueChoices":[
+                                "On",
+                                "Off"
+                            ]
+                        },
+                        {
+                            "id":"dynamic_icons_gauge_start_degree",
+                            "type": "number",
+                            "label":  "Gague Start Degree",
+                            "default": "180",
+                            "allowDecimals":"true",
+                            "minValue":"0",
+                            "maxValue":"360"
+                        
+                        },
+                        {
+                            "id":"dynamics_icon_gauge_value",
+                            "type": "number",
+                            "label":  "Gague Value",
+                            "default": "0",
+                            "allowDecimals":"true",
+                            "minValue":"0",
+                            "maxValue":"100"
+                        
+                        },
+                        {
+                            "id":"dynamics_icon_gauge_cap",
+                            "type":"choice",
+                            "label":"Gague Icon Cap Type",
+                            "default":"round",
+                            "valueChoices":[
+                                "butt", 
+                                "round",
+                                "square"
+                            ]
+                        },
+                        {
+                            "id":"dynamic_icons_gague_background_color",
+                            "type": "color",
+                            "label":  "Gague Background Color",
+                            "default": "#000000FF"
+                        }
+                    ]
+                 }
+            ],
+            "states": [
+            ],
+            "events": []
+        }
+    ]
+}
