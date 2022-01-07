@@ -1,6 +1,6 @@
 #!/bin/sh
 
-prog=touchportal_streamchat
+prog=touchportal-dynamic-icons
 
 chmod +x $prog
 
