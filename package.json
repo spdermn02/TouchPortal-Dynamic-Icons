@@ -37,7 +37,7 @@
   "homepage": "https://github.com/spdermn02/TouchPortal-Dynamic-Icons#readme",
   "dependencies": {
     "skia-canvas": "^0.9.25",
-    "touchportal-api": "*"
+    "touchportal-api": "^3.0.0"
   },
   "devDependencies": {
     "@types/skia-canvas": "^0.9.1",
