@@ -22,7 +22,7 @@
                     "name":"Gauge Icon",
                     "type":"communicate",
                     "tryInline":"true",
-                    "format":"Dynamic Icons: Create a {$dynamic_icons_gauge_type$} icon with name {$dynamic_icons_gauge_name$} with shadow {$dynamic_icons_gauge_shadow$} and color {$dynamic_icons_gauge_shadow_color$} using color {$dynamic_icons_gauge_color$} with highlight {$dynamic_icons_gauge_highlight$} starting at degree {$dynamic_icons_gauge_start_degree$} at value {$dynamics_icon_gauge_value$} wiht cap style {$dynamics_icon_gauge_cap$} with background color {$dynamic_icons_gague_background_color$}",
+                    "format":"Dynamic Icons: Create a {$dynamic_icons_gauge_type$} icon with name {$dynamic_icons_gauge_name$} with shadow {$dynamic_icons_gauge_shadow$} and color {$dynamic_icons_gauge_shadow_color$} using color {$dynamic_icons_gauge_color$} with highlight {$dynamic_icons_gauge_highlight$} starting at degree {$dynamic_icons_gauge_start_degree$} at value {$dynamics_icon_gauge_value$} wiht cap style {$dynamics_icon_gauge_cap$} with background color {$dynamic_icons_gauge_background_color$} .",
                     "hasHoldFunctionality": true,
                     "data" :[
                         {
@@ -37,14 +37,14 @@
                         },
                         {
                             "id":"dynamic_icons_gauge_name",
-                            "type": "string",
-                            "label":  "Gague Name",
+                            "type": "text",
+                            "label":  "Gauge Name",
                             "default": ""
                         },
                         {
                             "id":"dynamic_icons_gauge_shadow",
                             "type":"choice",
-                            "label":"Gague Shadow",
+                            "label":"Gauge Shadow",
                             "default":"On",
                             "valueChoices":[
                                 "On",
@@ -54,19 +54,19 @@
                         {
                             "id":"dynamic_icons_gauge_shadow_color",
                             "type": "color",
-                            "label":  "Gague Shadow Color",
+                            "label":  "Gauge Shadow Color",
                             "default": "#282828FF"
                         },
                         {
                             "id":"dynamic_icons_gauge_color",
                             "type": "color",
-                            "label":  "Gague Color",
+                            "label":  "Gauge Color",
                             "default": "#FFA500FF"
                         },
                         {
                             "id":"dynamic_icons_gauge_highlight",
                             "type":"choice",
-                            "label":"Gague Highlight",
+                            "label":"Gauge Highlight",
                             "default":"On",
                             "valueChoices":[
                                 "On",
@@ -76,7 +76,7 @@
                         {
                             "id":"dynamic_icons_gauge_start_degree",
                             "type": "number",
-                            "label":  "Gague Start Degree",
+                            "label":  "Gauge Start Degree",
                             "default": "180",
                             "allowDecimals":"true",
                             "minValue":"0",
@@ -85,8 +85,8 @@
                         },
                         {
                             "id":"dynamics_icon_gauge_value",
-                            "type": "number",
-                            "label":  "Gague Value",
+                            "type": "text",
+                            "label":  "Gauge Value",
                             "default": "0",
                             "allowDecimals":"true",
                             "minValue":"0",
@@ -96,7 +96,7 @@
                         {
                             "id":"dynamics_icon_gauge_cap",
                             "type":"choice",
-                            "label":"Gague Icon Cap Type",
+                            "label":"Gauge Icon Cap Type",
                             "default":"round",
                             "valueChoices":[
                                 "butt", 
@@ -105,9 +105,9 @@
                             ]
                         },
                         {
-                            "id":"dynamic_icons_gague_background_color",
+                            "id":"dynamic_icons_gauge_background_color",
                             "type": "color",
-                            "label":  "Gague Background Color",
+                            "label":  "Gauge Background Color",
                             "default": "#000000FF"
                         }
                     ]

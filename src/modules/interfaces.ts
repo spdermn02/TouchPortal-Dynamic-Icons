@@ -14,4 +14,6 @@ export interface GradientGauge extends Gauge{
     gradientInfo: object
 }
 
+export class Gauge implements Gauge {
 
+}
