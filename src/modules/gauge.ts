@@ -55,6 +55,7 @@ export async function buildRoundGague(width: number = 256, height: number = 256,
   ctx.strokeStyle= gauge.indicatorColor
   ctx.lineWidth=15
   ctx.stroke();
+  
 
   const buffer = await canvas.toBuffer('image/png')
   return buffer.toString("base64");
