@@ -14,8 +14,8 @@ export async function buildRoundGague(width: number = 256, height: number = 256,
   const ctx = getCanvasContext(canvas)
   const cx = width/2
   const cy = cx
-  const min = PI
-  const max = PI2 + PI
+  const min = gauge.startingDegree * PI/180
+  const max = PI2 + min
   const percent = gauge.value
   ctx.lineCap = gauge.capStyle
 
