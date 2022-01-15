@@ -4,7 +4,8 @@
     "TPDiscord_Version": "1.0.0",
     "name": "Touch Portal Dynamic Icons",
     "id": "Touch Portal Dynamic Icons",
-    "plugin_start_cmd": "\"%TP_PLUGIN_FOLDER%TPDynamicIcons\\touchportal-dynamic-icons.exe\"",
+    "plugin_start_cmd_mac":"sh \"%TP_PLUGIN_FOLDER%\"TPDynamicIcons/start.sh touchportal-dynamic-icons",
+    "plugin_start_cmd_windows": "\"%TP_PLUGIN_FOLDER%TPDynamicIcons\\touchportal-dynamic-icons.exe\"",
     "configuration": {
         "colorDark": "#23272A",
         "colorLight": "#7289DA"

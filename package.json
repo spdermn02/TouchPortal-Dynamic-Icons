@@ -9,8 +9,15 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "pkg": "pkg .",
-    "pkg-win": "pkg --targets node12-win-x64 .",
-    "build-win": "pkg --targets node12-win-x64 . && move touchportal-dynamic-icons.exe base/Windows/TPDyanmicIcons/touchportal-dynamic-icons.exe && del Resources\\TPDynamicIcons.tpp && cd base && 7z a -tzip ../Resources/TPDynamicIcons.tpp TPDynamicIcons && del Windows\touchportal-dynamic-icons.exe",
+    "pkg-win": "pkg --targets node16-win-x64 .",
+    "pkg-mac": "pkg --targets node16-macos-x64 .",
+    "build-win":"run-script-os",
+    "build-mac":"run-script-os",
+    "build-win:win32": "builders\\build.bat win32",
+    "build-win:linux:darwin": "sh builders/build.sh win32",
+    "build-mac:win32": "builders\\build.bat mac",
+    "build-mac:linux:darwin": "sh builders/build.sh mac",
+
     "tsc": "tsc",
     "jest": "jest",
     "ts-node-dev": "ts-node-dev",
@@ -43,6 +50,7 @@
     "eslint": "^7.32.0",
     "json-schema": "^0.4.0",
     "pkg": "^5.5.1",
+    "run-script-os": "^1.1.6",
     "ts-node": "^10.2.1",
     "typescript": "^4.4.2",
     "uglifyjs-webpack-plugin": "^2.2.0"

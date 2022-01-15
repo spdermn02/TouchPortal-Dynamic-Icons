@@ -16,7 +16,7 @@ TPClient.on("Action",async (message:any,hold?:boolean) => {
         gauge.highlightOn = message.data[5].value === "On" ? true : false;;
         gauge.shadowColor = message.data[2].value === "On" ? message.data[3].value : '';
         gauge.shadowOn = message.data[2].value === "On" ? true : false;
-        gauge.startingDegree = message.data[6].value !== undefined ? parseFloat(message.data[6].value) ? 0;
+        gauge.startingDegree = message.data[6].value !== undefined ? parseFloat(message.data[6].value) : 0
         gauge.counterClockwise = false;
         gauge.backgroundColor = message.data[9].value ;
         const gaugeIcon = await buildRoundGague(256,256,gauge);
