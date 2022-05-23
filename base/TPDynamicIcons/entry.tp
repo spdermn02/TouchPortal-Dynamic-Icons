@@ -161,12 +161,12 @@
                         },
                         {
                             "id":"dynamic_icon_bar_graph_width",
-                            "type": "text",
+                            "type": "number",
                             "label":  "Bar Graph Width",
-                            "default": "1",
+                            "default": "10",
                             "allowDecimals":"false",
                             "minValue":"1",
-                            "maxValue":"4"
+                            "maxValue":"256"
                         }
                         
                     ]
