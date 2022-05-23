@@ -11,13 +11,12 @@
     "pkg": "pkg .",
     "pkg-win": "pkg --targets node16-win-x64 .",
     "pkg-mac": "pkg --targets node16-macos-x64 .",
-    "build-win":"run-script-os",
-    "build-mac":"run-script-os",
+    "build-win": "run-script-os",
+    "build-mac": "run-script-os",
     "build-win:win32": "builders\\build.bat win32",
     "build-win:linux:darwin": "sh builders/build.sh win32",
     "build-mac:win32": "builders\\build.bat mac",
     "build-mac:linux:darwin": "sh builders/build.sh mac",
-
     "tsc": "tsc",
     "jest": "jest",
     "ts-node-dev": "ts-node-dev",
@@ -42,7 +41,7 @@
   "homepage": "https://github.com/spdermn02/TouchPortal-Dynamic-Icons#readme",
   "dependencies": {
     "skia-canvas": "^0.9.25",
-    "touchportal-api": "^3.0.0"
+    "touchportal-api": "^3.1.2"
   },
   "devDependencies": {
     "@types/skia-canvas": "^0.9.2",
