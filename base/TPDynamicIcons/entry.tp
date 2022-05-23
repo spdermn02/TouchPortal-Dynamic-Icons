@@ -1,7 +1,8 @@
 {
-    "sdk": 3,
+    "$schema": "https://pjiesco.com/touch-portal/entry.tp/schema",
+    "sdk": 5,
     "version": 1000,
-    "TPDiscord_Version": "1.0.0",
+    "TPDynamicIcons": "1.0.0",
     "name": "Touch Portal Dynamic Icons",
     "id": "Touch Portal Dynamic Icons",
     "plugin_start_cmd_mac":"sh \"%TP_PLUGIN_FOLDER%\"TPDynamicIcons/start.sh touchportal-dynamic-icons",
@@ -171,8 +172,7 @@
                     ]
                 }
             ],
-            "states": [
-            ],
+            "states": [],
             "events": []
         }
     ]
