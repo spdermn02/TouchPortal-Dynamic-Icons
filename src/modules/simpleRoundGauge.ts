@@ -9,7 +9,7 @@ function getCanvasContext(canvas: Canvas) {
   return canvas.getContext("2d");
 }
 
-export async function buildRoundGague(width: number = 256, height: number = 256, gauge: Gauge ) {
+export async function buildSimpleRoundGauge(width: number = 256, height: number = 256, gauge: Gauge ) {
   const canvas = getCanvas(width, height)
   const ctx = getCanvasContext(canvas)
   const cx = width/2
@@ -24,7 +24,7 @@ export async function buildRoundGague(width: number = 256, height: number = 256,
   if( gauge.shadowOn ) {
     //Shadow
     ctx.beginPath()
-    ctx.arc(cx,cy,radius+5,PI,PI+PI2, gauge.counterClockwise)
+    ctx.arc(cx,cy,radius+5,PI,PI+PI2)
     ctx.fillStyle = gauge.shadowColor
     ctx.filter = 'blur(5px)'
     ctx.fill()
@@ -43,7 +43,7 @@ export async function buildRoundGague(width: number = 256, height: number = 256,
   ctx.filter = 'blur(0px)';
 
   ctx.beginPath();
-  ctx.arc(cx,cy,radius,min,max,gauge.counterClockwise)
+  ctx.arc(cx,cy,radius,min,max)
   ctx.fillStyle=gauge.backgroundColor
   ctx.strokeStyle=gauge.backgroundColor
   ctx.lineWidth=25
@@ -51,7 +51,7 @@ export async function buildRoundGague(width: number = 256, height: number = 256,
 
 
   ctx.beginPath();
-  ctx.arc(cx,cy,radius-10,min,min+(max-min)*percent/100)
+  ctx.arc(cx,cy,radius-10,min,min+(max-min)*percent/100,gauge.counterClockwise)
   ctx.strokeStyle= gauge.indicatorColor
   ctx.lineWidth=15
   ctx.stroke();
@@ -61,7 +61,3 @@ export async function buildRoundGague(width: number = 256, height: number = 256,
   return buffer.toString("base64");
 
 }
-
-// export function buildRoundGradientGague(width: number = 256, height: number = 256, gauge: GradientGauge) {
-
-// }

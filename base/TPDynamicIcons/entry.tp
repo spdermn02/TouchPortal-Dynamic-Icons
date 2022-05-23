@@ -18,24 +18,14 @@
             "name": "Dynamic Icons",
             "imagepath": "%TP_PLUGIN_FOLDER%TPDynamicIcons/tp-dynamic-icons.png",
             "actions": [
-                 {  "id": "generate_gauge_icon",
+                 {  "id": "generate_simple_round_gauge",
                     "prefix": "Dynamic Icons:",
-                    "name":"Gauge Icon",
+                    "name":"Simple Round Gauge",
                     "type":"communicate",
                     "tryInline":"true",
-                    "format":"Dynamic Icons: Create a {$dynamic_icons_gauge_type$} icon with name {$dynamic_icons_gauge_name$} with shadow {$dynamic_icons_gauge_shadow$} and color {$dynamic_icons_gauge_shadow_color$} using color {$dynamic_icons_gauge_color$} with highlight {$dynamic_icons_gauge_highlight$} starting at degree {$dynamic_icons_gauge_start_degree$} at value {$dynamics_icon_gauge_value$} wiht cap style {$dynamics_icon_gauge_cap$} with background color {$dynamic_icons_gauge_background_color$} .",
+                    "format":"Dynamic Icons: Create a Simple Round Guage with name {$dynamic_icons_gauge_name$} with shadow {$dynamic_icons_gauge_shadow$} of color {$dynamic_icons_gauge_shadow_color$} using indicator color {$dynamic_icons_gauge_color$} with highlight {$dynamic_icons_gauge_highlight$} starting at degree {$dynamic_icons_gauge_start_degree$} at value {$dynamic_icons_gauge_value$} with cap style {$dynamic_icons_gauge_cap$} on background color {$dynamic_icons_gauge_background_color$} in direction {$dynamic_icons_gauge_counterclockwise$}",
                     "hasHoldFunctionality": true,
                     "data" :[
-                        {
-                            "id":"dynamic_icons_gauge_type",
-                            "type": "choice",
-                            "label":  "Gauge Type",
-                            "default": "Regular",
-                            "valueChoices":[
-                                "Regular",
-                                "Gradient"
-                            ]
-                        },
                         {
                             "id":"dynamic_icons_gauge_name",
                             "type": "text",
@@ -85,7 +75,7 @@
                         
                         },
                         {
-                            "id":"dynamics_icon_gauge_value",
+                            "id":"dynamic_icons_gauge_value",
                             "type": "text",
                             "label":  "Gauge Value",
                             "default": "0",
@@ -95,7 +85,7 @@
                         
                         },
                         {
-                            "id":"dynamics_icon_gauge_cap",
+                            "id":"dynamic_icons_gauge_cap",
                             "type":"choice",
                             "label":"Gauge Icon Cap Type",
                             "default":"round",
@@ -110,9 +100,76 @@
                             "type": "color",
                             "label":  "Gauge Background Color",
                             "default": "#000000FF"
+                        },
+                        {
+                            "id":"dynamic_icons_gauge_counterclockwise",
+                            "type": "choice",
+                            "label":  "Gauge Counter Clockwise",
+                            "default": "Clockwise",
+                            "valueChoices":[
+                                "Clockwise",
+                                "Counter Clockwise"
+                            ]
                         }
                     ]
-                 }
+                 },
+                 {  "id": "generate_simple_bar_graph",
+                    "prefix": "Dynamic Icons:",
+                    "name":"Simple Bar Graph",
+                    "type":"communicate",
+                    "tryInline":"true",
+                    "format":"Dynamic Icons: Create a Simple Bar Graph with name {$dynamic_icons_bar_graph_name$} with background {$dynamic_icons_bar_graph_backround$} of color {$dynamic_icons_bar_graph_backround_color$} using bar color {$dynamic_icons_bar_graph_color$} add value {$dynamic_icons_bar_graph_value$} with bar width {$dynamic_icon_bar_graph_width$}",
+                    "hasHoldFunctionality": true,
+                    "data" :[
+                        {
+                            "id":"dynamic_icons_bar_graph_name",
+                            "type": "text",
+                            "label":  "Bar Graph Name",
+                            "default": ""
+                        },
+                        {
+                            "id":"dynamic_icons_bar_graph_backround",
+                            "type":"choice",
+                            "label":"Bar Graph Background",
+                            "default":"On",
+                            "valueChoices":[
+                                "On",
+                                "Off"
+                            ]
+                        },
+                        {
+                            "id":"dynamic_icons_bar_graph_backround_color",
+                            "type": "color",
+                            "label":  "Bar Graph Background Color",
+                            "default": "#FFFFFFFF"
+                        },
+                        {
+                            "id":"dynamic_icons_bar_graph_color",
+                            "type": "color",
+                            "label":  "Bar Graph Color",
+                            "default": "#FFA500FF"
+                        },
+                        {
+                            "id":"dynamic_icons_bar_graph_value",
+                            "type": "text",
+                            "label":  "Bar Graph Value",
+                            "default": "0",
+                            "allowDecimals":"true",
+                            "minValue":"0",
+                            "maxValue":"100"
+                        },
+                        {
+                            "id":"dynamic_icon_bar_graph_width",
+                            "type": "text",
+                            "label":  "Bar Graph Width",
+                            "default": "1",
+                            "allowDecimals":"false",
+                            "minValue":"1",
+                            "maxValue":"4"
+                        }
+                        
+                    ]
+                }
             ],
             "states": [
             ],
