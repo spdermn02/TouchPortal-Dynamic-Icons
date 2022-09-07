@@ -1,177 +1,1243 @@
 {
     "$schema": "https://pjiesco.com/touch-portal/entry.tp/schema",
-    "sdk": 5,
-    "version": 1000,
-    "TPDynamicIcons": "1.0.0",
+    "sdk": 6,
+    "version": "10100",
+    "TPDynamicIcons": "1.1.0",
     "name": "Touch Portal Dynamic Icons",
     "id": "Touch Portal Dynamic Icons",
-    "plugin_start_cmd_mac":"sh \"%TP_PLUGIN_FOLDER%\"TPDynamicIcons/start.sh touchportal-dynamic-icons",
+    "plugin_start_cmd_mac": "sh \"%TP_PLUGIN_FOLDER%\"TPDynamicIcons/start.sh touchportal-dynamic-icons",
     "plugin_start_cmd_windows": "\"%TP_PLUGIN_FOLDER%TPDynamicIcons\\touchportal-dynamic-icons.exe\"",
     "configuration": {
         "colorDark": "#23272A",
         "colorLight": "#7289DA"
     },
-    "settings": [
-    ],
+    "settings": [],
     "categories": [
         {
             "id": "TP Dynamic Icons",
             "name": "Dynamic Icons",
             "imagepath": "%TP_PLUGIN_FOLDER%TPDynamicIcons/tp-dynamic-icons.png",
             "actions": [
-                 {  "id": "generate_simple_round_gauge",
+                {
+                    "id": "generate_simple_round_gauge",
                     "prefix": "Dynamic Icons:",
-                    "name":"Simple Round Gauge",
-                    "type":"communicate",
-                    "tryInline":"true",
-                    "format":"Dynamic Icons: Create a Simple Round Guage with name {$dynamic_icons_gauge_name$} with shadow {$dynamic_icons_gauge_shadow$} of color {$dynamic_icons_gauge_shadow_color$} using indicator color {$dynamic_icons_gauge_color$} with highlight {$dynamic_icons_gauge_highlight$} starting at degree {$dynamic_icons_gauge_start_degree$} at value {$dynamic_icons_gauge_value$} with cap style {$dynamic_icons_gauge_cap$} on background color {$dynamic_icons_gauge_background_color$} in direction {$dynamic_icons_gauge_counterclockwise$}",
+                    "name": "Simple Round Gauge",
+                    "type": "communicate",
+                    "tryInline": true,
+                    "description": "Dynamic Icons: Create a Simple Round Gauge",
+                    "format": "Gauge Name {$dynamic_icons_icon_name$} with shadow {$dynamic_icons_gauge_shadow$} of color {$dynamic_icons_gauge_shadow_color$} using indicator color {$dynamic_icons_gauge_color$} with highlight {$dynamic_icons_gauge_highlight$} starting at degree {$dynamic_icons_gauge_start_degree$} at value {$dynamic_icons_gauge_value$} with cap style {$dynamic_icons_gauge_cap$} on background color {$dynamic_icons_gauge_background_color$} in direction {$dynamic_icons_gauge_counterclockwise$}",
                     "hasHoldFunctionality": true,
-                    "data" :[
+                    "data": [
                         {
-                            "id":"dynamic_icons_gauge_name",
+                            "id": "dynamic_icons_icon_name",
                             "type": "text",
-                            "label":  "Gauge Name",
+                            "label": "Icon Name",
                             "default": ""
                         },
                         {
-                            "id":"dynamic_icons_gauge_shadow",
-                            "type":"choice",
-                            "label":"Gauge Shadow",
-                            "default":"On",
-                            "valueChoices":[
+                            "id": "dynamic_icons_gauge_shadow",
+                            "type": "choice",
+                            "label": "Gauge Shadow",
+                            "default": "On",
+                            "valueChoices": [
                                 "On",
                                 "Off"
                             ]
                         },
                         {
-                            "id":"dynamic_icons_gauge_shadow_color",
+                            "id": "dynamic_icons_gauge_shadow_color",
                             "type": "color",
-                            "label":  "Gauge Shadow Color",
+                            "label": "Gauge Shadow Color",
                             "default": "#282828FF"
                         },
                         {
-                            "id":"dynamic_icons_gauge_color",
+                            "id": "dynamic_icons_gauge_color",
                             "type": "color",
-                            "label":  "Gauge Color",
+                            "label": "Gauge Color",
                             "default": "#FFA500FF"
                         },
                         {
-                            "id":"dynamic_icons_gauge_highlight",
-                            "type":"choice",
-                            "label":"Gauge Highlight",
-                            "default":"On",
-                            "valueChoices":[
+                            "id": "dynamic_icons_gauge_highlight",
+                            "type": "choice",
+                            "label": "Gauge Highlight",
+                            "default": "On",
+                            "valueChoices": [
                                 "On",
                                 "Off"
                             ]
                         },
                         {
-                            "id":"dynamic_icons_gauge_start_degree",
+                            "id": "dynamic_icons_gauge_start_degree",
                             "type": "number",
-                            "label":  "Gauge Start Degree",
+                            "label": "Gauge Start Degree",
                             "default": "180",
-                            "allowDecimals":"true",
-                            "minValue":"0",
-                            "maxValue":"360"
-                        
+                            "allowDecimals": true,
+                            "minValue": 0,
+                            "maxValue": 360
                         },
                         {
-                            "id":"dynamic_icons_gauge_value",
+                            "id": "dynamic_icons_gauge_value",
                             "type": "text",
-                            "label":  "Gauge Value",
-                            "default": "0",
-                            "allowDecimals":"true",
-                            "minValue":"0",
-                            "maxValue":"100"
-                        
+                            "label": "Gauge Value",
+                            "default": "0"
                         },
                         {
-                            "id":"dynamic_icons_gauge_cap",
-                            "type":"choice",
-                            "label":"Gauge Icon Cap Type",
-                            "default":"round",
-                            "valueChoices":[
-                                "butt", 
+                            "id": "dynamic_icons_gauge_cap",
+                            "type": "choice",
+                            "label": "Gauge Icon Cap Type",
+                            "default": "round",
+                            "valueChoices": [
                                 "round",
+                                "butt",
                                 "square"
                             ]
                         },
                         {
-                            "id":"dynamic_icons_gauge_background_color",
+                            "id": "dynamic_icons_gauge_background_color",
                             "type": "color",
-                            "label":  "Gauge Background Color",
+                            "label": "Gauge Background Color",
                             "default": "#000000FF"
                         },
                         {
-                            "id":"dynamic_icons_gauge_counterclockwise",
+                            "id": "dynamic_icons_gauge_counterclockwise",
                             "type": "choice",
-                            "label":  "Gauge Counter Clockwise",
+                            "label": "Gauge Direction",
                             "default": "Clockwise",
-                            "valueChoices":[
+                            "valueChoices": [
                                 "Clockwise",
                                 "Counter Clockwise"
                             ]
                         }
                     ]
-                 },
-                 {  "id": "generate_simple_bar_graph",
+                },
+                {
+                    "id": "generate_simple_bar_graph",
                     "prefix": "Dynamic Icons:",
-                    "name":"Simple Bar Graph",
-                    "type":"communicate",
-                    "tryInline":"true",
-                    "format":"Dynamic Icons: Create a Simple Bar Graph with name {$dynamic_icons_bar_graph_name$} with background {$dynamic_icons_bar_graph_backround$} of color {$dynamic_icons_bar_graph_backround_color$} using bar color {$dynamic_icons_bar_graph_color$} add value {$dynamic_icons_bar_graph_value$} with bar width {$dynamic_icon_bar_graph_width$}",
+                    "name": "Simple Bar Graph",
+                    "type": "communicate",
+                    "tryInline": true,
+                    "description": "Dynamic Icons: Create a Simple Bar Graph",
+                    "format": "Graph Name {$dynamic_icons_icon_name$} with background {$dynamic_icons_bar_graph_backround$} of color {$dynamic_icons_bar_graph_backround_color$} using bar color {$dynamic_icons_bar_graph_color$} add value {$dynamic_icons_bar_graph_value$} with bar width {$dynamic_icons_bar_graph_width$}",
                     "hasHoldFunctionality": true,
-                    "data" :[
+                    "data": [
                         {
-                            "id":"dynamic_icons_bar_graph_name",
+                            "id": "dynamic_icons_icon_name",
                             "type": "text",
-                            "label":  "Bar Graph Name",
+                            "label": "Icon Name",
                             "default": ""
                         },
                         {
-                            "id":"dynamic_icons_bar_graph_backround",
-                            "type":"choice",
-                            "label":"Bar Graph Background",
-                            "default":"On",
-                            "valueChoices":[
+                            "id": "dynamic_icons_bar_graph_backround",
+                            "type": "choice",
+                            "label": "Bar Graph Background",
+                            "default": "On",
+                            "valueChoices": [
                                 "On",
                                 "Off"
                             ]
                         },
                         {
-                            "id":"dynamic_icons_bar_graph_backround_color",
+                            "id": "dynamic_icons_bar_graph_backround_color",
                             "type": "color",
-                            "label":  "Bar Graph Background Color",
+                            "label": "Bar Graph Background Color",
                             "default": "#FFFFFFFF"
                         },
                         {
-                            "id":"dynamic_icons_bar_graph_color",
+                            "id": "dynamic_icons_bar_graph_color",
                             "type": "color",
-                            "label":  "Bar Graph Color",
+                            "label": "Bar Graph Color",
                             "default": "#FFA500FF"
                         },
                         {
-                            "id":"dynamic_icons_bar_graph_value",
+                            "id": "dynamic_icons_bar_graph_value",
                             "type": "text",
-                            "label":  "Bar Graph Value",
-                            "default": "0",
-                            "allowDecimals":"true",
-                            "minValue":"0",
-                            "maxValue":"100"
+                            "label": "Bar Graph Value",
+                            "default": "0"
                         },
                         {
-                            "id":"dynamic_icon_bar_graph_width",
+                            "id": "dynamic_icons_bar_graph_width",
                             "type": "number",
-                            "label":  "Bar Graph Width",
+                            "label": "Bar Graph Width",
                             "default": "10",
-                            "allowDecimals":"false",
-                            "minValue":"1",
-                            "maxValue":"256"
+                            "allowDecimals": false,
+                            "minValue": 1,
+                            "maxValue": 256
                         }
-                        
+                    ]
+                },
+                {
+                    "id": "dynamic_icons_generate_image_stack_rot_2",
+                    "prefix": "Dynamic Icons:",
+                    "name": "Rotated Image Stack (2 Images)",
+                    "type": "communicate",
+                    "tryInline": true,
+                    "description": "Create a composite icon from up to 2 images with optional transformation(s) applied to each one. File paths are relative to TP's 'plugins' folder (or use absolute paths). \nTransformation values are percentages where 100% is one full rotation or icon dimension, positive for CW/right/down, negative for CCW/left/up. Values can include math operators and JavaScript Math functions.",
+                    "format": "Icon\nName {$dynamic_icons_icon_name$} Size {$dynamic_icons_icon_size$} Image 1\nFile {$dynamic_icons_overlay_img1_src$}  \nRotate {$dynamic_icons_overlay_img1_rot$}  Image 2\nFile {$dynamic_icons_overlay_img2_src$}  \nRotate {$dynamic_icons_overlay_img2_rot$} ",
+                    "hasHoldFunctionality": false,
+                    "data": [
+                        {
+                            "id": "dynamic_icons_icon_name",
+                            "type": "text",
+                            "label": "Icon Name",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_icon_size",
+                            "type": "text",
+                            "label": "Icon Size",
+                            "default": "256"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_src",
+                            "type": "text",
+                            "label": "Image 1 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_rot",
+                            "type": "text",
+                            "label": "Image 1 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_txorder",
+                            "type": "text",
+                            "label": "Image 1 Transform Order",
+                            "default": "R"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_src",
+                            "type": "text",
+                            "label": "Image 2 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_rot",
+                            "type": "text",
+                            "label": "Image 2 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_txorder",
+                            "type": "text",
+                            "label": "Image 2 Transform Order",
+                            "default": "R"
+                        }
+                    ]
+                },
+                {
+                    "id": "dynamic_icons_generate_image_stack_rot_4",
+                    "prefix": "Dynamic Icons:",
+                    "name": "Rotated Image Stack (4 Images)",
+                    "type": "communicate",
+                    "tryInline": true,
+                    "description": "Create a composite icon from up to 4 images with optional transformation(s) applied to each one. File paths are relative to TP's 'plugins' folder (or use absolute paths). \nTransformation values are percentages where 100% is one full rotation or icon dimension, positive for CW/right/down, negative for CCW/left/up. Values can include math operators and JavaScript Math functions.",
+                    "format": "Icon\nName {$dynamic_icons_icon_name$} Size {$dynamic_icons_icon_size$} Image 1\nFile {$dynamic_icons_overlay_img1_src$}  \nRotate {$dynamic_icons_overlay_img1_rot$}  Image 2\nFile {$dynamic_icons_overlay_img2_src$}  \nRotate {$dynamic_icons_overlay_img2_rot$}  Image 3\nFile {$dynamic_icons_overlay_img3_src$}  \nRotate {$dynamic_icons_overlay_img3_rot$}  Image 4\nFile {$dynamic_icons_overlay_img4_src$}  \nRotate {$dynamic_icons_overlay_img4_rot$} ",
+                    "hasHoldFunctionality": false,
+                    "data": [
+                        {
+                            "id": "dynamic_icons_icon_name",
+                            "type": "text",
+                            "label": "Icon Name",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_icon_size",
+                            "type": "text",
+                            "label": "Icon Size",
+                            "default": "256"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_src",
+                            "type": "text",
+                            "label": "Image 1 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_rot",
+                            "type": "text",
+                            "label": "Image 1 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_txorder",
+                            "type": "text",
+                            "label": "Image 1 Transform Order",
+                            "default": "R"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_src",
+                            "type": "text",
+                            "label": "Image 2 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_rot",
+                            "type": "text",
+                            "label": "Image 2 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_txorder",
+                            "type": "text",
+                            "label": "Image 2 Transform Order",
+                            "default": "R"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_src",
+                            "type": "text",
+                            "label": "Image 3 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_rot",
+                            "type": "text",
+                            "label": "Image 3 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_txorder",
+                            "type": "text",
+                            "label": "Image 3 Transform Order",
+                            "default": "R"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_src",
+                            "type": "text",
+                            "label": "Image 4 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_rot",
+                            "type": "text",
+                            "label": "Image 4 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_txorder",
+                            "type": "text",
+                            "label": "Image 4 Transform Order",
+                            "default": "R"
+                        }
+                    ]
+                },
+                {
+                    "id": "dynamic_icons_generate_image_stack_rot_6",
+                    "prefix": "Dynamic Icons:",
+                    "name": "Rotated Image Stack (6 Images)",
+                    "type": "communicate",
+                    "tryInline": true,
+                    "description": "Create a composite icon from up to 6 images with optional transformation(s) applied to each one. File paths are relative to TP's 'plugins' folder (or use absolute paths). \nTransformation values are percentages where 100% is one full rotation or icon dimension, positive for CW/right/down, negative for CCW/left/up. Values can include math operators and JavaScript Math functions.",
+                    "format": "Icon\nName {$dynamic_icons_icon_name$} Size {$dynamic_icons_icon_size$} Image 1\nFile {$dynamic_icons_overlay_img1_src$}  \nRotate {$dynamic_icons_overlay_img1_rot$}  Image 2\nFile {$dynamic_icons_overlay_img2_src$}  \nRotate {$dynamic_icons_overlay_img2_rot$}  Image 3\nFile {$dynamic_icons_overlay_img3_src$}  \nRotate {$dynamic_icons_overlay_img3_rot$}  Image 4\nFile {$dynamic_icons_overlay_img4_src$}  \nRotate {$dynamic_icons_overlay_img4_rot$}  Image 5\nFile {$dynamic_icons_overlay_img5_src$}  \nRotate {$dynamic_icons_overlay_img5_rot$}  Image 6\nFile {$dynamic_icons_overlay_img6_src$}  \nRotate {$dynamic_icons_overlay_img6_rot$} ",
+                    "hasHoldFunctionality": false,
+                    "data": [
+                        {
+                            "id": "dynamic_icons_icon_name",
+                            "type": "text",
+                            "label": "Icon Name",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_icon_size",
+                            "type": "text",
+                            "label": "Icon Size",
+                            "default": "256"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_src",
+                            "type": "text",
+                            "label": "Image 1 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_rot",
+                            "type": "text",
+                            "label": "Image 1 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_txorder",
+                            "type": "text",
+                            "label": "Image 1 Transform Order",
+                            "default": "R"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_src",
+                            "type": "text",
+                            "label": "Image 2 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_rot",
+                            "type": "text",
+                            "label": "Image 2 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_txorder",
+                            "type": "text",
+                            "label": "Image 2 Transform Order",
+                            "default": "R"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_src",
+                            "type": "text",
+                            "label": "Image 3 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_rot",
+                            "type": "text",
+                            "label": "Image 3 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_txorder",
+                            "type": "text",
+                            "label": "Image 3 Transform Order",
+                            "default": "R"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_src",
+                            "type": "text",
+                            "label": "Image 4 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_rot",
+                            "type": "text",
+                            "label": "Image 4 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_txorder",
+                            "type": "text",
+                            "label": "Image 4 Transform Order",
+                            "default": "R"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img5_src",
+                            "type": "text",
+                            "label": "Image 5 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img5_rot",
+                            "type": "text",
+                            "label": "Image 5 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img5_txorder",
+                            "type": "text",
+                            "label": "Image 5 Transform Order",
+                            "default": "R"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img6_src",
+                            "type": "text",
+                            "label": "Image 6 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img6_rot",
+                            "type": "text",
+                            "label": "Image 6 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img6_txorder",
+                            "type": "text",
+                            "label": "Image 6 Transform Order",
+                            "default": "R"
+                        }
+                    ]
+                },
+                {
+                    "id": "dynamic_icons_generate_image_stack_trs_2",
+                    "prefix": "Dynamic Icons:",
+                    "name": "Translated Image Stack (2 Images)",
+                    "type": "communicate",
+                    "tryInline": true,
+                    "description": "Create a composite icon from up to 2 images with optional transformation(s) applied to each one. File paths are relative to TP's 'plugins' folder (or use absolute paths). \nTransformation values are percentages where 100% is one full rotation or icon dimension, positive for CW/right/down, negative for CCW/left/up. Values can include math operators and JavaScript Math functions.",
+                    "format": "Icon\nName {$dynamic_icons_icon_name$} Size {$dynamic_icons_icon_size$} Image 1\nFile {$dynamic_icons_overlay_img1_src$}  \nTranslate {$dynamic_icons_overlay_img1_trs$}  Image 2\nFile {$dynamic_icons_overlay_img2_src$}  \nTranslate {$dynamic_icons_overlay_img2_trs$} ",
+                    "hasHoldFunctionality": false,
+                    "data": [
+                        {
+                            "id": "dynamic_icons_icon_name",
+                            "type": "text",
+                            "label": "Icon Name",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_icon_size",
+                            "type": "text",
+                            "label": "Icon Size",
+                            "default": "256"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_src",
+                            "type": "text",
+                            "label": "Image 1 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_trs",
+                            "type": "text",
+                            "label": "Image 1 Translation Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_txorder",
+                            "type": "text",
+                            "label": "Image 1 Transform Order",
+                            "default": "T"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_src",
+                            "type": "text",
+                            "label": "Image 2 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_trs",
+                            "type": "text",
+                            "label": "Image 2 Translation Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_txorder",
+                            "type": "text",
+                            "label": "Image 2 Transform Order",
+                            "default": "T"
+                        }
+                    ]
+                },
+                {
+                    "id": "dynamic_icons_generate_image_stack_trs_4",
+                    "prefix": "Dynamic Icons:",
+                    "name": "Translated Image Stack (4 Images)",
+                    "type": "communicate",
+                    "tryInline": true,
+                    "description": "Create a composite icon from up to 4 images with optional transformation(s) applied to each one. File paths are relative to TP's 'plugins' folder (or use absolute paths). \nTransformation values are percentages where 100% is one full rotation or icon dimension, positive for CW/right/down, negative for CCW/left/up. Values can include math operators and JavaScript Math functions.",
+                    "format": "Icon\nName {$dynamic_icons_icon_name$} Size {$dynamic_icons_icon_size$} Image 1\nFile {$dynamic_icons_overlay_img1_src$}  \nTranslate {$dynamic_icons_overlay_img1_trs$}  Image 2\nFile {$dynamic_icons_overlay_img2_src$}  \nTranslate {$dynamic_icons_overlay_img2_trs$}  Image 3\nFile {$dynamic_icons_overlay_img3_src$}  \nTranslate {$dynamic_icons_overlay_img3_trs$}  Image 4\nFile {$dynamic_icons_overlay_img4_src$}  \nTranslate {$dynamic_icons_overlay_img4_trs$} ",
+                    "hasHoldFunctionality": false,
+                    "data": [
+                        {
+                            "id": "dynamic_icons_icon_name",
+                            "type": "text",
+                            "label": "Icon Name",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_icon_size",
+                            "type": "text",
+                            "label": "Icon Size",
+                            "default": "256"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_src",
+                            "type": "text",
+                            "label": "Image 1 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_trs",
+                            "type": "text",
+                            "label": "Image 1 Translation Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_txorder",
+                            "type": "text",
+                            "label": "Image 1 Transform Order",
+                            "default": "T"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_src",
+                            "type": "text",
+                            "label": "Image 2 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_trs",
+                            "type": "text",
+                            "label": "Image 2 Translation Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_txorder",
+                            "type": "text",
+                            "label": "Image 2 Transform Order",
+                            "default": "T"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_src",
+                            "type": "text",
+                            "label": "Image 3 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_trs",
+                            "type": "text",
+                            "label": "Image 3 Translation Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_txorder",
+                            "type": "text",
+                            "label": "Image 3 Transform Order",
+                            "default": "T"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_src",
+                            "type": "text",
+                            "label": "Image 4 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_trs",
+                            "type": "text",
+                            "label": "Image 4 Translation Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_txorder",
+                            "type": "text",
+                            "label": "Image 4 Transform Order",
+                            "default": "T"
+                        }
+                    ]
+                },
+                {
+                    "id": "dynamic_icons_generate_image_stack_scl_3",
+                    "prefix": "Dynamic Icons:",
+                    "name": "Scaled Image Stack (3 Images)",
+                    "type": "communicate",
+                    "tryInline": true,
+                    "description": "Create a composite icon from up to 3 images with optional transformation(s) applied to each one. File paths are relative to TP's 'plugins' folder (or use absolute paths). \nTransformation values are percentages where 100% is one full rotation or icon dimension, positive for CW/right/down, negative for CCW/left/up. Values can include math operators and JavaScript Math functions.",
+                    "format": "Icon\nName {$dynamic_icons_icon_name$} Size {$dynamic_icons_icon_size$} Image 1\nFile {$dynamic_icons_overlay_img1_src$}  \nScale {$dynamic_icons_overlay_img1_scl$}  Image 2\nFile {$dynamic_icons_overlay_img2_src$}  \nScale {$dynamic_icons_overlay_img2_scl$}  Image 3\nFile {$dynamic_icons_overlay_img3_src$}  \nScale {$dynamic_icons_overlay_img3_scl$} ",
+                    "hasHoldFunctionality": false,
+                    "data": [
+                        {
+                            "id": "dynamic_icons_icon_name",
+                            "type": "text",
+                            "label": "Icon Name",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_icon_size",
+                            "type": "text",
+                            "label": "Icon Size",
+                            "default": "256"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_src",
+                            "type": "text",
+                            "label": "Image 1 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_scl",
+                            "type": "text",
+                            "label": "Image 1 Scale Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_txorder",
+                            "type": "text",
+                            "label": "Image 1 Transform Order",
+                            "default": "S"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_src",
+                            "type": "text",
+                            "label": "Image 2 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_scl",
+                            "type": "text",
+                            "label": "Image 2 Scale Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_txorder",
+                            "type": "text",
+                            "label": "Image 2 Transform Order",
+                            "default": "S"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_src",
+                            "type": "text",
+                            "label": "Image 3 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_scl",
+                            "type": "text",
+                            "label": "Image 3 Scale Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_txorder",
+                            "type": "text",
+                            "label": "Image 3 Transform Order",
+                            "default": "S"
+                        }
+                    ]
+                },
+                {
+                    "id": "dynamic_icons_generate_image_stack_xform_2",
+                    "prefix": "Dynamic Icons:",
+                    "name": "Transformed Image Stack (2 Images)",
+                    "type": "communicate",
+                    "tryInline": true,
+                    "description": "Create a composite icon from up to 2 images with optional transformation(s) applied to each one. File paths are relative to TP's 'plugins' folder (or use absolute paths). \nTransformation values are percentages where 100% is one full rotation or icon dimension, positive for CW/right/down, negative for CCW/left/up. Values can include math operators and JavaScript Math functions.",
+                    "format": "Icon\nName {$dynamic_icons_icon_name$} Size {$dynamic_icons_icon_size$} Image 1\nFile {$dynamic_icons_overlay_img1_src$}  \nRotate {$dynamic_icons_overlay_img1_rot$}  \nTranslate {$dynamic_icons_overlay_img1_trs$}  \nScale {$dynamic_icons_overlay_img1_scl$}  \nOrder {$dynamic_icons_overlay_img1_txorder$} Image 2\nFile {$dynamic_icons_overlay_img2_src$}  \nRotate {$dynamic_icons_overlay_img2_rot$}  \nTranslate {$dynamic_icons_overlay_img2_trs$}  \nScale {$dynamic_icons_overlay_img2_scl$}  \nOrder {$dynamic_icons_overlay_img2_txorder$}",
+                    "hasHoldFunctionality": false,
+                    "data": [
+                        {
+                            "id": "dynamic_icons_icon_name",
+                            "type": "text",
+                            "label": "Icon Name",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_icon_size",
+                            "type": "text",
+                            "label": "Icon Size",
+                            "default": "256"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_src",
+                            "type": "text",
+                            "label": "Image 1 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_rot",
+                            "type": "text",
+                            "label": "Image 1 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_trs",
+                            "type": "text",
+                            "label": "Image 1 Translation Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_scl",
+                            "type": "text",
+                            "label": "Image 1 Scale Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_txorder",
+                            "type": "choice",
+                            "label": "Image 1 Transform Order",
+                            "default": "R, T, S",
+                            "valueChoices": [
+                                "R, T, S",
+                                "R, S, T",
+                                "T, R, S",
+                                "T, S, R",
+                                "S, R, T",
+                                "S, T, R"
+                            ]
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_src",
+                            "type": "text",
+                            "label": "Image 2 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_rot",
+                            "type": "text",
+                            "label": "Image 2 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_trs",
+                            "type": "text",
+                            "label": "Image 2 Translation Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_scl",
+                            "type": "text",
+                            "label": "Image 2 Scale Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_txorder",
+                            "type": "choice",
+                            "label": "Image 2 Transform Order",
+                            "default": "R, T, S",
+                            "valueChoices": [
+                                "R, T, S",
+                                "R, S, T",
+                                "T, R, S",
+                                "T, S, R",
+                                "S, R, T",
+                                "S, T, R"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "id": "dynamic_icons_generate_image_stack_xform_4",
+                    "prefix": "Dynamic Icons:",
+                    "name": "Transformed Image Stack (4 Images)",
+                    "type": "communicate",
+                    "tryInline": true,
+                    "description": "Create a composite icon from up to 4 images with optional transformation(s) applied to each one. File paths are relative to TP's 'plugins' folder (or use absolute paths). \nTransformation values are percentages where 100% is one full rotation or icon dimension, positive for CW/right/down, negative for CCW/left/up. Values can include math operators and JavaScript Math functions.",
+                    "format": "Icon\nName {$dynamic_icons_icon_name$} Size {$dynamic_icons_icon_size$} Image 1\nFile {$dynamic_icons_overlay_img1_src$}  \nRotate {$dynamic_icons_overlay_img1_rot$}  \nTranslate {$dynamic_icons_overlay_img1_trs$}  \nScale {$dynamic_icons_overlay_img1_scl$}  \nOrder {$dynamic_icons_overlay_img1_txorder$} Image 2\nFile {$dynamic_icons_overlay_img2_src$}  \nRotate {$dynamic_icons_overlay_img2_rot$}  \nTranslate {$dynamic_icons_overlay_img2_trs$}  \nScale {$dynamic_icons_overlay_img2_scl$}  \nOrder {$dynamic_icons_overlay_img2_txorder$} Image 3\nFile {$dynamic_icons_overlay_img3_src$}  \nRotate {$dynamic_icons_overlay_img3_rot$}  \nTranslate {$dynamic_icons_overlay_img3_trs$}  \nScale {$dynamic_icons_overlay_img3_scl$}  \nOrder {$dynamic_icons_overlay_img3_txorder$} Image 4\nFile {$dynamic_icons_overlay_img4_src$}  \nRotate {$dynamic_icons_overlay_img4_rot$}  \nTranslate {$dynamic_icons_overlay_img4_trs$}  \nScale {$dynamic_icons_overlay_img4_scl$}  \nOrder {$dynamic_icons_overlay_img4_txorder$}",
+                    "hasHoldFunctionality": false,
+                    "data": [
+                        {
+                            "id": "dynamic_icons_icon_name",
+                            "type": "text",
+                            "label": "Icon Name",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_icon_size",
+                            "type": "text",
+                            "label": "Icon Size",
+                            "default": "256"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_src",
+                            "type": "text",
+                            "label": "Image 1 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_rot",
+                            "type": "text",
+                            "label": "Image 1 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_trs",
+                            "type": "text",
+                            "label": "Image 1 Translation Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_scl",
+                            "type": "text",
+                            "label": "Image 1 Scale Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_txorder",
+                            "type": "choice",
+                            "label": "Image 1 Transform Order",
+                            "default": "R, T, S",
+                            "valueChoices": [
+                                "R, T, S",
+                                "R, S, T",
+                                "T, R, S",
+                                "T, S, R",
+                                "S, R, T",
+                                "S, T, R"
+                            ]
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_src",
+                            "type": "text",
+                            "label": "Image 2 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_rot",
+                            "type": "text",
+                            "label": "Image 2 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_trs",
+                            "type": "text",
+                            "label": "Image 2 Translation Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_scl",
+                            "type": "text",
+                            "label": "Image 2 Scale Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_txorder",
+                            "type": "choice",
+                            "label": "Image 2 Transform Order",
+                            "default": "R, T, S",
+                            "valueChoices": [
+                                "R, T, S",
+                                "R, S, T",
+                                "T, R, S",
+                                "T, S, R",
+                                "S, R, T",
+                                "S, T, R"
+                            ]
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_src",
+                            "type": "text",
+                            "label": "Image 3 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_rot",
+                            "type": "text",
+                            "label": "Image 3 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_trs",
+                            "type": "text",
+                            "label": "Image 3 Translation Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_scl",
+                            "type": "text",
+                            "label": "Image 3 Scale Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_txorder",
+                            "type": "choice",
+                            "label": "Image 3 Transform Order",
+                            "default": "R, T, S",
+                            "valueChoices": [
+                                "R, T, S",
+                                "R, S, T",
+                                "T, R, S",
+                                "T, S, R",
+                                "S, R, T",
+                                "S, T, R"
+                            ]
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_src",
+                            "type": "text",
+                            "label": "Image 4 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_rot",
+                            "type": "text",
+                            "label": "Image 4 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_trs",
+                            "type": "text",
+                            "label": "Image 4 Translation Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_scl",
+                            "type": "text",
+                            "label": "Image 4 Scale Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_txorder",
+                            "type": "choice",
+                            "label": "Image 4 Transform Order",
+                            "default": "R, T, S",
+                            "valueChoices": [
+                                "R, T, S",
+                                "R, S, T",
+                                "T, R, S",
+                                "T, S, R",
+                                "S, R, T",
+                                "S, T, R"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "id": "dynamic_icons_generate_image_stack_xform_6",
+                    "prefix": "Dynamic Icons:",
+                    "name": "Transformed Image Stack (6 Images)",
+                    "type": "communicate",
+                    "tryInline": true,
+                    "description": "Create a composite icon from up to 6 images with optional transformation(s) applied to each one. File paths are relative to TP's 'plugins' folder (or use absolute paths). \nTransformation values are percentages where 100% is one full rotation or icon dimension, positive for CW/right/down, negative for CCW/left/up. Values can include math operators and JavaScript Math functions.",
+                    "format": "Icon\nName {$dynamic_icons_icon_name$} Size {$dynamic_icons_icon_size$} Image 1\nFile {$dynamic_icons_overlay_img1_src$}  \nRotate {$dynamic_icons_overlay_img1_rot$}  \nTranslate {$dynamic_icons_overlay_img1_trs$}  \nScale {$dynamic_icons_overlay_img1_scl$}  \nOrder {$dynamic_icons_overlay_img1_txorder$} Image 2\nFile {$dynamic_icons_overlay_img2_src$}  \nRotate {$dynamic_icons_overlay_img2_rot$}  \nTranslate {$dynamic_icons_overlay_img2_trs$}  \nScale {$dynamic_icons_overlay_img2_scl$}  \nOrder {$dynamic_icons_overlay_img2_txorder$} Image 3\nFile {$dynamic_icons_overlay_img3_src$}  \nRotate {$dynamic_icons_overlay_img3_rot$}  \nTranslate {$dynamic_icons_overlay_img3_trs$}  \nScale {$dynamic_icons_overlay_img3_scl$}  \nOrder {$dynamic_icons_overlay_img3_txorder$} Image 4\nFile {$dynamic_icons_overlay_img4_src$}  \nRotate {$dynamic_icons_overlay_img4_rot$}  \nTranslate {$dynamic_icons_overlay_img4_trs$}  \nScale {$dynamic_icons_overlay_img4_scl$}  \nOrder {$dynamic_icons_overlay_img4_txorder$} Image 5\nFile {$dynamic_icons_overlay_img5_src$}  \nRotate {$dynamic_icons_overlay_img5_rot$}  \nTranslate {$dynamic_icons_overlay_img5_trs$}  \nScale {$dynamic_icons_overlay_img5_scl$}  \nOrder {$dynamic_icons_overlay_img5_txorder$} Image 6\nFile {$dynamic_icons_overlay_img6_src$}  \nRotate {$dynamic_icons_overlay_img6_rot$}  \nTranslate {$dynamic_icons_overlay_img6_trs$}  \nScale {$dynamic_icons_overlay_img6_scl$}  \nOrder {$dynamic_icons_overlay_img6_txorder$}",
+                    "hasHoldFunctionality": false,
+                    "data": [
+                        {
+                            "id": "dynamic_icons_icon_name",
+                            "type": "text",
+                            "label": "Icon Name",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_icon_size",
+                            "type": "text",
+                            "label": "Icon Size",
+                            "default": "256"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_src",
+                            "type": "text",
+                            "label": "Image 1 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_rot",
+                            "type": "text",
+                            "label": "Image 1 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_trs",
+                            "type": "text",
+                            "label": "Image 1 Translation Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_scl",
+                            "type": "text",
+                            "label": "Image 1 Scale Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img1_txorder",
+                            "type": "choice",
+                            "label": "Image 1 Transform Order",
+                            "default": "R, T, S",
+                            "valueChoices": [
+                                "R, T, S",
+                                "R, S, T",
+                                "T, R, S",
+                                "T, S, R",
+                                "S, R, T",
+                                "S, T, R"
+                            ]
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_src",
+                            "type": "text",
+                            "label": "Image 2 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_rot",
+                            "type": "text",
+                            "label": "Image 2 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_trs",
+                            "type": "text",
+                            "label": "Image 2 Translation Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_scl",
+                            "type": "text",
+                            "label": "Image 2 Scale Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img2_txorder",
+                            "type": "choice",
+                            "label": "Image 2 Transform Order",
+                            "default": "R, T, S",
+                            "valueChoices": [
+                                "R, T, S",
+                                "R, S, T",
+                                "T, R, S",
+                                "T, S, R",
+                                "S, R, T",
+                                "S, T, R"
+                            ]
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_src",
+                            "type": "text",
+                            "label": "Image 3 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_rot",
+                            "type": "text",
+                            "label": "Image 3 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_trs",
+                            "type": "text",
+                            "label": "Image 3 Translation Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_scl",
+                            "type": "text",
+                            "label": "Image 3 Scale Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img3_txorder",
+                            "type": "choice",
+                            "label": "Image 3 Transform Order",
+                            "default": "R, T, S",
+                            "valueChoices": [
+                                "R, T, S",
+                                "R, S, T",
+                                "T, R, S",
+                                "T, S, R",
+                                "S, R, T",
+                                "S, T, R"
+                            ]
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_src",
+                            "type": "text",
+                            "label": "Image 4 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_rot",
+                            "type": "text",
+                            "label": "Image 4 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_trs",
+                            "type": "text",
+                            "label": "Image 4 Translation Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_scl",
+                            "type": "text",
+                            "label": "Image 4 Scale Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img4_txorder",
+                            "type": "choice",
+                            "label": "Image 4 Transform Order",
+                            "default": "R, T, S",
+                            "valueChoices": [
+                                "R, T, S",
+                                "R, S, T",
+                                "T, R, S",
+                                "T, S, R",
+                                "S, R, T",
+                                "S, T, R"
+                            ]
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img5_src",
+                            "type": "text",
+                            "label": "Image 5 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img5_rot",
+                            "type": "text",
+                            "label": "Image 5 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img5_trs",
+                            "type": "text",
+                            "label": "Image 5 Translation Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img5_scl",
+                            "type": "text",
+                            "label": "Image 5 Scale Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img5_txorder",
+                            "type": "choice",
+                            "label": "Image 5 Transform Order",
+                            "default": "R, T, S",
+                            "valueChoices": [
+                                "R, T, S",
+                                "R, S, T",
+                                "T, R, S",
+                                "T, S, R",
+                                "S, R, T",
+                                "S, T, R"
+                            ]
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img6_src",
+                            "type": "text",
+                            "label": "Image 6 Source",
+                            "default": ""
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img6_rot",
+                            "type": "text",
+                            "label": "Image 6 Rotation Value",
+                            "default": "0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img6_trs",
+                            "type": "text",
+                            "label": "Image 6 Translation Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img6_scl",
+                            "type": "text",
+                            "label": "Image 6 Scale Value",
+                            "default": "0 : 0"
+                        },
+                        {
+                            "id": "dynamic_icons_overlay_img6_txorder",
+                            "type": "choice",
+                            "label": "Image 6 Transform Order",
+                            "default": "R, T, S",
+                            "valueChoices": [
+                                "R, T, S",
+                                "R, S, T",
+                                "T, R, S",
+                                "T, S, R",
+                                "S, R, T",
+                                "S, T, R"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "id": "dynamic_icons_control_command",
+                    "prefix": "Dynamic Icons:",
+                    "name": "System Actions",
+                    "type": "communicate",
+                    "tryInline": true,
+                    "description": "",
+                    "format": "Perform Action: {$dynamic_icons_control_command_action$}",
+                    "hasHoldFunctionality": false,
+                    "data": [
+                        {
+                            "id": "dynamic_icons_control_command_action",
+                            "type": "choice",
+                            "label": "Action to Perform",
+                            "default": "",
+                            "valueChoices": [
+                                "Clear the Source Image Cache"
+                            ]
+                        }
                     ]
                 }
             ],
+            "connectors": [],
             "states": [],
             "events": []
         }
