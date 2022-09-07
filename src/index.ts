@@ -206,4 +206,11 @@ TPClient.on("Info", (message?:any) => {
     TPClient.logIt("INFO","Connected to Touch Portal "+JSON.stringify(message))
 })
 
+// This is a workaround hack for skia-canvas v1.0.0 hanging the plugin on exit (in some cases). Yet it has the best imaging composition performance by far.
+// This should ideally be removed ASAP since it may prevent legitimate exception messages from showing on exit, making diagnostics rather difficult.
+process.on('exit', function() {
+    TPClient.logIt("WARN","Force terminating the plugin!")
+    process.kill(process.pid, 'SIGTERM');
+})
+
 TPClient.connect({pluginId})
