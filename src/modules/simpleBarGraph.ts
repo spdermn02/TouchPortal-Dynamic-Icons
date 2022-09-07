@@ -1,5 +1,6 @@
 import {Canvas} from 'skia-canvas'
 import {BarGraph} from './interfaces'
+type Canvas = typeof Canvas  // w/out this: "Cannot use namespace Canvas as a type"
 
 function getCanvas(width: number, height: number ) {
   return  new Canvas(width, height)
@@ -30,6 +31,6 @@ export async function buildBarGraph(width: number = 256, height: number = 256, b
         ctx.fill();
         x1+=barWidth
     })
-    const buffer = await canvas.toBuffer('image/png')
-    return buffer.toString("base64");
+
+    return await canvas.png;
 }

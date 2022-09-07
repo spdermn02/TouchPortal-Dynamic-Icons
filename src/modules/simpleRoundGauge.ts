@@ -1,6 +1,7 @@
 import {Canvas} from 'skia-canvas'
 import {Gauge} from './interfaces'
 import {PI, PI2, radius} from '../utils/consts'
+type Canvas = typeof Canvas  // w/out this: "Cannot use namespace Canvas as a type"
 
 function getCanvas(width: number, height: number ) {
   return  new Canvas(width, height)
@@ -55,9 +56,6 @@ export async function buildSimpleRoundGauge(width: number = 256, height: number 
   ctx.strokeStyle= gauge.indicatorColor
   ctx.lineWidth=15
   ctx.stroke();
-  
 
-  const buffer = await canvas.toBuffer('image/png')
-  return buffer.toString("base64");
-
+  return await canvas.png;
 }
