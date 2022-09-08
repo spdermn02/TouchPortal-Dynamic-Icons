@@ -59,10 +59,12 @@ echo;
 echo === Zipping up plugin ===
 CMD /C "%PROGRAMFILES%\7-Zip\7z" a -tzip %tppfile% .\%base_dir%\* %zip_args%
 
-echo;
-echo === Cleanup build process ===
-rd /S /Q %folder%\node_modules
-if not "%build_keep_bin%"=="1" del /Q %folder%\%executable%
+if not "%build_keep_bin%"=="1" (
+    echo;
+    echo === Cleanup build process ===
+    rd /S /Q %folder%\node_modules
+    del /Q %folder%\%executable%
+)
 
 echo;
 echo === Build finished. ===

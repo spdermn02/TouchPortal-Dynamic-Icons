@@ -54,6 +54,8 @@ rm -rf  ${tppfile}
 echo "=== Zipping up plugin ==="
 zip -r ${zip_args} ${tppfile} ./${base_dir}/*
 
-echo "=== Cleanup build process ==="
-rm -rf ${folder}/node_modules
-if [ "$build_keep_bin" != "1" ]; then rm -f ${folder}/${executable}; fi
+if [ "$build_keep_bin" != "1" ]; then
+    echo "=== Cleanup build process ==="
+    rm -rf ${folder}/node_modules
+    rm -f ${folder}/${executable}
+fi
