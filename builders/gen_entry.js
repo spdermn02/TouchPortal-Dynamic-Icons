@@ -28,7 +28,7 @@ if (!VERSION) {
 // Create integer version number from dotted notation in form of ((MAJ << 16) | (MIN << 8) | PATCH)
 // Each version part is limited to the range of 0-99.
 var iVersion = 0;
-for (const part of VERSION.split('.'))
+for (const part of VERSION.split('-', 1)[0].split('.', 3))
     iVersion = iVersion << 8 | (parseInt(part) & 0xFF);
 
 // --------------------------------------
