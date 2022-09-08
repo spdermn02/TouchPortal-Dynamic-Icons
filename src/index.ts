@@ -63,7 +63,7 @@ TPClient.on("Action",async (message:any, /* hold?:boolean */) => {
         return
 
     // handle any housekeeping, non-image-generating actions first.
-    if (message.actionId === 'dynamic_icons_control_command_action') {
+    if (message.actionId === 'dynamic_icons_control_command') {
         switch (message.data[0].value) {
             case 'Clear the Source Image Cache':
                 globalImageCache.clear()
