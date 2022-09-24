@@ -31,36 +31,46 @@ export type SizeType = {
     height: number
 }
 
-export interface OverlayImagesIcon {
-    size: SizeType,
-    imageSources: string[]
-}
-
 export class Vect2d {
     x: number = 0
     y: number = 0
-    get isEmpty():boolean { return !(this.x + this.y); }
-    constructor(init?:Partial<Vect2d>) { Object.assign(this, init); }
+    constructor(x: number = 0, y: number = 0) { this.x = x; this.y = y; }
+    set(x: number, y: number) { this.x = x; this.y = y; }
+    get isEmpty():boolean { return !this.x && !this.y; }
 }
 
-export type TransformOp = 'T' | 'R' | 'S';   // translate | rotate | scale
+export type TransformOp = 'O' | 'R' | 'SC' | 'SK';   // offset (translate) | rotate | scale | skew
 
 export class Transformation {
     // all values are percentages coming from TP actions, not actual matrix values
     rotate: number = 0                // percent of 360 degrees
     scale: Vect2d = new Vect2d()      // percent of requested image size (not the original source image), negative for reduction; eg: 100 is double size, -50 is half size.
     translate: Vect2d = new Vect2d()  // percentage of relevant dimension of requested image size
-                                       // eg: x = 100 translates one full image width to the right (completely out of frame for an unscaled source image)
-    transformOrder: TransformOp[] = ['T', 'R', 'S']
-    get isEmpty():boolean { return !this.rotate && this.scale.isEmpty && this.translate.isEmpty }
+                                      // eg: x = 100 translates one full image width to the right (completely out of frame for an unscaled source image)
+    skew: Vect2d = new Vect2d()       // percent of requested image size (not the original source image)
+    transformOrder: TransformOp[] = ['O', 'R', 'SC', 'SK']
     constructor(init?:Partial<Transformation>) { Object.assign(this, init); }
+    get isEmpty():boolean { return !this.rotate && this.scale.isEmpty && this.translate.isEmpty && this.skew.isEmpty }
 }
 
-export class OverlayImagesIcon implements OverlayImagesIcon {
-    size = { width: 256, height: 256 }
-    imageSources = new Array<string>()
+// This class hold an image source (path) and associated data like processing options or transformation to apply.
+export class DynamicImage {
+    source: string = ""
+    resizeOptions: any = {
+        fit: "contain"   // as per CSS object-fit property: contain, cover, fill, scale-down, none
+    }
+    transform: Transformation | null = null
+    constructor(init?:Partial<DynamicImage>) { Object.assign(this, init); }
 }
 
-export class TransformedOverlayImagesIcon extends OverlayImagesIcon {
-    transformations: Transformation[] = new Array<Transformation>()
+// Base class for a dynamically generated icon image, holds meta data like name and size, and possibly a background rectangle.
+export class DynamicIcon {
+    name: string = ""
+    size: SizeType = { width: 256, height: 256 }
+    constructor(init?:Partial<DynamicIcon>) { Object.assign(this, init); }
+}
+
+// An icon representing a "stack" of one ore more image sources which get composited together.
+export class TransformedOverlayImagesIcon extends DynamicIcon {
+    images: (DynamicImage | null)[] = new Array<DynamicImage | null>()
 }

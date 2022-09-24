@@ -66,6 +66,8 @@ const entry_base =
 const ID_PREFIX = "dynamic_icons_";
 const category = entry_base.categories[0];
 
+const TRANSFORM_OPERATIONS = ['O', 'R', 'SC', 'SK'];
+
 // --------------------------------------
 // Helper functions
 
@@ -122,12 +124,60 @@ function makeIconNameData(label = "Icon Name") {
 
 // for image overlay actions
 
-function addImageSource(imgNum, dataIdx, format, data) {
-    format.push(`Image ${imgNum}\nFile {${dataIdx}}`);
-    data.push(makeActionData(`overlay_img${imgNum}_src`, "text", `Image ${imgNum} Source`))
+function addTransformOrderData(dataIdx, opsList, /* out */ format, /* out */ data, imgNum = "") {
+    if (!opsList.length)
+        return;
+    const f = opsList.length > 1 ? `Order {${dataIdx}}` : "";
+    let d = makeActionData(`overlay_img${imgNum}_txorder`, opsList.length > 1 ? "choice" : "text", `Transform Order`);
+    if (opsList.length == 2)
+        d.valueChoices = [
+            `${opsList[0]}, ${opsList[1]}`,
+            `${opsList[1]}, ${opsList[0]}`,
+        ];
+    else if (opsList.length == 3)
+        d.valueChoices = [
+            `${opsList[0]}, ${opsList[1]}, ${opsList[2]}`,
+            `${opsList[0]}, ${opsList[2]}, ${opsList[1]}`,
+            `${opsList[1]}, ${opsList[0]}, ${opsList[2]}`,
+            `${opsList[1]}, ${opsList[2]}, ${opsList[0]}`,
+            `${opsList[2]}, ${opsList[0]}, ${opsList[1]}`,
+            `${opsList[2]}, ${opsList[1]}, ${opsList[0]}`,
+        ];
+    else  // 4
+        d.valueChoices = [
+            `${opsList[0]}, ${opsList[1]}, ${opsList[2]}, ${opsList[3]}`,  //
+            `${opsList[0]}, ${opsList[1]}, ${opsList[3]}, ${opsList[2]}`,
+            `${opsList[0]}, ${opsList[2]}, ${opsList[1]}, ${opsList[3]}`,
+            `${opsList[0]}, ${opsList[2]}, ${opsList[3]}, ${opsList[1]}`,
+            `${opsList[0]}, ${opsList[3]}, ${opsList[1]}, ${opsList[2]}`,
+            `${opsList[0]}, ${opsList[3]}, ${opsList[2]}, ${opsList[1]}`,
+            `${opsList[1]}, ${opsList[0]}, ${opsList[2]}, ${opsList[3]}`,  //
+            `${opsList[1]}, ${opsList[0]}, ${opsList[3]}, ${opsList[2]}`,
+            `${opsList[1]}, ${opsList[2]}, ${opsList[0]}, ${opsList[3]}`,
+            `${opsList[1]}, ${opsList[2]}, ${opsList[3]}, ${opsList[0]}`,
+            `${opsList[1]}, ${opsList[3]}, ${opsList[0]}, ${opsList[2]}`,
+            `${opsList[1]}, ${opsList[3]}, ${opsList[2]}, ${opsList[0]}`,
+            `${opsList[2]}, ${opsList[1]}, ${opsList[0]}, ${opsList[3]}`,  //
+            `${opsList[2]}, ${opsList[1]}, ${opsList[3]}, ${opsList[0]}`,
+            `${opsList[2]}, ${opsList[0]}, ${opsList[1]}, ${opsList[3]}`,
+            `${opsList[2]}, ${opsList[0]}, ${opsList[3]}, ${opsList[1]}`,
+            `${opsList[2]}, ${opsList[3]}, ${opsList[1]}, ${opsList[0]}`,
+            `${opsList[2]}, ${opsList[3]}, ${opsList[0]}, ${opsList[1]}`,
+            `${opsList[3]}, ${opsList[1]}, ${opsList[2]}, ${opsList[0]}`,  //
+            `${opsList[3]}, ${opsList[1]}, ${opsList[0]}, ${opsList[2]}`,
+            `${opsList[3]}, ${opsList[2]}, ${opsList[1]}, ${opsList[0]}`,
+            `${opsList[3]}, ${opsList[2]}, ${opsList[0]}, ${opsList[1]}`,
+            `${opsList[3]}, ${opsList[0]}, ${opsList[1]}, ${opsList[2]}`,
+            `${opsList[3]}, ${opsList[0]}, ${opsList[2]}, ${opsList[1]}`,
+        ];
+    d.default = opsList.length > 1 ? d.valueChoices[0] : opsList[0];
+
+    format.push(f);
+    data.push(d);
 }
 
-function addTransformOp(type, imgNum, dataIdx, /* out */ format, /* out */ data, opsList = []) {
+// TODO: possibly simplify if addImageStackAction() (below) is removed
+function addTransformOp(type, dataIdx, /* out */ format, /* out */ data, imgNum = "") {
     let f = ` \n{0} {${dataIdx}}`;
     let d = makeActionData(`overlay_img${imgNum}_`, "text", `Image ${imgNum} `, "0 : 0");
     switch (type) {
@@ -137,45 +187,21 @@ function addTransformOp(type, imgNum, dataIdx, /* out */ format, /* out */ data,
             d.label += "Rotation Value";
             d.default = "0";
             break;
-        case "T":
-            f = f.format("Translate");
+        case "O":
+            f = f.format("Offset");
             d.id += "trs";
-            d.label += "Translation Value";
+            d.label += "Offset Value";
             break;
-        case "S":
+        case "SC":
             f = f.format("Scale");
             d.id += "scl";
             d.label += "Scale Value";
+            d.default = "100 : 100";
             break;
-        case "O":
-            if (!opsList.length)
-                break;
-            if (opsList.length > 1)
-                f = f.format("Order");
-            else
-                f = "";
-            d.id += "txorder";
-            d.label += "Transform Order";
-            if (opsList.length == 1) {
-                d.default = opsList[0];
-                break;
-            }
-            d.type = "choice";
-            if (opsList.length == 2)
-                d.valueChoices = [
-                    `${opsList[0]}, ${opsList[1]}`,
-                    `${opsList[1]}, ${opsList[0]}`,
-                ];
-            else  // 3
-                d.valueChoices = [
-                    `${opsList[0]}, ${opsList[1]}, ${opsList[2]}`,
-                    `${opsList[0]}, ${opsList[2]}, ${opsList[1]}`,
-                    `${opsList[1]}, ${opsList[0]}, ${opsList[2]}`,
-                    `${opsList[1]}, ${opsList[2]}, ${opsList[0]}`,
-                    `${opsList[2]}, ${opsList[0]}, ${opsList[1]}`,
-                    `${opsList[2]}, ${opsList[1]}, ${opsList[0]}`,
-                ];
-            d.default = d.valueChoices[0];
+        case "SK":
+            f = f.format("Skew");
+            d.id += "skw";
+            d.label += "Skew Value";
             break;
         default:
             return;
@@ -184,14 +210,25 @@ function addTransformOp(type, imgNum, dataIdx, /* out */ format, /* out */ data,
     data.push(d);
 }
 
+function makeTransformationData(startIndex, withTxOrder = true) {
+    const format = [];
+    const data = [];
+    for (const op of TRANSFORM_OPERATIONS)
+        addTransformOp(op, startIndex++, format, data);
+    if (withTxOrder)
+        addTransformOrderData(startIndex++, TRANSFORM_OPERATIONS, format, data);
+    return [ format.join(" "), data ];
+}
+
 // --------------------------------------
 // Action creation functions
 
-function addImageStackAction(id, name, numImgs, ops = ['R', 'T', 'S'], includeOpsField = true) {
+// TODO: possibly remove
+function addImageStackAction(id, name, numImgs, ops = TRANSFORM_OPERATIONS.slice(0, 3), includeOpsField = true) {
     const descript =
         `Create a composite icon from up to ${numImgs} images with optional transformation(s) applied to each one. ` +
         "File paths are relative to TP's 'plugins' folder (or use absolute paths). \n" +
-        "Transformation values are percentages where 100% is one full rotation or icon dimension, positive for CW/right/down, negative for CCW/left/up. " +
+        "Transformation values are percentages where 100% is one full rotation or icon dimension, positive for CW/right/down, negative for CCW/left/up. Negative scaling flips images." +
         "Values can include math operators and JavaScript Math functions.";
     let format = [        // use an array so we can pass by reference to helper function
         "Icon\nName {0}",
@@ -203,13 +240,58 @@ function addImageStackAction(id, name, numImgs, ops = ['R', 'T', 'S'], includeOp
     ];
     let arg = 2;
     for (let i = 0; i < numImgs; ++i) {
-        addImageSource(i + 1, arg++, format, data);
+        format.push(`Image ${i + 1}\nFile {${arg++}}`);
+        data.push(makeActionData(`overlay_img${i + 1}_src`, "text", `Image ${i + 1} Source`))
         for (const op of ops)
-            addTransformOp(op, i+1, arg++, format, data);
+            addTransformOp(op, arg++, format, data, i+1);
         if (includeOpsField)
-            addTransformOp('O', i+1, arg++, format, data, ops);
+            addTransformOrderData(arg++, ops, format, data, i+1);
     }
-    addAction(ID_PREFIX + "generate_image_stack_" + id, name, descript, format.join(" "), data, false);
+    addAction(ID_PREFIX + id, name, descript, format.join(" "), data, false);
+}
+
+function addImageStackStartAction(id, name) {
+    const descript = "Dynamic Icons: \n" +
+        "Start a new dynamic image icon. Add image(s) in following 'Add Image' action(s) and then use the 'Generate' action to produce the icon.";
+    let format = "Icon Name {0} of size (px) {1}";
+    const data = [
+        makeIconNameData(),
+        makeActionData("icon_size", "text", "Icon Size", "256"),
+    ];
+    addAction(ID_PREFIX + id, name, descript, format, data);
+}
+
+function addImageStackImageAction(id, name, withIndex = false, withTransform = true) {
+    const descript = "Dynamic Icons: " +
+        (withIndex ? "Replace (or append) an image at specified position in" : "Add an image to") +
+        " a named icon, with optional transformation(s) applied. Icon with same Name must first be created with a 'Start New' action. " +
+        "File paths are relative to TP's 'plugins' folder (or use absolute paths). \n" +
+        "Transformation values are percentages where 100% is one full rotation or icon dimension, positive for CW/right/down, negative for CCW/left/up. Negative scaling flips images." +
+        "Values can include math operators and JavaScript Math functions.";
+    let format = "Icon\nName {0}";
+    let data = [ makeIconNameData() ];
+    let dataIdx = 1;
+    if (withIndex) {
+        format += ` Replace\nImage # {${dataIdx++}}`;
+        data.push(makeNumericData("replace_index", "Image Index", 1, 1, 99, false));
+    }
+    format += `Image\nFile {${dataIdx++}} Resize {${dataIdx++}}`;
+    data.push(makeActionData("overlay_img_src", "text", "Image Source"));
+    data.push(makeChoiceData("overlay_img_fit", "Image Source", ["contain", "cover", "fill", "scale-down", "none"]));
+    if (withTransform) {
+        const [txFrmt, txData] = makeTransformationData(dataIdx, true);
+        format += txFrmt;
+        data.push(...txData);
+    }
+    addAction(ID_PREFIX + id, name, descript, format, data, false);
+}
+
+function addImageStackRenderAction(id, name) {
+    const descript = "Dynamic Icons:\n" +
+        "Generate dynamic image icon which has been created using preceding 'Start New' and 'Add Image' actions using the same Icon Name.";
+    const format = "Generate Icon Named {0}";
+    const data = [ makeIconNameData() ];
+    addAction(ID_PREFIX + id, name, descript, format, data);
 }
 
 function addRoundGauge(id, name) {
@@ -256,17 +338,23 @@ function addSystemActions() {
 // Add all our icon generator actions
 addRoundGauge("generate_simple_round_gauge", "Simple Round Gauge");
 addBarGraph("generate_simple_bar_graph", "Simple Bar Graph");
+
+addImageStackStartAction("new_image_stack", "Image Stack Icon - Start New");
+addImageStackImageAction("add_image", "Image Stack Icon - Add Image");
+addImageStackImageAction("replace_image", "Image Stack Icon - Replace Image", true);
+addImageStackRenderAction("render_image_stack", "Image Stack Icon - Generate");
+
 // Variations of the image stack actions so user can pick the simplest one they need.
 // These could be probably be consolidated if/when TP supports breaking up long actions into multiple lines since the long ones will be less awkward to use.
-addImageStackAction("rot_2",   "Rotated Image Stack (2 Images)",     2, ['R']);
-addImageStackAction("rot_4",   "Rotated Image Stack (4 Images)",     4, ['R']);
-addImageStackAction("rot_6",   "Rotated Image Stack (6 Images)",     6, ['R']);
-addImageStackAction("trs_2",   "Translated Image Stack (2 Images)",  2, ['T']);
-addImageStackAction("trs_4",   "Translated Image Stack (4 Images)",  4, ['T']);
-addImageStackAction("scl_3",   "Scaled Image Stack (3 Images)",      3, ['S']);
-addImageStackAction("xform_2", "Transformed Image Stack (2 Images)", 2);
-addImageStackAction("xform_4", "Transformed Image Stack (4 Images)", 4);
-addImageStackAction("xform_6", "Transformed Image Stack (6 Images)", 6);
+addImageStackAction("generate_image_stack_rot_2",   "Rotated Image Stack (2 Images)",     2, ['R']);
+addImageStackAction("generate_image_stack_rot_4",   "Rotated Image Stack (4 Images)",     4, ['R']);
+addImageStackAction("generate_image_stack_rot_6",   "Rotated Image Stack (6 Images)",     6, ['R']);
+addImageStackAction("generate_image_stack_trs_2",   "Offset Image Stack (2 Images)",      2, ['O']);
+addImageStackAction("generate_image_stack_trs_4",   "Offset Image Stack (4 Images)",      4, ['O']);
+addImageStackAction("generate_image_stack_scl_3",   "Scaled Image Stack (3 Images)",      3, ['SC']);
+addImageStackAction("generate_image_stack_xform_2", "Transformed Image Stack (2 Images)", 2);
+addImageStackAction("generate_image_stack_xform_4", "Transformed Image Stack (4 Images)", 4);
+addImageStackAction("generate_image_stack_xform_6", "Transformed Image Stack (6 Images)", 6);
 // Misc actions
 addSystemActions();
 
