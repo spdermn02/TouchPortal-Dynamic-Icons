@@ -1,8 +1,9 @@
 
 import sharp from 'sharp';
 import { loadImage } from 'skia-canvas';
-import { SizeType } from './interfaces';
 import { Mutex } from 'async-mutex';
+import { SizeType } from './types';
+import { logIt } from '../common'
 
 /** Central storage for various image processing options; Set via ImageCache.cacheOptions
 Some of these could in theory be controlled via plugin settings or action data. */
@@ -38,7 +39,10 @@ class ImageCacheOptions {
 
 export type ImageDataType = HTMLImageElement | null;
 
-type ImageRecord = { image: ImageDataType }  // may want to add properties later
+type ImageRecord = {
+    image: ImageDataType
+    iconNames: string[]   // icon(s) using this cached image
+}
 class ImageStorage extends Map<string, ImageRecord> {}  // just an alias
 
 /**
@@ -82,7 +86,7 @@ export class ImageCache
                 key = it.next();
             }
         });
-        console.debug("Trimmed cache to", this.count(), "records");
+        logIt("DEBUG", "Trimmed cache to", this.count(), "records");
     }
 
     // The private methods provide actual implementation but w/out mutex locking.
@@ -92,18 +96,27 @@ export class ImageCache
     }
 
     // The private methods provide actual implementation but w/out mutex locking.
-    private saveImage_impl(key: string, image: ImageDataType) {
+    private saveImage_impl(key: string, image: ImageDataType, meta?: any) {
         if (!image)
             return;
         try {
-            this.cache.set(key, { image: image });
+            let rec: ImageRecord | undefined = this.cache.get(key);
+            if (rec) {
+                rec.image = image;
+            }
+            else {
+                rec = { image: image, iconNames: [] }
+                this.cache.set(key, rec);
+            }
+            if (typeof(meta.iconName) !== "undefined" && meta.iconName && !rec.iconNames.includes(meta.iconName))
+                rec.iconNames.push(meta.iconName);
 
             // Check for cache overflow; schedule trim if needed.
             if (!this.trimTimerId && this.count() >= ImageCache.cacheOptions.maxCachedImages + ImageCache.cacheHighTide)
                 this.trimTimerId = setTimeout(() => { this.trimCache(); this.trimTimerId = null; }, 1000);
         }
         catch (e) {
-            console.error(e);
+            logIt("ERROR", e);
         }
     }
 
@@ -119,7 +132,7 @@ export class ImageCache
     If cache is disabled (cacheOptions.maxCachedImages == 0) then cache check is bypassed and this is effectively the same as calling LoadImage() directly.
     See LoadImage() for argument details.
      */
-    public async getOrLoadImage(src: string, size: SizeType, resizeOptions:any = {}): Promise<ImageDataType>
+    public async getOrLoadImage(src: string, size: SizeType, resizeOptions:any = {}, meta?: any): Promise<ImageDataType>
     {
         if (ImageCache.cacheOptions.maxCachedImages <= 0)
             return this.loadImage(src, size, resizeOptions);  // short-circuit for disabled cache
@@ -131,8 +144,8 @@ export class ImageCache
             if (!img) {
                 img = await this.loadImage(src, size, resizeOptions);
                 if (img)
-                    this.saveImage_impl(key, img);
-                console.debug("Image cache miss for", src, "Returned:", img);
+                    this.saveImage_impl(key, img, meta);
+                logIt("DEBUG", "Image cache miss for", src, "Returned:", img);
             }
         });
         return img;
@@ -147,19 +160,19 @@ export class ImageCache
                 image = this.getImage_impl(this.makeKey(src, size, resizeOptions));
             });
         }
-        catch (e) { console.error(e); }
+        catch (e) { logIt("ERROR", e); }
         return image;
     }
 
     /** Saves an image to cache, possibly replacing any existing entry with the same key.
     Cache key is based on image source and requested size and options. */
-    public async saveImage(src: string, size: SizeType, image: ImageDataType, resizeOptions:any = {}) {
+    public async saveImage(src: string, size: SizeType, image: ImageDataType, resizeOptions:any = {}, meta?: any) {
         try {
             await this.mutex.runExclusive(async() => {
-                this.saveImage_impl(this.makeKey(src, size, resizeOptions), image);
+                this.saveImage_impl(this.makeKey(src, size, resizeOptions), image, meta);
             });
         }
-        catch (e) { console.error(e); }
+        catch (e) { logIt("ERROR", e); }
     }
 
     /** Loads an image from source file and potentially scales it to fit the given size with optional resize options.
@@ -183,7 +196,7 @@ export class ImageCache
             }
         }
         catch (e) {
-            console.error(e);
+            logIt("ERROR", e);
         }
         return imgBuffer ? loadImage(imgBuffer) : null;
     }
@@ -197,10 +210,27 @@ export class ImageCache
     public async clear() {
         await this.mutex.runExclusive(async() => {
             this.cache.clear();
-            console.info("Image cache cleared.")
+            logIt("INFO", "Image cache cleared.")
         });
+    }
+
+    /** Removes all entries for a specific icon name from the cache. This will also affect any other icons using the same cached image. */
+    public async clearIconName(name: string) {
+        let anyCleared = false;
+        await this.mutex.runExclusive(async() => {
+            for (const [k, v] of this.cache.entries()) {
+                if (v.iconNames.includes(name)) {
+                    this.cache.delete(k);
+                    logIt("INFO", `Cached image ${k.split(',')[0]} for icon '${name}' was removed.`);
+                    anyCleared = true;
+                }
+            }
+        });
+        if (!anyCleared)
+            logIt("INFO", "Cached image", name, "not found.");
     }
 
 }
 
-export const globalImageCache = ImageCache.Instance;
+const globalImageCache = ImageCache.Instance;
+export default globalImageCache;
