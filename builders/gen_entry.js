@@ -5,6 +5,15 @@
 // A version number is required; it may also be passed via npm_package_version env. variable.
 // -d (dev mode) will exclude the plugin_start commands in the TP file, for running the binary separately.
 
+
+///  ***  NOTE  NOTE  NOTE   ***
+//  The action and action data IDs generated here follow a fairly strict naming convention which is used by various bits in the plugin to do their thing.
+//  A convention is followed to allow efficient validation and "trickle down" parsing of data by relevant components w/out (hopefully) a spaghetti mess of ifs/cases.
+//  It is meant to be extensible -- the name parts (between "_") go from general to more specific, so new handlers could be inserted at any level.
+//  On the plugin side the action handlers parse these parts and can hand the data down the component tree as needed.
+//
+
+
 // Defaults
 var VERSION = "";
 var OUTPUT_PATH = "base/TPDynamicIcons"
@@ -48,7 +57,16 @@ const entry_base =
         "colorDark": "#23272A",
         "colorLight": "#7289DA"
     },
-    "settings": [],
+    "settings": [
+        {
+            "name": "Default Icon Size",
+            "type": "number",
+            "default": "256",
+            "minValue": 8,
+            "maxValue": 1920, // arbitrary
+            "readOnly": false
+        }
+    ],
     "categories": [
         {
             "id": "TP Dynamic Icons",
@@ -56,7 +74,14 @@ const entry_base =
             "imagepath": "%TP_PLUGIN_FOLDER%TPDynamicIcons/tp-dynamic-icons.png",
             "actions": [],
             "connectors": [],
-            "states": [],
+            "states": [
+                {
+                    "id": "dynamic_icons_createdIconsList",
+                    "type": "text",
+                    "desc" : "Dynamic Icons: List of created icons",
+                    "default" : ""
+                }
+            ],
             "events": []
         }
     ]
@@ -66,7 +91,13 @@ const entry_base =
 const ID_PREFIX = "dynamic_icons_";
 const category = entry_base.categories[0];
 
+// should really pull these in from the plugin source code... must match TransformOpType
 const TRANSFORM_OPERATIONS = ['O', 'R', 'SC', 'SK'];
+
+// some useful characters for forcing spacing in action texts
+const NBSP = " ";   // non-breaking narrow space U+202F (TP ignores "no-break space" U+00AD)
+const SP_EN = " ";  // en quad space U+2000  (.5em wide)
+const SP_EM = " "; // em quad space U+2001  (1em wide)
 
 // --------------------------------------
 // Helper functions
@@ -80,9 +111,15 @@ String.prototype.format = function (args) {
     });
 };
 
+// Wraps a string _once_ at the given width, so at most it creates 2 lines of text, one <= the given width and one (possibly longer) with the remainder.
+String.prototype.wrap = function(width = 280) {
+    const re = new RegExp(`(?![^\\n]{1,${width}}$)([^\\n]{1,${width}})\\s`, 'm');  // replace 'm' flag with 'g' for wrap to multiple lines
+    return this.replace(re, '$1\n').trim();
+}
+
 function addAction(id, name, descript, format, data, hold = false) {
     const action = {
-        "id": id,
+        "id": ID_PREFIX + id,
         "prefix": "Dynamic Icons:",
         "name": name,
         "type": "communicate",
@@ -118,17 +155,72 @@ function makeNumericData(id, label, dflt, min, max, allowDec = true) {
     return d;
 }
 
-function makeIconNameData(label = "Icon Name") {
-    return makeActionData("icon_name", "text", label);
+function makeIconNameData(idPrefix, label = "Icon Name") {
+    return makeActionData(idPrefix + "_name", "text", label);
 }
 
-// for image overlay actions
+// Shared functions which create both a format string and data array.
+// They accept an array (reference) as argument to store the data parameters into, and return the related format string.
 
-function addTransformOrderData(dataIdx, opsList, /* out */ format, /* out */ data, imgNum = "") {
+function makeIconLayerCommonData(idPrefix, withIndex = false) {
+    let format = "Icon\nName{0}";
+    const data = [ makeIconNameData(idPrefix) ];
+    if (withIndex) {
+        format += "Element\n@ Position{1}";
+        data.push(makeNumericData(idPrefix + "_layer_index", "Layer Position", 1, -99, 99, false));
+    }
+    return [ format, data ];
+}
+
+function makeTransformOpData(type, idPrefix , /* out */ data, splitXY = true) {
+    const i = data.length;
+    let f = splitXY ? `{0}\n (%) X{${i}}${NBSP}\nY{${i+1}}` : `{0}\n${SP_EN}X : Y {${i}}`;
+    switch (type) {
+        case "R":
+            f = `Rotate\n${SP_EM}${SP_EN}(%){${i}}`;
+            data.push(makeActionData(idPrefix + "_tx_rot", "text", "Rotation %", "0"));
+            break;
+        case "O":
+            f = f.format("Offset");
+            if (splitXY) {
+                data.push(makeActionData(idPrefix + "_tx_trsX", "text", "Offset X", "0"));
+                data.push(makeActionData(idPrefix + "_tx_trsY", "text", "Offset Y", "0"));
+            }
+            else {
+                data.push(makeActionData(idPrefix + "_tx_trs", "text", "Offset X : Y", "0 : 0"));
+            }
+            break;
+        case "SC":
+            f = f.format("Scale");
+            if (splitXY) {
+                data.push(makeActionData(idPrefix + "_tx_sclX", "text", "Scale X", "100"));
+                data.push(makeActionData(idPrefix + "_tx_sclY", "text", "Scale Y", "100"));
+            }
+            else {
+                data.push(makeActionData(idPrefix + "_tx_scl", "text", "Scale X : Y", "100 : 100"));
+            }
+            break;
+        case "SK":
+            f = f.format("Skew");
+            if (splitXY) {
+                data.push(makeActionData(idPrefix + "_tx_skwX", "text", "Skew X", "0"));
+                data.push(makeActionData(idPrefix + "_tx_skwY", "text", "Skew Y", "0"));
+            }
+            else {
+                data.push(makeActionData(idPrefix + "_tx_skw", "text", "Skew X : Y", "0 : 0"));
+            }
+            break;
+        default:
+            return;
+    }
+    return f;
+}
+
+function makeTransformOrderData(opsList, idPrefix, /* out */ data) {
     if (!opsList.length)
         return;
-    const f = opsList.length > 1 ? `Order {${dataIdx}}` : "";
-    let d = makeActionData(`overlay_img${imgNum}_txorder`, opsList.length > 1 ? "choice" : "text", `Transform Order`);
+    const f = opsList.length > 1 ? `Order {${data.length}}` : "";
+    let d = makeActionData(idPrefix + "_tx_order", opsList.length > 1 ? "choice" : "text", `Transform Order`);
     if (opsList.length == 2)
         d.valueChoices = [
             `${opsList[0]}, ${opsList[1]}`,
@@ -171,134 +263,111 @@ function addTransformOrderData(dataIdx, opsList, /* out */ format, /* out */ dat
             `${opsList[3]}, ${opsList[0]}, ${opsList[2]}, ${opsList[1]}`,
         ];
     d.default = opsList.length > 1 ? d.valueChoices[0] : opsList[0];
-
-    format.push(f);
     data.push(d);
+    return f;
 }
 
-// TODO: possibly simplify if addImageStackAction() (below) is removed
-function addTransformOp(type, dataIdx, /* out */ format, /* out */ data, imgNum = "") {
-    let f = ` \n{0} {${dataIdx}}`;
-    let d = makeActionData(`overlay_img${imgNum}_`, "text", `Image ${imgNum} `, "0 : 0");
-    switch (type) {
-        case "R":
-            f = f.format("Rotate");
-            d.id += "rot";
-            d.label += "Rotation Value";
-            d.default = "0";
-            break;
-        case "O":
-            f = f.format("Offset");
-            d.id += "trs";
-            d.label += "Offset Value";
-            break;
-        case "SC":
-            f = f.format("Scale");
-            d.id += "scl";
-            d.label += "Scale Value";
-            d.default = "100 : 100";
-            break;
-        case "SK":
-            f = f.format("Skew");
-            d.id += "skw";
-            d.label += "Skew Value";
-            break;
-        default:
-            return;
-    }
-    format.push(f);
-    data.push(d);
+function makeTransformData(opsList, idPrefix, /* out */ data) {
+    let f = "";
+    for (const op of opsList)
+        f += makeTransformOpData(op, idPrefix, data, true);
+    f += makeTransformOrderData(opsList, idPrefix, data);
+    return f;
 }
 
-function makeTransformationData(startIndex, withTxOrder = true) {
-    const format = [];
-    const data = [];
-    for (const op of TRANSFORM_OPERATIONS)
-        addTransformOp(op, startIndex++, format, data);
-    if (withTxOrder)
-        addTransformOrderData(startIndex++, TRANSFORM_OPERATIONS, format, data);
-    return [ format.join(" "), data ];
+function makeDrawStyleData(idPrefix, /* out */ data) {
+    let i = data.length;
+    const format = `Fill\nColor{${i++}}Stroke\nWidth (%){${i++}}${NBSP}\nColor{${i++}}Shadow Size\n(blur, offset X, Y){${i++}}${NBSP}\nColor{${i++}}`;
+    const d = [
+        makeActionData(idPrefix +  "_style_fillColor", "color", "Fill Color", "#00000000"),
+        makeNumericData(idPrefix + "_style_line_width", "Stroke Width", 0, 0, 999999, true),
+        makeActionData(idPrefix +  "_style_line_color", "color", "Stroke Color", "#00000000"),
+        makeActionData(idPrefix +  "_style_shadow", "text", "Text", "0, 0, 0"),
+        makeActionData(idPrefix +  "_style_shadowColor", "color", "Shadow Color", "#000000FF"),
+    ];
+    data.push(...d);
+    return format;
 }
+
 
 // --------------------------------------
 // Action creation functions
 
-// TODO: possibly remove
-function addImageStackAction(id, name, numImgs, ops = TRANSFORM_OPERATIONS.slice(0, 3), includeOpsField = true) {
-    const descript =
-        `Create a composite icon from up to ${numImgs} images with optional transformation(s) applied to each one. ` +
-        "File paths are relative to TP's 'plugins' folder (or use absolute paths). \n" +
-        "Transformation values are percentages where 100% is one full rotation or icon dimension, positive for CW/right/down, negative for CCW/left/up. Negative scaling flips images." +
-        "Values can include math operators and JavaScript Math functions.";
-    let format = [        // use an array so we can pass by reference to helper function
-        "Icon\nName {0}",
-        "Size {1}"
-    ];
-    let data = [
-        makeIconNameData(),
-        makeActionData("icon_size", "text", "Icon Size", "256")
-    ];
-    let arg = 2;
-    for (let i = 0; i < numImgs; ++i) {
-        format.push(`Image ${i + 1}\nFile {${arg++}}`);
-        data.push(makeActionData(`overlay_img${i + 1}_src`, "text", `Image ${i + 1} Source`))
-        for (const op of ops)
-            addTransformOp(op, arg++, format, data, i+1);
-        if (includeOpsField)
-            addTransformOrderData(arg++, ops, format, data, i+1);
-    }
-    addAction(ID_PREFIX + id, name, descript, format.join(" "), data, false);
+// Some shared description texts
+function layerInfoText(what = "", layerOnly = true) {
+    return (what ? `To add this ${what} as a layer, an ` : "") + "Icon with same Name must first have been created" + (layerOnly ? " with a 'New' action" : "") + ". "
+}
+function numericValueInfoText() {
+    return "Values can include math operators and JavaScript functions.";
+}
+function txInfoText(wrapLine = 0) {
+    return "" +
+        "Transform values are percentages where 100% is one full rotation or icon dimension, positive for CW/right/down, negative for CCW/left/up." + (wrapLine == 1 ? "\n" : " ") +
+        "Negative scaling flips images. " + numericValueInfoText() + (wrapLine == 2 ? "\n" : " ") +
+        "To use same value for both X and Y axes, fill out X and leave Y blank/empty.";
 }
 
-function addImageStackStartAction(id, name) {
-    const descript = "Dynamic Icons: \n" +
-        "Start a new dynamic image icon. Add image(s) in following 'Add Image' action(s) and then use the 'Generate' action to produce the icon.";
-    let format = "Icon Name {0} of size (px) {1}";
-    const data = [
-        makeIconNameData(),
-        makeActionData("icon_size", "text", "Icon Size", "256"),
-    ];
-    addAction(ID_PREFIX + id, name, descript, format, data);
-}
+// Standalone/layer elements
 
-function addImageStackImageAction(id, name, withIndex = false, withTransform = true) {
+function addRectangleAction(id, name) {
     const descript = "Dynamic Icons: " +
-        (withIndex ? "Replace (or append) an image at specified position in" : "Add an image to") +
-        " a named icon, with optional transformation(s) applied. Icon with same Name must first be created with a 'Start New' action. " +
-        "File paths are relative to TP's 'plugins' folder (or use absolute paths). \n" +
-        "Transformation values are percentages where 100% is one full rotation or icon dimension, positive for CW/right/down, negative for CCW/left/up. Negative scaling flips images." +
-        "Values can include math operators and JavaScript Math functions.";
-    let format = "Icon\nName {0}";
-    let data = [ makeIconNameData() ];
-    let dataIdx = 1;
-    if (withIndex) {
-        format += ` Replace\nImage # {${dataIdx++}}`;
-        data.push(makeNumericData("replace_index", "Image Index", 1, 1, 99, false));
-    }
-    format += `Image\nFile {${dataIdx++}} Resize {${dataIdx++}}`;
-    data.push(makeActionData("overlay_img_src", "text", "Image Source"));
-    data.push(makeChoiceData("overlay_img_fit", "Image Source", ["contain", "cover", "fill", "scale-down", "none"]));
-    if (withTransform) {
-        const [txFrmt, txData] = makeTransformationData(dataIdx, true);
-        format += txFrmt;
-        data.push(...txData);
-    }
-    addAction(ID_PREFIX + id, name, descript, format, data, false);
+        `Generate or layer a styled square/rounded shape. ${layerInfoText('shape')}\n` +
+        "Border radius and stroke width values are in percentage of icon dimension. Up to 4 radii can be specified for each corner starting at top left (separate by space/comma).";
+    let [format, data] = makeIconLayerCommonData(id);
+    format += `Border\nRadius (%) {${data.length}}`;
+    data.push(makeActionData("rect_radius", "text", "Border Radius", "0"));
+    format += makeDrawStyleData("rect", data);
+    addAction(id, name, descript, format, data);
 }
 
-function addImageStackRenderAction(id, name) {
-    const descript = "Dynamic Icons:\n" +
-        "Generate dynamic image icon which has been created using preceding 'Start New' and 'Add Image' actions using the same Icon Name.";
-    const format = "Generate Icon Named {0}";
-    const data = [ makeIconNameData() ];
-    addAction(ID_PREFIX + id, name, descript, format, data);
+function addTextAction(id, name) {
+    const descript = "Dynamic Icons: " +
+        `Generate or layer styled text. ${layerInfoText('text')}\n` +
+        "Font is specified like the CSS 'font' shorthand property. Offset is percent of icon size, positive for right/down, negative for left/up. Stroke width is percentage of half the font size.";
+    let [format, data] = makeIconLayerCommonData(id);
+    let i = data.length;
+    format += `Text{${i++}} Font{${i++}}Align\n${SP_EM}${SP_EN}H{${i++}}${NBSP}\nV{${i++}}Offset\n (%) H{${i++}}${NBSP}\nV{${i++}}Tracking{${i++}}`;  // Baseline{${i++}}
+    data.push(
+        makeActionData("text_str", "text", "Text", ""),
+        makeActionData("text_font", "text", "Font", "1.5em sans-serif"),
+        makeChoiceData("text_alignH", "Horizontal Alignment", ["left", "center", "right"], "center"),
+        makeChoiceData("text_alignV", "Vertical Alignment", ["top", "middle", "bottom"], "middle"),
+        makeActionData(`text_ofsH`, "text", "Horizontal Offset", "0"),
+        makeActionData(`text_ofsV`, "text", "Vertical Offset", "0"),
+        // makeChoiceData("text_baseline", "Baseline", ["alphabetic", "top", "middle", "bottom", "hanging", "ideographic"]),
+        makeNumericData("text_tracking", "Tracking", 0, -999999, 999999, true),
+    );
+    format += makeDrawStyleData("text", data);
+    addAction(id, name, descript, format, data);
 }
 
-function addRoundGauge(id, name) {
-    const descript = "Dynamic Icons: Create a Simple Round Gauge";
-    const format = "Gauge Name {0} with shadow {1} of color {2} using indicator color {3} with highlight {4} starting at degree {5} at value {6} with cap style {7} on background color {8} in direction {9}";
-    const data = [
-        makeIconNameData(),
+function addImageAction(id, name, withTx = true) {
+    let descript = "Dynamic Icons: " +
+        `Generate or layer an image. ${layerInfoText('image')} ` +
+        "File paths are relative to TP's 'plugins' folder (or use absolute paths).\n";
+    let [format, data] = makeIconLayerCommonData(id);
+    let i = data.length;
+    format += `Image\nFile {${i++}}Resize\nFit {${i++}}`;
+    data.push(
+        makeActionData("image_src", "text", "Image Source"),
+        makeChoiceData("image_fit", "Resize Fit", ["contain", "cover", "fill", "scale-down", "none"]),
+    );
+    if (withTx) {
+        descript += txInfoText();
+        format += makeTransformData(TRANSFORM_OPERATIONS.slice(0, 3), "image", data);  // don't include skew op
+    }
+    addAction(id, name, descript, format, data, false);
+}
+
+function addProgressGaugeAction(id, name) {
+    const descript = "Dynamic Icons: " +
+        "Generate or layer a round progress-bar style gauge reflecting a data value.\n" + layerInfoText('gauge') + " " + numericValueInfoText();
+    let [format, data] = makeIconLayerCommonData(id);
+    let i = data.length;
+    format +=
+        `with shadow {${i++}} of color {${i++}} using indicator color {${i++}} with highlight {${i++}} starting at degree {${i++}} ` +
+        `at value {${i++}} with cap style {${i++}} on background color {${i++}} in direction {${i++}}`;
+    data.push(
         makeChoiceData("gauge_shadow", "Gauge Shadow", ["On", "Off"]),
         makeActionData("gauge_shadow_color", "color", "Gauge Shadow Color", "#282828FF"),
         makeActionData("gauge_color", "color", "Gauge Color", "#FFA500FF"),
@@ -308,53 +377,149 @@ function addRoundGauge(id, name) {
         makeChoiceData("gauge_cap", "Gauge Icon Cap Type", ["round", "butt", "square"]),
         makeActionData("gauge_background_color", "color", "Gauge Background Color", "#000000FF"),
         makeChoiceData("gauge_counterclockwise", "Gauge Direction", ["Clockwise", "Counter Clockwise"]),
-    ];
+    );
     addAction(id, name, descript, format, data, true);
 }
 
-function addBarGraph(id, name) {
-    const descript = "Dynamic Icons: Create a Simple Bar Graph";
-    const format = "Graph Name {0} with background {1} of color {2} using bar color {3} add value {4} with bar width {5}";
-    const data = [
-        makeIconNameData(),
+function addBarGraphAction(id, name) {
+    const descript = "Dynamic Icons: " +
+        "Generate or layer a simple bar graph reflecting series data.\n" + layerInfoText('graph') + " " + numericValueInfoText();
+    let [format, data] = makeIconLayerCommonData(id);
+    let i = data.length;
+    format += `with background {${i++}} of color {${i++}} using bar color {${i++}} add value {${i++}} with bar width {${i++}}`;
+    data.push(
         makeChoiceData("bar_graph_backround", "Bar Graph Background", ["On", "Off"]),
         makeActionData("bar_graph_backround_color", "color", "Bar Graph Background Color", "#FFFFFFFF"),
         makeActionData("bar_graph_color", "color", "Bar Graph Color", "#FFA500FF"),
         makeActionData("bar_graph_value", "text", "Bar Graph Value", "0"),
         makeNumericData("bar_graph_width", "Bar Graph Width", 10, 1, 256, false),
-    ];
+    );
     addAction(id, name, descript, format, data, true);
 }
 
+// Layered icon actions
+
+function addStartLayersAction(id, name) {
+    const descript = "Dynamic Icons: " + name + "\n" +
+        "Start a new Layered Icon. Add elements(s) in following 'Draw' and 'Layer' action(s) and then use the 'Generate' action to produce the icon.";
+    const format = "Icon Name {0} of size {1} (pixels)";
+    const data = [
+        makeIconNameData(id),
+        makeActionData("icon_size", "text", "Icon Size", "256")
+    ];
+    addAction(id, name, descript, format, data);
+}
+
+function addFilterAction(id, name) {
+    const descript = "Dynamic Icons: " +
+        "Set or clear a CSS-style filter on a layered icon. " + layerInfoText() + "\n" +
+        "The filter specification is a string as per CSS 'filter' property, like `blur(5px)' or 'sepia(60%)'. Separate multiple filters with spaces." +
+        "Filters affect all following layer(s) until they are reset (eg. 'blur(0)').";
+    let [format, data] = makeIconLayerCommonData(id);
+    format += `set filter to{${data.length}}`;
+    data.push(makeActionData("canvFilter_filter", "text", "Filter", "https://developer.mozilla.org/en-US/docs/Web/CSS/filter"));
+    addAction(id, name, descript, format, data);
+}
+
+function addCompositeModeAction(id, name) {
+    const descript = "Dynamic Icons: " +
+        "Set the composition/blending operation mode on a layered icon. " + layerInfoText() + "\n" +
+        "Composition type determines how the layers are combined color-wise when drawing them on top of each other." +
+        "The selected type affects all following layer(s) until the end or a different one is specified.";
+    let [format, data] = makeIconLayerCommonData(id);
+    format += `set Composite/Blend Mode to {${data.length}} for all following layer(s)`
+    data.push(makeChoiceData("compMode_mode", "Composition Mode", [
+        "source-over",  "source-in",  "source-out",  "source-atop",  "destination-over",  "destination-in",  "destination-out",  "destination-atop",  "lighter",  "copy",  "xor",
+        "multiply",  "screen",  "overlay",  "darken",  "lighten",  "color-dodge",  "color-burn",  "hard-light",  "soft-light",  "difference",  "exclusion",  "hue", "saturation",  "color",  "luminosity",
+    ]));
+    addAction(id, name, descript, format, data, false);
+}
+
+function addGenerateLayersAction(id, name) {
+    const descript = "Dynamic Icons: " +
+        "Finalize and/or Render a dynamic image icon which has been created using preceding 'New' and 'Draw/Layer' actions using the same Icon Name.\n" +
+        "'Finalize' marks the icon as finished, removing any extra layers which may have been added previously. 'Render' produces the actual icon in its current state and sends it to TP.";
+    const format = "Icon Named {0} {1}";
+    const data = [
+        makeIconNameData(id),
+        makeChoiceData("icon_generate_action", "Action", ["Finalize & Render", "Finalize Only", "Render Only"]),
+    ];
+    addAction(id, name, descript, format, data);
+}
+
+// Shared actions for updating existing icons/layers.
+
+function addTransformAction(id, name, withIndex = false) {
+    // Transforms can be inserted as a layer or updated like an "animation"; the former version is more terse.
+    let descript = "";
+    if (withIndex) {
+        descript +=
+            "Update transform operation(s) on a dynamic icon." + layerInfoText("", false) +
+            "Position indexes start at 1 (non-layered icons have only one position). Specify a negative index to count from the bottom of a layer stack.\n"
+            + txInfoText(0);
+    }
+    else {
+        descript +=
+            "Add transform operation(s) to a dynamic icon." + layerInfoText("", true) + txInfoText(1);
+    }
+
+    let [format, data] = makeIconLayerCommonData(id, withIndex);
+    format += makeTransformData(TRANSFORM_OPERATIONS, (withIndex ? 'set' : 'layer'), data);
+    if (withIndex) {
+        format += `Render\nIcon?{${data.length}}`;
+        data.push(makeChoiceData("tx_update_render", "Render?", ["No", "Yes"]));
+    }
+    else {
+        format += `Scope {${data.length}}`
+        data.push(makeChoiceData("layer_tx_scope", "Scope", ["previous layer", "all previous", "all following"]));
+    }
+    addAction(id, name, descript, format, data, false);
+}
+
+function addValueUpdateAction(id, name) {
+    const descript = "Dynamic Icons: " +
+        "Update a value on an element in an existing icon. " +
+        "Elements which can be updated are anything with a single value like progress bar, series graph, or text. " +
+        "Value type must match the element type (numeric/string), and may contain math and other evaluated expressions.\n" +
+        "Icon with same Name must already exist and contain a supported element type at the specified position. " +
+        "Position indexes start at 1 (non-layered icons have only one position). Specify a negative index to count from the bottom of a layer stack.";
+    let [format, data] = makeIconLayerCommonData(id, true);
+    format += `set value to{${data.length}}and render icon? {${data.length+1}}`;
+    data.push(
+        makeActionData("value_update_value", "text", "Value", ""),
+        makeChoiceData("value_update_render", "Render?", ["No", "Yes"]),
+    );
+    addAction(id, name, descript, format, data);
+}
+
+// System utility action
+
 function addSystemActions() {
-    addAction(ID_PREFIX + "control_command", "System Actions", "", "Perform Action: {0}", [
-        makeChoiceData("control_command_action", "Action to Perform", ["Clear the Source Image Cache"], "")
+    addAction("control_command", "Plugin Actions", "", "Perform Action: {0} for Icon(s): {1}", [
+        makeChoiceData("control_command_action", "Action to Perform", ["Clear the Source Image Cache", "Delete Icon State"], ""),
+        makeChoiceData("control_command_icon", "Icon for Action", ["[ no icons created ]"], "")
     ]);
 }
+
 
 // ------------------------
 // Build the full entry.tp object for JSON dump
 
-// Add all our icon generator actions
-addRoundGauge("generate_simple_round_gauge", "Simple Round Gauge");
-addBarGraph("generate_simple_bar_graph", "Simple Bar Graph");
+addProgressGaugeAction(  "icon_progGauge",  "Draw - Simple Round Gauge");
+addBarGraphAction(       "icon_barGraph",   "Draw - Simple Bar Graph");
+addTextAction(           "icon_text",       "Draw - Text");
+addImageAction(          "icon_image",      "Draw - Image");
+addRectangleAction(      "icon_rect",       "Draw - Rounded Shape");
 
-addImageStackStartAction("new_image_stack", "Image Stack Icon - Start New");
-addImageStackImageAction("add_image", "Image Stack Icon - Add Image");
-addImageStackImageAction("replace_image", "Image Stack Icon - Replace Image", true);
-addImageStackRenderAction("render_image_stack", "Image Stack Icon - Generate");
+addStartLayersAction(    "icon_declare",    "Layer - New Layered Icon");
+addTransformAction(      "icon_tx",         "Layer - Add Transformation", false);
+addFilterAction(         "icon_filter",     "Layer - Set Effect Filter");
+addCompositeModeAction(  "icon_compMode",   "Layer - Set Composite Mode");
+addGenerateLayersAction( "icon_generate",   "Layer - Generate Layered Icon");
 
-// Variations of the image stack actions so user can pick the simplest one they need.
-// These could be probably be consolidated if/when TP supports breaking up long actions into multiple lines since the long ones will be less awkward to use.
-addImageStackAction("generate_image_stack_rot_2",   "Rotated Image Stack (2 Images)",     2, ['R']);
-addImageStackAction("generate_image_stack_rot_4",   "Rotated Image Stack (4 Images)",     4, ['R']);
-addImageStackAction("generate_image_stack_rot_6",   "Rotated Image Stack (6 Images)",     6, ['R']);
-addImageStackAction("generate_image_stack_trs_2",   "Offset Image Stack (2 Images)",      2, ['O']);
-addImageStackAction("generate_image_stack_trs_4",   "Offset Image Stack (4 Images)",      4, ['O']);
-addImageStackAction("generate_image_stack_scl_3",   "Scaled Image Stack (3 Images)",      3, ['SC']);
-addImageStackAction("generate_image_stack_xform_2", "Transformed Image Stack (2 Images)", 2);
-addImageStackAction("generate_image_stack_xform_4", "Transformed Image Stack (4 Images)", 4);
-addImageStackAction("generate_image_stack_xform_6", "Transformed Image Stack (6 Images)", 6);
+addTransformAction(      "icon_set_tx",     "Animate - Transformation", true);
+addValueUpdateAction(    "icon_set_value",  "Animate - Update a Value");
+
 // Misc actions
 addSystemActions();
 
