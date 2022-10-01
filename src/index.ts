@@ -64,7 +64,7 @@ function getLayerIndexFromActionData(actionData: any[], currentLen: number) {
 function sendIconLists() {
     const nameArry = [...g_dyanmicIconStates.keys()];
     TPClient.stateUpdate("dynamic_icons_createdIconsList", nameArry.join(','));
-    TPClient.choiceUpdate("dynamic_icons_control_command_icon", ["All", ...nameArry]);
+    TPClient.choiceUpdate("dynamic_icons_control_command_icon", nameArry.length ? ["All", ...nameArry] : ["[ no icons created ]"]);
 }
 
 // Creates a TP state for an icon if it hasn't been created yet.
@@ -402,6 +402,7 @@ TPClient.on("Settings", (settings:{ [key:string]:string }[]) => {
 
 TPClient.on("Info", (message?:any) => {
     TPClient.logIt("INFO","Connected to Touch Portal "+JSON.stringify(message))
+    sendIconLists()
 })
 
 process.on('uncaughtException', function(e) {
