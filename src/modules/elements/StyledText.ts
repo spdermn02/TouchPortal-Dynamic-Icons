@@ -9,29 +9,38 @@ type SkiaTextMetrics = typeof SkiaTextMetrics;
 // Draws text on a canvas context with various options. The text can be fully styled with the embedded DrawingStyle property.
 export default class StyledText implements ILayerElement, IValuedElement
 {
-    text: string = "";
-    font: string = "";
-    fontVariant: string = 'common-ligatures discretionary-ligatures contextual';  // ensure ligature support for named symbol fonts
-    alignH: 'left' | 'center' | 'right' = 'center';
-    alignV: 'top' | 'middle' | 'bottom'  = 'middle';
-    direction: 'ltr' | 'rtl' | 'inherit' = 'inherit';
-    tracking: number = 0;
-    wrap: boolean = true;
-    offset: Vect2d = new Vect2d();
-    style: DrawingStyle = new DrawingStyle();
+    // These are all private because changing them will affect the cached text metrics.
+    // Value string can be accessed with value/setValue(). Other accessors can be added as needed.
+    private text: string = "";
+    private font: string = "";
+    private fontVariant: string = 'common-ligatures discretionary-ligatures contextual';  // ensure ligature support for named symbol fonts
+    private alignH: 'left' | 'center' | 'right' = 'center';
+    private alignV: 'top' | 'middle' | 'bottom'  = 'middle';
+    private direction: 'ltr' | 'rtl' | 'inherit' = 'inherit';
+    private tracking: number = 0;
+    private wrap: boolean = true;
+    private offset: Vect2d = new Vect2d();
+    private style: DrawingStyle = new DrawingStyle();
 
-    constructor(init?: Partial<StyledText>) { Object.assign(this, init); }
+    private metrics: {
+        textMetrics: SkiaTextMetrics | null,  // skia-canvas extended TextMetrics type
+        multiline: boolean
+    } = { textMetrics: null, multiline: false };
+
+    // constructor(init?: Partial<StyledText>) { Object.assign(this, init); }
     // ILayerElement
     get type() { return "StyledText"; }
 
-    /** Returns true if there is nothing to draw: size is empty, colors are blank or transparent, or there is no fill and stroke width is zero */
+    /** Returns true if there is nothing to draw: text is empty, colors are blank or transparent, or there is no fill and stroke width is zero */
     get isEmpty(): boolean {
         return !this.text || (this.style.fill.isEmpty && this.style.line.isEmpty);
     }
 
+    get value(): string { return this.text; }
     // IValuedElement
     setValue(text: string): void {
         this.text = evaluateStringValue(text);
+        this.metrics.textMetrics = null;  // reset
     }
 
     loadFromActionData(state: ParseState): StyledText {
@@ -45,6 +54,7 @@ export default class StyledText implements ILayerElement, IValuedElement
                     break;
                 case 'font':
                     this.font = data.value.trim();
+                    this.style.line.widthScale = 1;  // depends on font, reset it
                     break;
                 case 'alignH':
                     this.alignH = (data.value as typeof this.alignH);
@@ -55,7 +65,6 @@ export default class StyledText implements ILayerElement, IValuedElement
                 case 'ofsH':
                     this.offset.x = evaluateValue(data.value);
                     break;
-                case 'ofsY':
                 case 'ofsV':
                     this.offset.y = evaluateValue(data.value);
                     break;
@@ -111,17 +120,19 @@ export default class StyledText implements ILayerElement, IValuedElement
         // Use 'middle' baseline to get metrics and as default (may change after metrics are calculated).
         // This is important for vertical alignment code below to work.
         ctx.textBaseline = 'middle';
-        const metrics:SkiaTextMetrics = ctx.measureText(this.text);  // skia-canvas extended TextMetrics type
-        const multiline = metrics.lines.length > 1;
-        // console.dir(metrics);
-        // console.dir(this);
+        if (!this.metrics.textMetrics) {
+            this.metrics.textMetrics = ctx.measureText(this.text);
+            this.metrics.multiline = this.metrics.textMetrics.lines.length > 1;
+            // console.dir(this, {depth: 8});
+        }
+        const tm = this.metrics.textMetrics;
 
         // Calculate the draw offset based on alignment settings.
         let offset = new Vect2d();
         // horizontal
         switch (this.alignH) {
             case 'center':
-                offset.x = (rect.width * 0.5 + metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight);  break;
+                offset.x = (rect.width * 0.5 + tm.actualBoundingBoxLeft + tm.actualBoundingBoxRight);  break;
             case 'left':
                 offset.x = rect.width * .025 + penAdjust;  break;  // add some left padding
             case 'right':
@@ -130,23 +141,23 @@ export default class StyledText implements ILayerElement, IValuedElement
         // vertical alignment is tricksier!  this may not work perfectly for all fonts since it relies heavily on their declared metrics, and those are not always as expected.
         switch (this.alignV) {
             case 'middle':
-                offset.y = (rect.height - metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) * 0.5 +
-                           (multiline ? metrics.actualBoundingBoxAscent : metrics.fontBoundingBoxAscent);
+                offset.y = (rect.height - tm.actualBoundingBoxAscent - tm.actualBoundingBoxDescent) * 0.5 +
+                           (this.metrics.multiline ? tm.actualBoundingBoxAscent : tm.fontBoundingBoxAscent);
                 break;
             case 'top':
-                if (multiline) {
+                if (this.metrics.multiline) {
                     ctx.textBaseline = 'top';
-                    offset.y = metrics.actualBoundingBoxAscent + penAdjust;
+                    offset.y = tm.actualBoundingBoxAscent + penAdjust;
                     break;
                 }
-                offset.y = metrics.fontBoundingBoxAscent + penAdjust;
+                offset.y = tm.fontBoundingBoxAscent + penAdjust;
                 break;
             case 'bottom':
                 ctx.textBaseline = 'top';
-                offset.y = rect.height - metrics.actualBoundingBoxDescent - metrics.fontBoundingBoxAscent - penAdjust;
+                offset.y = rect.height - tm.actualBoundingBoxDescent - tm.fontBoundingBoxAscent - penAdjust;
                 break;
         }
-        // console.log(rect.size, offset, penAdjust, getTextHeight());
+        // console.log(rect.size, offset, penAdjust, tm);
 
         // add any user-specified offset as percent of canvas size
         if (!this.offset.isEmpty)
