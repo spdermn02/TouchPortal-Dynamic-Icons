@@ -42,7 +42,7 @@
   "dependencies": {
     "async-mutex": "^0.4.0",
     "sharp": "^0.30.7",
-    "skia-canvas": "github:samizdatco/skia-canvas",
+    "skia-canvas": "^1.0.1",
     "touchportal-api": "^3.2.1"
   },
   "devDependencies": {
