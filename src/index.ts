@@ -339,7 +339,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
                     return
                 }
             }
-            // TPClient.logIt("DEBUG", "Sending", icon.stateCreated ? "Updated" : "New", "icon named", iconName, "with length", iconData.length)
+            // TPClient.logIt("DEBUG", "Sending icon named", iconName, "with length", iconData.length)
 
             // create dynamic TP state for new icons
             createTpIconStateIfNeeded(icon)

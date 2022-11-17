@@ -19,8 +19,7 @@ export default class Transformation implements ILayerElement
     rotate: number = 0; // percent of 360 degrees
     scale: Vect2d = new Vect2d(); // percent of requested image size (not the original source image), negative for reduction; eg: 100 is double size, -50 is half size.
     translate: Vect2d = new Vect2d(); // percentage of relevant dimension of requested image size
-
-    // eg: x = 100 translates one full image width to the right (completely out of frame for an unscaled source image)
+                                      // eg: x = 100 translates one full image width to the right (completely out of frame for an unscaled source image)
     skew: Vect2d = new Vect2d(); // percent of requested image size (not the original source image)
     transformOrder: TransformOpType[] = ['O', 'R', 'SC', 'SK'];
     scope: TransformScope = TransformScope.PreviousOne;
