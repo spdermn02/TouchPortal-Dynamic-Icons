@@ -11,16 +11,10 @@
     "pkg": "pkg .",
     "pkg-win": "pkg --targets node16-win-x64 .",
     "pkg-mac": "pkg --targets node16-macos-x64 .",
-    "build-win": "run-script-os",
-    "build-mac": "run-script-os",
-    "build-win:win32": "builders\\build.bat win32",
-    "build-win:linux:darwin": "sh builders/build.sh win32",
-    "build-mac:win32": "builders\\build.bat mac",
-    "build-mac:linux:darwin": "sh builders/build.sh mac",
+    "build": "tsc && node builders/build.js",
     "tsc": "tsc",
     "jest": "jest",
     "ts-node-dev": "ts-node-dev",
-    "dev": "nodemon -e ts --exec \"npm run build && node ./bundle/iTunesPlugin.js\"",
     "lint": "eslint ./src/**/*.ts --no-cache",
     "lint:fix": "eslint ./src/**/*.ts --fix",
     "lint:watch": "nodemon --watch .eslintrc.js --exec \"npm run lint\""
@@ -34,6 +28,9 @@
     "TouchPortalPlugin"
   ],
   "author": "Jameson Allen aka Spdermn02",
+  "contributors": [
+    "Max Paperno aka mpaperno https://github.com/mpaperno"
+  ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/spdermn02/TouchPortal-Dynamic-Icons/issues"
@@ -48,7 +45,9 @@
   "devDependencies": {
     "@types/skia-canvas": "^0.9.2",
     "@typescript-eslint/eslint-plugin": "^4.30.0",
+    "adm-zip": "^0.5.9",
     "eslint": "^7.32.0",
+    "fs-extra": "^10.1.0",
     "json-schema": "^0.4.0",
     "pkg": "^5.5.1",
     "run-script-os": "^1.1.6",
