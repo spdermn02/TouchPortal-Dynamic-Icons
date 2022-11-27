@@ -16,7 +16,7 @@
 
 // Defaults
 var VERSION = "";
-var OUTPUT_PATH = "base/TPDynamicIcons"
+var OUTPUT_PATH = "base"
 var DEV_MODE = false;
 
 // Handle CLI arguments
@@ -48,11 +48,12 @@ const entry_base =
     "$schema": "https://pjiesco.com/touch-portal/entry.tp/schema",
     "sdk": 6,
     "version": iVersion.toString(16),
-    "TPDynamicIcons": VERSION,
+    "touchportal-dynamic-icons": VERSION,
     "name": "Touch Portal Dynamic Icons",
     "id": "Touch Portal Dynamic Icons",
-    "plugin_start_cmd_mac":     DEV_MODE ? "" : "sh \"%TP_PLUGIN_FOLDER%\"TPDynamicIcons/start.sh touchportal-dynamic-icons",
-    "plugin_start_cmd_windows": DEV_MODE ? "" : "\"%TP_PLUGIN_FOLDER%TPDynamicIcons\\touchportal-dynamic-icons.exe\"",
+    "plugin_start_cmd_mac":     DEV_MODE ? "" : "sh \"%TP_PLUGIN_FOLDER%\"touchportal-dynamic-icons/start.sh touchportal-dynamic-icons",
+    "plugin_start_cmd_linux":     DEV_MODE ? "" : "sh \"%TP_PLUGIN_FOLDER%\"touchportal-dynamic-icons/start.sh touchportal-dynamic-icons",
+    "plugin_start_cmd_windows": DEV_MODE ? "" : "\"%TP_PLUGIN_FOLDER%touchportal-dynamic-icons\\touchportal-dynamic-icons.exe\"",
     "configuration": {
         "colorDark": "#23272A",
         "colorLight": "#7289DA"
@@ -71,7 +72,7 @@ const entry_base =
         {
             "id": "TP Dynamic Icons",
             "name": "Dynamic Icons",
-            "imagepath": "%TP_PLUGIN_FOLDER%TPDynamicIcons/tp-dynamic-icons.png",
+            "imagepath": "%TP_PLUGIN_FOLDER%touchportal-dynamic-icons/tp-dynamic-icons.png",
             "actions": [],
             "connectors": [],
             "states": [

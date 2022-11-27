@@ -27,13 +27,21 @@ Generate Dynamic Icons for Touch Portal based on Actions and 0-100% values.
 ```
 v1.0.0 - Initial Release
   Features:
-    - Actions for Simple Round Gauge and Simple Bar Graph
+    - Actions for Simple Round Gauge and Simple Bar Graph\
+v1.1.0 - Layered Icons (Thanks to Max Paperno)
+  Features:
+    - Actions To allow for multiple layered icons
+    - Actions to manipulate origin/scale/transform/etc the layered icons
+    - Image Cache for faster image compilation
+  Build Scripts:
+    - Conversion to js build script for multi arch compile at once
+    - entry.tp generator script
 ```
 
 # What Is This?
 
-Do you find the need to render out a bar graph, or round gauge in Touch Portal, but it it needs to be dynamic. Look no further, this plugin can do that for you.
-This will draw bar graphs, or round gauges (simple styles only at first) based on your configured actions, colors, etc. (see Actions section for info), see Sample section for what you can do with it.
+Do you find the need to render out a bar graph, or round gauge in Touch Portal, or some complex layered image like a flight altimeter, or flight level guage, thermometer, but it it needs to be dynamic. Look no further, this plugin can do that for you.
+This will draw bar graphs, or round gauges, or more complex layered images with different transformations based on your configured actions, colors, etc. (see Actions section for info), see Sample section for what you can do with it.
 
 # Actions
 
@@ -182,7 +190,7 @@ In order to use the icons, they first have to have been started to be generated.
 
 ![Simple Round Gauge Icon Sample](Resources/SimplRoundGauge-IconSample.png)
 
-Here is an example of using 4 Simple Round guages on the same page, with 4 random values
+Here is an example of using 4 Simple Round gauges on the same page, with 4 random values
 
 ![Simple Round Gauge 4 Icons](Resources/4-SimpleRoundGauges-Example.gif)
 
@@ -204,6 +212,7 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 # Authors
 
 - **Jameson Allen** - _Initial work_ - [Spdermn02](https://github.com/spdermn02)
+- **Max Paperno** - Large Code Improvements Layering Code and Caching Enhancements [Mpaperno](https://github.com/mpaperno)
 
 # License
 
@@ -214,3 +223,4 @@ Use the Github Issues tab to report any bugs/enhancements for this plug-in. Or m
 
 # Acknowledgements
 1. Thank you to Reinier and Ty, the Touch Portal Creators
+2. Thank you to Max Paperno for your massive contribution
