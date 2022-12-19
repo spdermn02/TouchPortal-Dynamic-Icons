@@ -3,6 +3,7 @@ import { ILayerElement, RenderContext2D } from "../interfaces";
 import { ParseState, Rectangle } from "../types";
 import Transformation from "./Transformation";
 import globalImageCache, { ImageDataType } from '../ImageCache'
+import { evaluateStringValue } from "../../utils/helpers";
 
 // This class hold an image source (path) and associated data like processing options or transformation to apply.
 
@@ -36,7 +37,7 @@ export default class DynamicImage implements ILayerElement
                 case 'src': {
                     const value = state.data[i].value.trim();
                     if (value.length > 4)  // shortest possible valid image file name would be 5 chars.
-                        this.source = value;
+                        this.source = evaluateStringValue(value);
                     break;
                 }
                 case 'fit':
