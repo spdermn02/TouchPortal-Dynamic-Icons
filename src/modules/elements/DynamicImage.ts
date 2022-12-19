@@ -1,5 +1,5 @@
 
-import { ILayerElement, RenderContext2D } from "../interfaces";
+import { ILayerElement, IValuedElement, RenderContext2D } from "../interfaces";
 import { ParseState, Rectangle } from "../types";
 import Transformation from "./Transformation";
 import globalImageCache, { ImageDataType } from '../ImageCache'
@@ -7,7 +7,7 @@ import { evaluateStringValue } from "../../utils/helpers";
 
 // This class hold an image source (path) and associated data like processing options or transformation to apply.
 
-export default class DynamicImage implements ILayerElement
+export default class DynamicImage implements ILayerElement, IValuedElement
 {
     source: string = "";
     transform: Transformation | null = null;
@@ -29,17 +29,20 @@ export default class DynamicImage implements ILayerElement
             this.transform = new Transformation().loadFromActionData(state);
     }
 
+    // IValuedElement
+    // Sets/updates the image source.
+    setValue(value: string) {
+        this.source = evaluateStringValue(value.trim());
+    }
+
     loadFromActionData(state: ParseState): DynamicImage {
         let txParsed = false;
         for (let i = state.pos, e = state.data.length; i < e; ++i) {
             const dataType = state.data[i].id.split('image_').at(-1);  // last part of the data ID determines its meaning
             switch (dataType) {
-                case 'src': {
-                    const value = state.data[i].value.trim();
-                    if (value.length > 4)  // shortest possible valid image file name would be 5 chars.
-                        this.source = evaluateStringValue(value);
+                case 'src':
+                    this.setValue(state.data[i].value);
                     break;
-                }
                 case 'fit':
                     this.resizeOptions['fit'] = state.data[i].value;
                     break;
