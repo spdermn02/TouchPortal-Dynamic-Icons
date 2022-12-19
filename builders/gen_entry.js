@@ -65,7 +65,15 @@ const entry_base =
             "default": "256",
             "minValue": 8,
             "maxValue": 1920, // arbitrary
-            "readOnly": false
+            "readOnly": false,
+            "description": "Image size produced when using standalone 'Draw' actions for producing icons, without any layering."
+        },
+        {
+            "name": "Default Image Files Path",
+            "type": "text",
+            "default": "",
+            "readOnly": false,
+            "description": "Base directory to use when loading image files specified using a relative path. When left empty, the default is Touch Portal's configuration directory for the current user."
         }
     ],
     "categories": [

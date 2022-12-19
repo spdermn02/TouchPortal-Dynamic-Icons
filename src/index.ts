@@ -5,8 +5,9 @@ import { SizeType, ParseState, TpActionDataArrayType } from './modules/types'
 import { ILayerElement, IValuedElement } from './modules/interfaces';
 import DynamicIcon from "./modules/DynamicIcon";
 import * as m_el from "./modules/elements";
-import { default as g_globalImageCache } from './modules/ImageCache'
+import { default as g_globalImageCache, ImageCache } from './modules/ImageCache'
 import { setCommonLogger } from './common'
+import { dirname as pdirname, join as pjoin } from 'path';
 
 // -------------------------------
 // Constants
@@ -22,6 +23,13 @@ const IMAGE_COMPRESSOR_OPTIONS = {
     palette: true          // MP: Again the docs suggest enabling this would be slower but my tests show a significant speed improvement.
 }
 
+// Default image base directory to TP's config folder for current user.
+// This is used to resolve relative paths when loading images, via the ImageCache.cacheOptions.baseImagePath setting.
+// User can override this with the "Default Image Files Path" plugin setting in TP.
+// NOTE: this only works when the plugin binary is run from its normal install location in TPs config folder.
+// If there's a better x-platform way to find TPs config path, then fixme.
+const DEFAULT_IMAGE_FILE_BASE_PATH = pjoin(pdirname(process.argv0), '..', '..');
+
 
 // -------------------------------
 // Globals
@@ -36,6 +44,9 @@ const TPClient = new TP.Client();
 // hackish way to share the TP client "logger" with other modules
 setCommonLogger((...args: any[]) => { TPClient.logIt(...args) });
 
+// Set default image path here. It should be overwritten anyway when Settings are processed,
+// but this preserves BC with previous 1.1 alpha versions w/out the setting. Could eventually be removed.
+ImageCache.cacheOptions.baseImagePath = DEFAULT_IMAGE_FILE_BASE_PATH;
 
 // -------------------------------
 // Helper functions
@@ -393,9 +404,13 @@ TPClient.on("Action", (message:any /*,  hold?:boolean */) => {
 TPClient.on("Settings", (settings:{ [key:string]:string }[]) => {
     settings.forEach((s) => {
         if (s.hasOwnProperty('Default Icon Size')) {
-            const size:number = parseInt(s['Default Icon Size']) || 0;
+            const size:number = parseInt(s['Default Icon Size'].trim()) || 0;
             if (size >= 8)
                 g_defaultIconSize = {width: size, height: size};
+        }
+        else if (s.hasOwnProperty('Default Image Files Path')) {
+            const path:string = s['Default Image Files Path'].trim();
+            ImageCache.cacheOptions.baseImagePath = path || DEFAULT_IMAGE_FILE_BASE_PATH;
         }
     });
 })
