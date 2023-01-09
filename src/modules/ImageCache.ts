@@ -4,6 +4,7 @@ import { loadImage } from 'skia-canvas';
 import { Mutex } from 'async-mutex';
 import { SizeType } from './types';
 import { logIt } from '../common'
+import { isAbsolute as isAbsPath, join as pjoin } from 'path';
 
 /** Central storage for various image processing options; Set via ImageCache.cacheOptions
 Some of these could in theory be controlled via plugin settings or action data. */
@@ -12,6 +13,7 @@ class ImageCacheOptions {
     actual cache size may grow a bit above this level to optimize the buffer trimming operations.
     Reducing this value at runtime will only take effect next time an image is added to the cache. */
     maxCachedImages: number = 250;
+    baseImagePath: string = "";
     // See https://sharp.pixelplumbing.com/api-constructor#sharp
     sourceLoadOptions: any = { density: 72 };  // [dpi] only relevant for loading vector graphics. 72 is default;
     // See also https://sharp.pixelplumbing.com/api-resize#resize
@@ -134,6 +136,8 @@ export class ImageCache
      */
     public async getOrLoadImage(src: string, size: SizeType, resizeOptions:any = {}, meta?: any): Promise<ImageDataType>
     {
+        if (ImageCache.cacheOptions.baseImagePath && !isAbsPath(src))
+            src = pjoin(ImageCache.cacheOptions.baseImagePath, src);
         if (ImageCache.cacheOptions.maxCachedImages <= 0)
             return this.loadImage(src, size, resizeOptions);  // short-circuit for disabled cache
 
