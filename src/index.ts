@@ -1,7 +1,7 @@
 import TP from 'touchportal-api'
 import sharp from 'sharp'   // for final result image compression
 import { pluginId } from './utils/consts'
-import { SizeType, ParseState, TpActionDataArrayType } from './modules/types'
+import { SizeType, ParseState, TpActionDataArrayType, Vect2d } from './modules/types'
 import { ILayerElement, IValuedElement } from './modules/interfaces';
 import DynamicIcon from "./modules/DynamicIcon";
 import * as m_el from "./modules/elements";
@@ -11,8 +11,6 @@ import { dirname as pdirname, join as pjoin } from 'path';
 
 // -------------------------------
 // Constants
-
-const USE_IMAGE_COMPRESSOR:number = 1;  // 0 = none; 1 = Sharp
 
 // Options for the 'sharp' lib image compression. These are passed to sharp() when generating PNG results.
 // These probably should be user-settable somehow (plugin settings or via Actions) since they can really affect performance vs. quality and CPU usage.
@@ -78,15 +76,127 @@ function sendIconLists() {
     TPClient.choiceUpdate("dynamic_icons_control_command_icon", nameArry.length ? ["All", ...nameArry] : ["[ no icons created ]"]);
 }
 
-// Creates a TP state for an icon if it hasn't been created yet.
+// Creates a TP state(s) for an icon if it/they hasn't been created yet. An icon may use multiple states if it is tiled.
 function createTpIconStateIfNeeded(icon: DynamicIcon) {
-    if (!icon.stateCreated) {
-        icon.stateCreated = true;
-        TPClient.createState(icon.name, icon.name, "", "Dynamic Icons");
-        sendIconLists();
+    if (icon.stateCreated)
+        return;
+
+    icon.stateCreated = true;
+    if (icon.isTiled) {
+        for (let y=0; y < icon.tile.y; ++y)
+            for (let x=0; x < icon.tile.x; ++x) {
+                try {
+                    TPClient.createState(
+                        icon.getTileStateId({x: x, y: y}),              // id
+                        `${icon.name} - Tile col. ${x+1}, row ${y+1}`,  // name
+                        "",        // default value
+                        icon.name  // parent group, use icon name
+                    );
+                }
+                catch { /* ignore, client logs errors */ }
+            }
+    }
+    else {
+        try { TPClient.createState(/* id */ icon.name, /* name */ icon.name, "", /* category */ "Dynamic Icons"); }
+        catch { /* ignore, client logs errors */ }
+    }
+    sendIconLists();
+}
+
+// Removes any TP state(s) for an icon that have already been created.
+// Note this uses the icon's _current_ `tile` property value to determine state IDs to remove.
+function clearIconStates(icon: DynamicIcon) {
+    if (!icon.stateCreated)
+        return;
+
+    if (icon.isTiled) {
+        for (let y=0; y < icon.tile.y; ++y)
+            for (let x=0; x < icon.tile.x; ++x) {
+                try { TPClient.removeState(icon.getTileStateId({x: x, y: y})); }
+                catch { /* ignore */ }
+            }
+    }
+    else {
+        try { TPClient.removeState(/* id */ icon.name); }
+        catch { /* ignore */ }
+    }
+    icon.stateCreated = false;
+}
+
+// Send TP State update with an icon's image data. This is used for untiled images (most common scenario).
+function sendIconData(icon: DynamicIcon, data: Buffer | null) {
+    if (data?.length) {
+        // TPClient.logIt("DEBUG", `Sending data for icon '${icon.name}' with length ${data.length}`);
+        createTpIconStateIfNeeded(icon);
+        TPClient.stateUpdate(icon.name, data.toString("base64"));
     }
 }
 
+// Send TP State update with one of an icon's tiled images.
+// This version assumes the icon is tiled and that all States have already been created.
+function sendIconDataTile(icon: DynamicIcon, data: Buffer | null, tile: Vect2d | any) {
+    if (data?.length) {
+        //TPClient.logIt("DEBUG", `Sending tile ${icon.getTileStateId(tile)} for icon '${icon.name}' with length ${data.length}`);
+        TPClient.stateUpdate(icon.getTileStateId(tile), data.toString("base64"));
+    }
+}
+
+// Render and send an icon to TP. The resulting image may be compressed and/or tiled before sending.
+// This function only calls async methods w/out awaiting (icon.render()), and should return "immediately."
+function renderAndSendIcon(icon: DynamicIcon) {
+    icon.render()
+    .then((data: Buffer) => {
+
+        if (icon.isTiled) {
+            try {
+                // the sharp() constructor may throw
+                const img = new sharp(data, { premultiplied: true });
+                const slice = { left: 0, top: 0, width: icon.size.width, height: icon.size.height };
+                for (let y=0; y < icon.tile.y; ++y) {
+                    for (let x=0; x < icon.tile.x; ++x) {
+                        // extract image slice, encode PNG, and send the tile
+                        img.extract(slice)
+                        .png(IMAGE_COMPRESSOR_OPTIONS)
+                        .toBuffer()
+                        .then((data: Buffer) => sendIconDataTile(icon, data, {x: x, y: y}) )
+                        .catch((e: any) => {
+                            TPClient.logIt("ERROR", `Exception while generating tile ${x + y} for icon '${icon.name}': ${e}`);
+                        });
+                        slice.left += slice.width;
+                    }
+                    slice.left = 0;
+                    slice.top += slice.height;
+                }
+            }
+            catch (e) {
+                TPClient.logIt("ERROR", `Exception while reading generated image for icon '${icon.name}': ${e}`);
+            }
+            return;
+        }
+
+        if (icon.compressOutput) {
+            try {
+                // the sharp() constructor may throw
+                new sharp(data, { premultiplied: true })
+                .png(IMAGE_COMPRESSOR_OPTIONS)
+                .toBuffer()
+                .then((data: Buffer) => sendIconData(icon, data) )
+                .catch((e: any) => {
+                    TPClient.logIt("ERROR", `Exception while compressing image for icon '${icon.name}': ${e}`);
+                });
+            }
+            catch (e) {
+                TPClient.logIt("ERROR", `Exception while reading generated image for icon '${icon.name}': ${e}`);
+            }
+            return;
+        }
+        // Icon needs neither tiling nor compression, send data as-is.
+        sendIconData(icon, data);
+    })
+    .catch((e: any) => {
+        TPClient.logIt("ERROR", `Exception while rendering image for icon '${icon.name}': ${e}`);
+    });
+}
 
 // -------------------------------
 // Action handlers
@@ -109,9 +219,11 @@ function handleControlAction(actionId: string, data: TpActionDataArrayType) {
         case 'Delete Icon State': {
             const iList = (iconName == "All" ? [...g_dyanmicIconStates.keys()] : [iconName]);
             iList.forEach((n) => {
-                try { TPClient.removeState(n); }
-                catch { /* FIXME: in API, should be able to delete a state after plugin restart. */ }
-                g_dyanmicIconStates.delete(n);
+                const icon: DynamicIcon | null = g_dyanmicIconStates.get(n)?.data;
+                if (icon) {
+                    clearIconStates(icon);
+                    g_dyanmicIconStates.delete(n);
+                }
             });
             sendIconLists();
             return;
@@ -124,7 +236,6 @@ function handleControlAction(actionId: string, data: TpActionDataArrayType) {
 }
 
 // Processes all icon layering and generation actions.
-// This could potentially be moved into DynamicIcon class.
 async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 {
     // The icon name is always the first data field in all other actions.
@@ -145,10 +256,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
         icon.nextIndex = 0
     const layerElement: ILayerElement | null = icon.layers[icon.nextIndex]  // element at current position, if any
     const layerType: string = layerElement ? layerElement.type : ""         // checked in most of the actions below
-
-    const parseState = new ParseState({data: data, pos: 1})   // passed to the various "loadFromActionData()" methods of layer elements
-    let iconData:Buffer | null = null   // for generated image data, this will be sent as a TP state at the end if it's not null
-    let useCompression = USE_IMAGE_COMPRESSOR   // this could be set at runtime per icon to en/disable compression; eg. if img size is < X
+    const parseState = new ParseState({data: data, pos: 1})                 // passed to the various "loadFromActionData()" methods of layer elements
 
     switch (actionId)
     {
@@ -156,11 +264,22 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             // Create a new "layer stack" type icon with given name and size. Layer elements need to be added in following action(s).
             const size = data.length > 1 ? parseInt(data[1].value) || g_defaultIconSize.width : g_defaultIconSize.width;
             icon.size = { width: size, height: size };
+            // Handle tiling parameters, if any;  Added in v1.1.5
+            if (data.length > 3 && data[2].id.endsWith("tile_x")) {
+                const tile = new Vect2d(parseInt(data[2].value) || 1, parseInt(data[3].value) || 1);
+                // check if the tiling settings have changed; we may need to clean up any existing TP states first.
+                if (tile.x >= 1 && tile.y >= 1 && !icon.tile.equals(tile)) {
+                    // just clear out any States that may already have been created... we'll then re-create new ones as needed.
+                    clearIconStates(icon);
+                    // set the tile property after clearing out any old states.
+                    icon.tile = tile;
+                }
+            }
             icon.delayGeneration = true;   // must explicitly generate
             icon.nextIndex = 0;   // reset position index, this increments each time we parse a layer element into the icon
-            // create the TP state now if we haven't yet; this way a user can create the new state at any time, separate from the render action.
+            // create the TP state(s) now if we haven't yet; this way a user can create the new state at any time, separate from the render action.
             createTpIconStateIfNeeded(icon);
-            break;
+            return;
         }
 
         case 'generate':  {
@@ -178,8 +297,9 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             if (action & 1)
                 icon.layers.length = icon.nextIndex;   // trim any old layers
             if (action & 2)
-                iconData = await icon.render();
-            break;
+                renderAndSendIcon(icon);
+
+            return;
         }
 
         // Elements which can be either layers or individual icons.
@@ -196,11 +316,12 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
         case 'simple_bar_graph':  // keep for BC
         case 'barGraph': {
             // Bar graph of series data. Data values are stored in the actual graph element.
-            const barGraph: m_el.BarGraph = layerType == "BarGraph" ? (layerElement as m_el.BarGraph) : (icon.layers[icon.nextIndex] = new m_el.BarGraph({maxExtent: icon.size.width}))
+            const barGraph: m_el.BarGraph = layerType == "BarGraph" ? (layerElement as m_el.BarGraph) : (icon.layers[icon.nextIndex] = new m_el.BarGraph())
             barGraph.loadFromActionData(parseState)
+            barGraph.maxExtent = icon.actualSize().width;
             ++icon.nextIndex
             if (!icon.delayGeneration)
-                useCompression = 0;  // simple bar graphs don't benefit from compression
+                icon.compressOutput = false;  // simple bar graphs don't benefit from compression
             break
         }
 
@@ -325,8 +446,8 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             // When updating a value/tx, there is an option to generate the icon immediately (w/out an explicit "generate" action)
             const render = data.at(-1)
             if (render && render.id.endsWith("render") && render.value === "Yes")
-                iconData = await icon.render()
-            break
+                renderAndSendIcon(icon)
+            return
         }
 
         default:
@@ -336,34 +457,8 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
     }
 
     // render individual single-layered icon now
-    if (!iconData && !icon.delayGeneration && icon.layers.length)
-        iconData = await icon.render()
-
-    // see if we have something to send
-    if (iconData) {
-        try {
-            // check if compression is enabled
-            if (useCompression == 1) {
-                iconData = await sharp(iconData, { premultiplied: true }).png(IMAGE_COMPRESSOR_OPTIONS).toBuffer()
-                if (!iconData) {
-                    TPClient.logIt("ERROR", "Generating icon", iconName, "Compressed image is null!")
-                    return
-                }
-            }
-            // TPClient.logIt("DEBUG", "Sending icon named", iconName, "with length", iconData.length)
-
-            // create dynamic TP state for new icons
-            createTpIconStateIfNeeded(icon)
-            TPClient.stateUpdate(iconName, iconData.toString("base64"))
-        }
-        catch (e) {
-            TPClient.logIt("ERROR", "Generating/sending icon", iconName, '\n', e)
-        }
-    }
-
-    // clean up if we haven't created a TP state for this name. This may happen due to some action/data error, though unlikely.
-    if (!icon || !icon.stateCreated)
-        g_dyanmicIconStates.delete(iconName)
+    if (!icon.delayGeneration && icon.layers.length > 0)
+        renderAndSendIcon(icon);
 
 }  // handleIconAction()
 
