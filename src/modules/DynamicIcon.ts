@@ -1,17 +1,29 @@
 
 import { ILayerElement } from "./interfaces";
-import { Rectangle, SizeType } from "./types";
+import { Rectangle, SizeType, Vect2d } from "./types";
 import { Canvas } from 'skia-canvas';
 import Transformation, { TransformScope } from "./elements/Transformation";
 
 // Stores a collection of ILayerElement types as layers and produces a composite image from all the layers when rendered.
 export default class DynamicIcon
 {
+    /** the icon name is also used for the corresponding TP State ID */
     name: string = "";
+    /** This is the size of one "tile" (see also `actualSize()`); For now these must be square due to TP limitation. */
     size: SizeType = { width: 256, height: 256 };
-    delayGeneration: boolean = false;   //  true if icon was explicitly created with a "New" action, will require a corresponding "Render" action to actually draw it.
-    stateCreated: boolean = false;     // TP State created for this icon
+    /** Specifies an optional grid to split the final image into multiple parts before sending to TP. */
+    tile: Vect2d = new Vect2d(1, 1);
+    /** `true` if icon was explicitly created with a "New" action, will require a corresponding "Render" action to actually draw it. */
+    delayGeneration: boolean = false;
+    /** Whether to use GPU for rendering (on supported hardware). Passed to skia-canvas's Canvas::gpu property. */
+    gpuRendering: boolean = true;
+    /** Whether to use additional output compression before sending image state data to TP. */
+    compressOutput: boolean = true;
+    /** Indicates if any TP State(s) have been created for this icon. */
+    stateCreated: boolean = false;
+    /** Used while building a icon from TP layer actions to keep track of current layer being affected. */
     nextIndex: number = 0;
+    /** The array of elements which will be rendered. */
     layers: ILayerElement[] = [];
 
     constructor(name: string, size:SizeType) {
@@ -19,15 +31,29 @@ export default class DynamicIcon
         this.size = size;
     }
 
+    /** true if the image should be split into parts before delivery, false otherwise. Checks if either of `tile.x` or `tile.y` are `> 1`. */
+    get isTiled() { return this.tile.x > 1 || this.tile.y > 1; }
+
+    /** Calculates and returns actual pixel dimensions of this image, which is going to be the `size` property
+        multiplied by the number of grid cells specified in `tile` property for each dimension.  */
+    actualSize() : SizeType {
+        return { width: this.size.width * this.tile.x, height: this.size.height * this.tile.y };
+    }
+
+    /** Formats and returns a TP State ID for a given tile coordinate. Format is '<icon.name>_<column>_<row>'
+        'x' and 'y' of `tile` are assumed to be zero-based; coordinates used in the State ID are 1-based (so, 1 is added to x and y values of `tile`). */
+    getTileStateId(tile: Vect2d | any) {
+        return `${this.name}_${tile.x+1}_${tile.y+1}`;
+    }
+
     async render() : Promise<Buffer> {
         try {
-            let canvas = new Canvas(this.size.width, this.size.height);
-            const ctx = canvas.getContext("2d");
-            const rect = new Rectangle(0, 0, this.size.width, this.size.height);
+            const rect = Rectangle.createFromSize(this.actualSize());
+            const ctx = new Canvas(rect.width, rect.height).getContext("2d");
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
+            ctx.canvas.gpu = this.gpuRendering;
 
-            // if (this.name === "DI_TC_Gauge") console.dir(this, {depth: 5, colors: true});
             for (let i = 0, e = this.layers.length; i < e; ++i) {
                 const layer = this.layers[i];
                 if (!layer)
@@ -49,9 +75,7 @@ export default class DynamicIcon
                 if (resetTx)
                     ctx.setTransform(resetTx);
             }
-            const buff:Buffer = await ctx.canvas.toBuffer('png');
-            canvas = undefined;
-            return buff;
+            return ctx.canvas.toBuffer('png');
         }
         catch (e) {
             console.error(e);
