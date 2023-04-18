@@ -39,6 +39,7 @@ const g_dyanmicIconStates:Map<string, DynamicIcon> = new Map();
 const g_settings = {
     // these can be changed in TP Settings
     defaultIconSize: <SizeType> { width: 256, height: 256 },
+    defaultGpuRendering: <boolean> true,
 };
 
 const TPClient = new TP.Client();
@@ -254,6 +255,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
         icon = new DynamicIcon({
             name: iconName,
             size: g_settings.defaultIconSize,
+            gpuRendering: g_settings.defaultGpuRendering
         })
         g_dyanmicIconStates.set(iconName, icon)
     }
@@ -517,6 +519,9 @@ TPClient.on("Settings", (settings:{ [key:string]:string }[]) => {
         }
         else if (key.startsWith('Default Image Files Path')) {
             ImageCache.cacheOptions.baseImagePath = val || DEFAULT_IMAGE_FILE_BASE_PATH;
+        }
+        else if (key.startsWith('Enable GPU Rendering')) {
+            g_settings.defaultGpuRendering = /(?:[1-9]\d*|yes|true|enabled?)/i.test(val);
         }
     });
 })
