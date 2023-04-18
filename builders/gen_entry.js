@@ -74,7 +74,18 @@ const entry_base =
             "default": "",
             "readOnly": false,
             "description": "Base directory to use when loading image files specified using a relative path. When left empty, the default is Touch Portal's configuration directory for the current user."
-        }
+        },
+        {
+            "name": "Enable GPU Rendering by Default",
+            "type": "text",
+            "default": "Yes",
+            "readOnly": false,
+            "description": "Enables or disables using hardware acceleration (GPU), when available, for generating icon images. One of: \"yes, true, 1, or enable\" to enable, anything else to disable.\n" +
+                "This setting can be also be overridden per icon. Changing this setting does not affect any icons already generated since the plugin was started.\n\n" +
+                "When disabled, all image processing happens on the CPU, which may be slower and/or produce slightly different results in some cases.\n\n" +
+                "GPU rendering is only supported on some hardware/OS/drivers, and is disabled on others regardless of this setting.\n\n" +
+                "Note that at least some CPU will be used when generating icons in any case, most notably for image file loading and final output PNG compression."
+        },
     ],
     "categories": [
         {
