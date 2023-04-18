@@ -26,10 +26,7 @@ export default class DynamicIcon
     /** The array of elements which will be rendered. */
     layers: ILayerElement[] = [];
 
-    constructor(name: string, size:SizeType) {
-        this.name = name;
-        this.size = size;
-    }
+    constructor(init?: Partial<DynamicIcon>) { Object.assign(this, init); }
 
     /** true if the image should be split into parts before delivery, false otherwise. Checks if either of `tile.x` or `tile.y` are `> 1`. */
     get isTiled() { return this.tile.x > 1 || this.tile.y > 1; }

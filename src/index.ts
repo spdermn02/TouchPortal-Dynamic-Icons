@@ -33,10 +33,13 @@ const DEFAULT_IMAGE_FILE_BASE_PATH = pjoin(pdirname(process.argv0), '..', '..');
 // Globals
 
 // Struct for tracking requested icons.
-type IconState = { data: any }
-const g_dyanmicIconStates:Map<string, IconState> = new Map();
+const g_dyanmicIconStates:Map<string, DynamicIcon> = new Map();
 
-var g_defaultIconSize: SizeType = { width: 256, height: 256 };  // can be changed in TP Settings
+// Runtime options.
+const g_settings = {
+    // these can be changed in TP Settings
+    defaultIconSize: <SizeType> { width: 256, height: 256 },
+};
 
 const TPClient = new TP.Client();
 // hackish way to share the TP client "logger" with other modules
@@ -219,7 +222,7 @@ function handleControlAction(actionId: string, data: TpActionDataArrayType) {
         case 'Delete Icon State': {
             const iList = (iconName == "All" ? [...g_dyanmicIconStates.keys()] : [iconName]);
             iList.forEach((n) => {
-                const icon: DynamicIcon | null = g_dyanmicIconStates.get(n)?.data;
+                const icon: DynamicIcon | undefined = g_dyanmicIconStates.get(n);
                 if (icon) {
                     clearIconStates(icon);
                     g_dyanmicIconStates.delete(n);
@@ -246,11 +249,15 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
     }
 
     // We must have an instance of DynamicIcon to work with, these are stored indexed by name.
-    let iconState = g_dyanmicIconStates.get(iconName)
-    if (!iconState || !iconState.data /* || !('layers' in iconState.data) */)
-        g_dyanmicIconStates.set(iconName, iconState = { data: new DynamicIcon(iconName, g_defaultIconSize) })
+    let icon: DynamicIcon | undefined = g_dyanmicIconStates.get(iconName)
+    if (!icon) {
+        icon = new DynamicIcon({
+            name: iconName,
+            size: g_settings.defaultIconSize,
+        })
+        g_dyanmicIconStates.set(iconName, icon)
+    }
 
-    const icon: DynamicIcon = iconState.data
     // reset position index for non-layered icons ("instant" rendering) since they can only have one layer
     if (!icon.delayGeneration)
         icon.nextIndex = 0
@@ -262,7 +269,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
     {
         case 'declare': {
             // Create a new "layer stack" type icon with given name and size. Layer elements need to be added in following action(s).
-            const size = data.length > 1 ? parseInt(data[1].value) || g_defaultIconSize.width : g_defaultIconSize.width;
+            const size = data.length > 1 ? parseInt(data[1].value) || g_settings.defaultIconSize.width : g_settings.defaultIconSize.width;
             icon.size = { width: size, height: size };
             // Handle tiling parameters, if any;  Added in v1.1.5
             if (data.length > 3 && data[2].id.endsWith("tile_x")) {
@@ -501,14 +508,15 @@ TPClient.on("Action", (message:any /*,  hold?:boolean */) => {
 
 TPClient.on("Settings", (settings:{ [key:string]:string }[]) => {
     settings.forEach((s) => {
-        if (s.hasOwnProperty('Default Icon Size')) {
-            const size:number = parseInt(s['Default Icon Size'].trim()) || 0;
+        const key:string = Object.keys(s)[0];
+        const val:string = Object.values(s)[0].toString().trim();
+        if (key.startsWith('Default Icon Size')) {
+            const size:number = parseInt(val) || 0;
             if (size >= 8)
-                g_defaultIconSize = {width: size, height: size};
+                g_settings.defaultIconSize = {width: size, height: size};
         }
-        else if (s.hasOwnProperty('Default Image Files Path')) {
-            const path:string = s['Default Image Files Path'].trim();
-            ImageCache.cacheOptions.baseImagePath = path || DEFAULT_IMAGE_FILE_BASE_PATH;
+        else if (key.startsWith('Default Image Files Path')) {
+            ImageCache.cacheOptions.baseImagePath = val || DEFAULT_IMAGE_FILE_BASE_PATH;
         }
     });
 })
