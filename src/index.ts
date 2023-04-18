@@ -288,12 +288,15 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
                 TPClient.logIt("WARN", "Image icon named '" + iconName + "' is empty, nothing to generate.");
                 return;
             }
+
             let action = 3  // finalize | render
             if (data.length > 1) {
-                const actStr:string = data[1].value
-                if (actStr[9] != '&')  // "Finalize & Render"
-                    action = actStr[0] == 'F' ? 1 : 2
+                // Action choices: "Finalize & Render", "Finalize", "Render"
+                let strVal:string = data[1].value.trim()
+                if (strVal.length < 9)
+                    action = strVal[0] == 'F' ? 1 : 2
             }
+
             if (action & 1)
                 icon.layers.length = icon.nextIndex;   // trim any old layers
             if (action & 2)
