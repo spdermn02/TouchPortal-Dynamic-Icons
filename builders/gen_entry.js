@@ -462,10 +462,11 @@ function addGenerateLayersAction(id, name) {
     const descript = "Dynamic Icons: " +
         "Finalize and/or Render a dynamic image icon which has been created using preceding 'New' and 'Draw/Layer' actions using the same Icon Name.\n" +
         "'Finalize' marks the icon as finished, removing any extra layers which may have been added previously. 'Render' produces the actual icon in its current state and sends it to TP.";
-    const format = "Icon Named {0} {1}";
+    const format = "Icon Named {0} {1} | Enable GPU Rendering: {2} (default is set in plugin Settings)";
     const data = [
         makeIconNameData(id),
         makeChoiceData("icon_generate_action", "Action", ["Finalize & Render", "Finalize Only", "Render Only"]),
+        makeChoiceData("icon_generate_gpu", "Enable GPU Rendering", ["default", "Enable", "Disable"]),
     ];
     addAction(id, name, descript, format, data);
 }

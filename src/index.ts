@@ -304,6 +304,12 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
                 let strVal:string = data[1].value.trim()
                 if (strVal.length < 9)
                     action = strVal[0] == 'F' ? 1 : 2
+
+                // GPU rendering setting choices: "default", "Enable", "Disable"; Added in v1.1.5
+                if (data.length > 2 && data[2].id.endsWith("gpu")) {
+                    strVal = data[2].value.trim()
+                    icon.gpuRendering = (strVal.startsWith("d") && g_settings.defaultGpuRendering) || strVal.startsWith("En")
+                }
             }
 
             if (action & 1)
