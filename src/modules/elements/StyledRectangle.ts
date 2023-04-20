@@ -1,7 +1,8 @@
 
-import { ILayerElement, RenderContext2D } from "../interfaces";
-import { ParseState, Rectangle, SizeType, Vect2d } from "../types";
-import DrawingStyle from "./DrawingStyle";
+import { ILayerElement, RenderContext2D } from '../interfaces';
+import { ParseState } from '../types';
+import { Rectangle, SizeType, Vect2d } from '../geometry';
+import DrawingStyle from './DrawingStyle';
 import { Path2D } from 'skia-canvas'
 
 // Draws a rectangle shape on a canvas context with optional radii applied to any/all of the 4 corners (like CSS). The shape can be fully styled with the embedded DrawingStyle property.

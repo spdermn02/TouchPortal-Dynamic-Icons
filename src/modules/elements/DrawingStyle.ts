@@ -1,13 +1,6 @@
-import { IRenderable, RenderContext2D } from "../interfaces";
-import LineStyle from "./LineStyle";
-import { BrushStyle, ParseState, Vect2d } from "../types";
-
-class ShadowStyle {
-    blur: number = 0;
-    offset: Vect2d = new Vect2d();
-    color: BrushStyle = new BrushStyle("#0000");
-    get isEmpty(): boolean { return (this.blur <= 0 && this.offset.isEmpty) || this.color.isEmpty; }
-}
+import { IRenderable, RenderContext2D } from '../interfaces';
+import { ParseState } from '../types';
+import { BrushStyle, LineStyle, ShadowStyle } from './';
 
 // Applies a drawing style to a canvas context, which includes all fill, stroke, and shadow attributes.
 export default class DrawingStyle implements IRenderable

@@ -1,5 +1,5 @@
 import { logIt } from '../common'
-import { Vect2d } from '../modules/types';
+import { Vect2d } from '../modules/geometry';
 
 const USE_DYNAMIC_VALUE_EVAL:number = 1;  // 0 = none; 1 = Function;
 

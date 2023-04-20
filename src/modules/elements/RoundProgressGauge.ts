@@ -1,7 +1,9 @@
 
 import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces'
 import { PI, PI2 } from '../../utils/consts'
-import { BrushStyle, ParseState, Rectangle } from '../types'
+import { ParseState } from '../types'
+import { Rectangle } from '../geometry'
+import { BrushStyle } from './'
 import { evaluateValue } from '../../utils/helpers'
 
 // Draws an arc/circle extending from 0 to 360 degrees based on a given value onto a canvas context.
