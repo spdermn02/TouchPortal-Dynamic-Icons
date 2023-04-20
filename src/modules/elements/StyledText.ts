@@ -1,8 +1,9 @@
 
-import { ILayerElement, IValuedElement, RenderContext2D } from "../interfaces";
-import { ParseState, Rectangle, Vect2d } from "../types";
-import { evaluateValue, evaluateStringValue } from "../../utils/helpers"
-import DrawingStyle from "./DrawingStyle";
+import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces';
+import { ParseState } from '../types'
+import { Rectangle, Vect2d } from '../geometry';
+import { evaluateValue, evaluateStringValue } from '../../utils/helpers'
+import { DrawingStyle } from './';
 import { TextMetrics as SkiaTextMetrics } from 'skia-canvas';
 type SkiaTextMetrics = typeof SkiaTextMetrics;
 

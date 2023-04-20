@@ -1,5 +1,6 @@
-import { IRenderable, RenderContext2D } from "../interfaces";
-import { BrushStyle, ParseState } from "../types";
+import { IRenderable, RenderContext2D } from '../interfaces';
+import { ParseState } from '../types';
+import { BrushStyle } from './';
 
 // Applies a stroke (line) style to a canvas context, which includes stroke style, line width, pen, cap, join, miter, and dash array.
 export default class LineStyle implements IRenderable

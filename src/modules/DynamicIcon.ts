@@ -1,8 +1,8 @@
 
-import { ILayerElement } from "./interfaces";
-import { Rectangle, SizeType, Vect2d } from "./types";
+import { ILayerElement } from './interfaces';
+import { Rectangle, SizeType, Vect2d } from './geometry';
 import { Canvas } from 'skia-canvas';
-import Transformation, { TransformScope } from "./elements/Transformation";
+import { Transformation, TransformScope } from './elements';
 
 // Stores a collection of ILayerElement types as layers and produces a composite image from all the layers when rendered.
 export default class DynamicIcon
@@ -45,7 +45,7 @@ export default class DynamicIcon
 
     async render() : Promise<Buffer> {
         try {
-            const rect = Rectangle.createFromSize(this.actualSize());
+            const rect = Rectangle.fromSize(this.actualSize());
             const ctx = new Canvas(rect.width, rect.height).getContext("2d");
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';

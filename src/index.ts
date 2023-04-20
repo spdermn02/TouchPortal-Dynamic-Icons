@@ -1,8 +1,9 @@
 import TP from 'touchportal-api'
 import sharp from 'sharp'   // for final result image compression
 import { pluginId } from './utils/consts'
-import { SizeType, ParseState, TpActionDataArrayType, Vect2d } from './modules/types'
+import { ParseState, TpActionDataArrayType } from './modules/types'
 import { ILayerElement, IValuedElement } from './modules/interfaces';
+import { SizeType, Vect2d } from './modules/geometry';
 import DynamicIcon from "./modules/DynamicIcon";
 import * as m_el from "./modules/elements";
 import { default as g_globalImageCache, ImageCache } from './modules/ImageCache'

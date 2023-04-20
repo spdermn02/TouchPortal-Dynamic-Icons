@@ -1,5 +1,5 @@
 
-import { Rectangle } from './types';
+import { Rectangle } from './geometry';
 // We specifically need the CanvasRenderingContext2D from Skia, not the default one, since it has methods we use which the default version doesn't have.
 // The idea is to centralize the context type here which IRenderable::render() needs, instead of inside each implementation of the interface. Maybe there's a better way?
 import type { CanvasRenderingContext2D as SkiaContext2D } from 'skia-canvas'

@@ -1,9 +1,10 @@
 
-import { ILayerElement, RenderContext2D } from "../interfaces";
-import { ParseState, Rectangle, Vect2d } from "../types";
+import { ILayerElement, RenderContext2D } from '../interfaces';
+import { ParseState } from '../types';
+import { Rectangle, Vect2d } from '../geometry'
 import { PI2 } from '../../utils/consts';
 import { Canvas } from 'skia-canvas';
-import { evaluateValue, parseVect2dFromValue } from "../../utils/helpers";
+import { evaluateValue, parseVect2dFromValue } from '../../utils/helpers';
 
 export type TransformOpType = 'O' | 'R' | 'SC' | 'SK';    // offset (translate) | rotate | scale | skew
 
