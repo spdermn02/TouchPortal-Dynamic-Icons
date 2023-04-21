@@ -80,7 +80,7 @@ const entry_base =
         {
             "id": "TP Dynamic Icons",
             "name": "Dynamic Icons",
-            "imagepath": "%TP_PLUGIN_FOLDER%touchportal-dynamic-icons/tp-dynamic-icons.png",
+            "imagepath": "%TP_PLUGIN_FOLDER%touchportal-dynamic-icons/touchportal-dynamic-icons.png",
             "actions": [],
             "connectors": [],
             "states": [
