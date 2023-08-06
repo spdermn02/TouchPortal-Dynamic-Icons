@@ -2,8 +2,8 @@
 Generate Dynamic Icons for Touch Portal based on Actions and 0-100% values.
 
 - [TouchPortal-Dynamic-Icons](#touchportal-dynamic-icons)
-- [Change Log](#change-log)
 - [What Is This?](#what-is-this)
+- [Change Log](#change-log)
 - [Actions](#actions)
   - [Simple Round Gauge](#simple-round-gauge)
     - [Properties](#properties)
@@ -23,25 +23,13 @@ Generate Dynamic Icons for Touch Portal based on Actions and 0-100% values.
 - [Bugs/Enhancements](#bugsenhancements)
 - [Acknowledgements](#acknowledgements)
 
-# Change Log
-```
-v1.0.0 - Initial Release
-  Features:
-    - Actions for Simple Round Gauge and Simple Bar Graph\
-v1.1.0 - Layered Icons (Thanks to Max Paperno)
-  Features:
-    - Actions To allow for multiple layered icons
-    - Actions to manipulate origin/scale/transform/etc the layered icons
-    - Image Cache for faster image compilation
-  Build Scripts:
-    - Conversion to js build script for multi arch compile at once
-    - entry.tp generator script
-```
-
 # What Is This?
 
 Do you find the need to render out a bar graph, or round gauge in Touch Portal, or some complex layered image like a flight altimeter, or flight level guage, thermometer, but it it needs to be dynamic. Look no further, this plugin can do that for you.
 This will draw bar graphs, or round gauges, or more complex layered images with different transformations based on your configured actions, colors, etc. (see Actions section for info), see Sample section for what you can do with it.
+
+# Change Log
+See [CHANGELOG.md](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/blob/main/CHANGELOG.md)
 
 # Actions
 
