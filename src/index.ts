@@ -7,7 +7,7 @@ import { Point, PointType, Size } from './modules/geometry';
 import DynamicIcon from "./modules/DynamicIcon";
 import * as m_el from "./modules/elements";
 import { default as g_globalImageCache, ImageCache } from './modules/ImageCache'
-import { setCommonLogger } from './common'
+import { setCommonLogger, PluginSettings } from './common'
 import { dirname as pdirname, join as pjoin } from 'path';
 
 // -------------------------------
@@ -36,13 +36,6 @@ const DEFAULT_IMAGE_FILE_BASE_PATH = pjoin(pdirname(process.argv0), '..', '..');
 // Struct for tracking requested icons.
 const g_dyanmicIconStates:Map<string, DynamicIcon> = new Map();
 
-// Runtime options.
-const g_settings = {
-    // these can be changed in TP Settings
-    defaultIconSize: <SizeType> { width: 256, height: 256 },
-    defaultGpuRendering: <boolean> true,
-};
-
 const TPClient = new TP.Client();
 // hackish way to share the TP client "logger" with other modules
 setCommonLogger((...args: any[]) => { TPClient.logIt(...args) });
@@ -50,6 +43,7 @@ setCommonLogger((...args: any[]) => { TPClient.logIt(...args) });
 // Set default image path here. It should be overwritten anyway when Settings are processed,
 // but this preserves BC with previous 1.1 alpha versions w/out the setting. Could eventually be removed.
 ImageCache.cacheOptions.baseImagePath = DEFAULT_IMAGE_FILE_BASE_PATH;
+
 
 // -------------------------------
 // Helper functions
@@ -253,17 +247,14 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
     // We must have an instance of DynamicIcon to work with, these are stored indexed by name.
     let icon: DynamicIcon | undefined = g_dyanmicIconStates.get(iconName)
     if (!icon) {
-        icon = new DynamicIcon({
-            name: iconName,
-            size: g_settings.defaultIconSize,
-            gpuRendering: g_settings.defaultGpuRendering
-        })
+        icon = new DynamicIcon({ name: iconName })
         g_dyanmicIconStates.set(iconName, icon)
     }
 
     // reset position index for non-layered icons ("instant" rendering) since they can only have one layer
     if (!icon.delayGeneration)
         icon.nextIndex = 0
+
     const layerElement: ILayerElement | null = icon.layers[icon.nextIndex]  // element at current position, if any
     const layerType: string = layerElement ? layerElement.type : ""         // checked in most of the actions below
     const parseState = new ParseState({data: data, pos: 1})                 // passed to the various "loadFromActionData()" methods of layer elements
@@ -272,7 +263,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
     {
         case 'declare': {
             // Create a new "layer stack" type icon with given name and size. Layer elements need to be added in following action(s).
-            const size = data.length > 1 ? parseInt(data[1].value) || g_settings.defaultIconSize.width : g_settings.defaultIconSize.width;
+            const size = data.length > 1 ? parseInt(data[1].value) || PluginSettings.defaultIconSize.width : PluginSettings.defaultIconSize.width;
             if (!Size.equals(icon.size, size))
                 Size.set(icon.size, size);
             // Handle tiling parameters, if any;  Added in v1.1.5
@@ -310,7 +301,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
                 // GPU rendering setting choices: "default", "Enable", "Disable"; Added in v1.1.5
                 if (data.length > 2 && data[2].id.endsWith("gpu")) {
                     strVal = data[2].value.trim()
-                    icon.gpuRendering = (strVal.startsWith("d") && g_settings.defaultGpuRendering) || strVal.startsWith("En")
+                    icon.gpuRendering = (strVal.startsWith("d") && PluginSettings.defaultGpuRendering) || strVal.startsWith("En")
                 }
             }
 
@@ -523,13 +514,13 @@ TPClient.on("Settings", (settings:{ [key:string]:string }[]) => {
         if (key.startsWith('Default Icon Size')) {
             const size:number = parseInt(val) || 0;
             if (size >= 8)
-                g_settings.defaultIconSize = {width: size, height: size};
+                PluginSettings.defaultIconSize = {width: size, height: size};
         }
         else if (key.startsWith('Default Image Files Path')) {
             ImageCache.cacheOptions.baseImagePath = val || DEFAULT_IMAGE_FILE_BASE_PATH;
         }
         else if (key.startsWith('Enable GPU Rendering')) {
-            g_settings.defaultGpuRendering = /(?:[1-9]\d*|yes|true|enabled?)/i.test(val);
+            PluginSettings.defaultGpuRendering = /(?:[1-9]\d*|yes|true|enabled?)/i.test(val);
         }
     });
 })
