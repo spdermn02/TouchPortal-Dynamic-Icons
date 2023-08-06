@@ -1,64 +1,148 @@
 
-export default class Vect2d
+export type PointType = {
+    x: number;
+    y: number;
+};
+
+/** `Point` is a static/const container for helper functions to deal with PointType objects,
+    such as creating them or doing math operations.  Benchmarks show 40x(!) faster performance
+    when creating plain objects vs. classes/function prototypes, although once any members are accessed,
+    the difference drops to "only" 2-3 improvement. The performance difference of using instance methods vs. static
+    functions (like provided here) is less significant. So in some cases the convenience may outweigh the creation cost.
+    Generally, read-only access if faster on plain objects vs. class instances, while changing property values is
+    faster on the latter.
+    `Point` could be converted to a class with static methods, which in some cases seems to perform (a little) better or
+    (much) worse depending on the operation and what is being operated on (plain object or Vect2d class instance), and perhaps other factors.
+ */
+export const Point =
+{
+    /** Returns a new `PointType` object with `x` and `y` set from number value(s) or another PointType object.
+        When no arguments are used, the default is `0` for both `x` and `y`. */
+    new(xOrPt: number | PointType = 0, y?: number): PointType {
+        if (typeof xOrPt == "number")
+            return { x: xOrPt, y: (y == undefined ? xOrPt : y) };
+        return { x: xOrPt.x, y: xOrPt.y };
+    },
+
+    /** Sets the x and y values of a PointType instance.
+        The first parameter can be any object containing 'x' and 'y' properties, or a numeric value for the 'x' value.
+        In the latter case, if a 2nd parameter is passed, it is assigned to the 'y' value; otherwise the first parameter
+        is used for both 'x' and 'y'. */
+    set(pt: PointType, xOrPt: number | PointType, y?: number): PointType {
+        if (typeof xOrPt == "number")
+            return this.setFromXY(pt, xOrPt, y);
+        return this.setFromPt(pt, xOrPt);
+    },
+
+    setFromXY(pt: PointType, x: number, y?: number): PointType {
+        pt.x = x; pt.y = (y == undefined ? x : y);
+        return pt;
+    },
+
+    setFromPt(pt: PointType, fromPt: PointType): PointType {
+        pt.x = fromPt.x; pt.y = fromPt.y;
+        return pt;
+    },
+
+    /** Returns true if both x and y values of `pt` are zero. */
+    isNull(pt: PointType): boolean { return !pt.x && !pt.y; },
+    /** Adds value(s) to `pt` and returns it. Modifies input value. */
+    plus_eq(pt: PointType, xOrPt: number | PointType, y?: number): PointType {
+        if (typeof xOrPt == "number")
+            return this.setFromXY(pt, pt.x + xOrPt, pt.y + (y == undefined ? xOrPt : y));
+        return this.setFromXY(pt, pt.x + xOrPt.x, pt.y + xOrPt.y);
+    },
+    /** Adds value(s) to `pt` and returns new instance, does not modify input value. */
+    plus(pt: PointType, xOrPt: number | PointType, y?: number): PointType {
+        return this.plus_eq(this.new(pt), xOrPt, y);
+    },
+    /** Multiplies `pt` coordinates by value(s) and returns it. Modifies input value. */
+    times_eq(pt: PointType, xOrPt: number | PointType, y?: number): PointType {
+        if (typeof xOrPt == "number")
+            return this.setFromXY(pt, pt.x * xOrPt, pt.y * (y == undefined ? xOrPt : y));
+        return this.setFromXY(pt, pt.x * xOrPt.x, pt.y * xOrPt.y);
+    },
+    /** Multiplies `pt` coordinates by value(s) and returns new instance, does not modify input value, */
+    times(pt: PointType, xOrPt: number | PointType, y?: number): PointType {
+        return this.times_eq(this.new(pt), xOrPt, y);
+    },
+    /** Swaps the `x` and `y` values of `pt` and returns it. */
+    transpose(pt: PointType) { return this.setFromXY(pt, pt.y, pt.x); },
+    /** Returns a new PointType object with the `x` and `y` values of `pt` swapped with each other. */
+    transposed(pt: PointType) { return this.new(pt.y, pt.x); },
+    /** Returns true is this PointType equals the given PointType or x & y values. */
+    equals(pt: PointType, xOrPt: number | PointType, y?: number): boolean {
+        if (typeof xOrPt == "number")
+            return y != undefined && pt.x === xOrPt && pt.y === y;
+        return xOrPt.x === pt.x && xOrPt.y === pt.y;
+    },
+
+    toString(pt: PointType, name: string = "Point"): string {
+        return `${name}{x: ${pt.x}, y:${pt.y}}`;
+    },
+
+} as const;
+
+// MP: freezing doesn't seem to have an impact performance-wise, but anyway the object is meant to be immutable (for now) anyway.
+Object.freeze(Point);
+
+
+/** `Vect2d` is a concrete implementation of a `PointType` class. It is generally slower to create and read than a
+    "plain" `PointType` object (eg. from `Point.new()`), but OTOH is usually faster when being updated/written.
+    Using `Vect2d` is generally recommended for stored objects that persist for some time and/or are likely to get modified. */
+export class Vect2d implements PointType
 {
     x: number = 0;
     y: number = 0;
 
-    constructor(xOrVect: number | Vect2d = 0, y?: number) { this.set(xOrVect, y); }
+    /** A Vect2d instance can optionally be constructed from another PointType object (with 'x' and 'y' properties),
+        or from numeric `x[,y]` arguments (see `set()` for details).
+        A `Vect2d` constructed with no arguments has both `x` and `y` set to `0`. */
+    constructor(xOrPt?: number | PointType , y?: number) {
+        if (xOrPt != undefined)
+            Point.set(this, xOrPt, y);
+    }
 
     /** Returns true if both x and y values are zero. */
-    get isEmpty():boolean { return !this.x && !this.y; }
+    get isNull(): boolean { return !this.x && !this.y; }
+    /** Length is the hypotenuse of the x and y values. */
+    get length(): number { return Math.sqrt(this.x * this.x + this.y * this.y); }
 
     /** Sets the x and y values of this Vect2d instance.
-     * The first parameter can be any object containing 'x' and 'y' properties, or a numeric value for the 'x' value.
-     * In the latter case, if a 2nd parameter is passed, it is assigned to the 'y' value; otherwise the first parameter
-     * is used for both 'x' and 'y' values.
-    */
-    set(xOrVect: number | Vect2d | any = 0, y?: number):Vect2d {
-        if (typeof(xOrVect) === "number") {
-            this.x = xOrVect;
-            this.y = (typeof y === 'undefined' ? this.x : y);
-        }
-        else if ('x' in xOrVect && 'y' in xOrVect) {
-            this.x = xOrVect.x;
-            this.y = xOrVect.y;
-        }
-        return this;
-    }
+        The first parameter can be any object containing 'x' and 'y' properties, or a numeric value for the 'x' value.
+        In the latter case, if a 2nd parameter is passed, it is assigned to the 'y' value; otherwise the first parameter
+        is used for both 'x' and 'y' values. */
+    set(xOrPt: number | PointType = 0, y?: number): Vect2d { return Point.set(this, xOrPt, y) as Vect2d; }
 
-    /** modifies the current value of this instance and returns itself */
-    add(xOrVect: number | Vect2d, y?: number):Vect2d { this.set(Vect2d.add(this, xOrVect, y)); return this; }
-    /** modifies the current value of this instance and returns itself */
-    mult(xOrVect: number | Vect2d, y?: number):Vect2d { this.set(Vect2d.mult(this, xOrVect, y)); return this; }
+    /** Returns a new Vect2d with this instance's `x` and `y` values. */
+    clone(): Vect2d { return new Vect2d(this); }
 
-    /** returns new instance, does not modify input values */
-    static add(v:Vect2d, xOrVect: number | Vect2d, y?: number):Vect2d {
-        if (typeof(xOrVect) === "number")
-            return new Vect2d(v.x + xOrVect, v.y + (typeof(y) === 'undefined' ? xOrVect : y));
-        if ('x' in xOrVect && 'y' in xOrVect)
-            return new Vect2d(v.x + xOrVect.x, v.y + xOrVect.y);
-        return v;
-    }
-    /** returns new instance, does not modify input values */
-    static mult(v:Vect2d, xOrVect: number | Vect2d, y?: number):Vect2d {
-        if (typeof(xOrVect) === "number")
-            return new Vect2d(v.x * xOrVect, v.y * (typeof(y) === 'undefined' ? xOrVect : y));
-        if ('x' in xOrVect && 'y' in xOrVect)
-            return new Vect2d(v.x * xOrVect.x, v.y * xOrVect.y);
-        return v;
-    }
+    /** Adds value(s) to current coordinates. Modifies the current value of this instance and returns itself */
+    plus_eq(xOrPt: number | PointType, y?: number): Vect2d { return Point.plus_eq(this, xOrPt, y) as Vect2d; }
+    /** Adds value(s) to current coordinates and returns a new Vect2d object. */
+    plus(xOrPt: number | PointType, y?: number): Vect2d { return Point.plus_eq(this.clone(), xOrPt, y) as Vect2d; }
+    /** Adds value(s) to `v` and returns new instance, does not modify input value. */
+    static add(v: Vect2d, xOrPt: number | PointType, y?: number): Vect2d { return v.clone().plus_eq(xOrPt, y); }
+
+    /** Multiplies current coordinates by value(s). Modifies the current value of this instance and returns itself */
+    times_eq(xOrPt: number | PointType, y?: number): Vect2d { return Point.times_eq(this, xOrPt, y) as Vect2d; }
+    /** Multiplies current coordinates by value(s) and returns a new `Vect2d` object. */
+    times(xOrPt: number | PointType, y?: number): Vect2d { return Point.times_eq(this.clone(), xOrPt, y) as Vect2d; }
+    /** Multiplies `v` coordinates by value(s) and returns new instance, does not modify input value, */
+    static multiply(v: Vect2d, xOrPt: number | PointType, y?: number): Vect2d { return Point.times_eq(v.clone(), xOrPt, y) as Vect2d; }
+
+    /** Swaps the `x` and `y` values of this vector and returns it. */
+    transpose(): Vect2d { return Point.setFromXY(this, this.y, this.x) as Vect2d; }
+    /** Returns a new `Vect2d` object with the `x` and `y` values of this vector swapped. */
+    transposed(): Vect2d { return Point.setFromXY(this.clone(), this.y, this.x) as Vect2d; }
 
     /** Returns true is this Vect2d equals the given Vect2d or x & y values. */
-    equals(xOrVect: number | Vect2d | any, y?: number): boolean {
-        if (typeof(xOrVect) === "number")
-            return this.x === xOrVect && typeof y === 'number' && this.y == y;
-        return typeof(xOrVect) === "object" && xOrVect.x === this.x && xOrVect.y === this.y;
+    equals(xOrPt: number | PointType, y?: number): boolean { return Point.equals(this, xOrPt, y); }
+
+    toString(): string { return Point.toString(this, this.constructor.name); }
+
+    // note: `instanceof` is slooow; and BTW Object.hasOwn(obj, 'prop') is even slooooower.
+    static [Symbol.hasInstance](obj: any) {
+        return typeof obj == "object" && 'x' in obj && 'y' in obj;
     }
 }
-
-Object.defineProperty(Vect2d, Symbol.hasInstance, {
-    configurable: true,
-    value(instance: any) {
-        return typeof(instance) === "object" && 'x' in instance && 'y' in instance;
-    },
-});
