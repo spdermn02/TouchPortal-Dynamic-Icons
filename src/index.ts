@@ -325,6 +325,14 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             break;
         }
 
+        case 'progBar': {
+            // Adds a linear "progress bar" style widget.
+            const gauge: m_el.LinearProgressBar = layerType == "LinearProgressBar" ? (layerElement as m_el.LinearProgressBar) : (icon.layers[icon.nextIndex] = new m_el.LinearProgressBar())
+            gauge.loadFromActionData(parseState);
+            ++icon.nextIndex
+            break;
+        }
+
         case 'simple_bar_graph':  // keep for BC
         case 'barGraph': {
             // Bar graph of series data. Data values are stored in the actual graph element.
