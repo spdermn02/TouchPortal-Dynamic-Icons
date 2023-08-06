@@ -3,7 +3,7 @@ import sharp from 'sharp'   // for final result image compression
 import { pluginId } from './utils/consts'
 import { ParseState, TpActionDataArrayType } from './modules/types'
 import { ILayerElement, IValuedElement } from './modules/interfaces';
-import { SizeType, Vect2d } from './modules/geometry';
+import { Point, PointType, Size } from './modules/geometry';
 import DynamicIcon from "./modules/DynamicIcon";
 import * as m_el from "./modules/elements";
 import { default as g_globalImageCache, ImageCache } from './modules/ImageCache'
@@ -139,7 +139,7 @@ function sendIconData(icon: DynamicIcon, data: Buffer | null) {
 
 // Send TP State update with one of an icon's tiled images.
 // This version assumes the icon is tiled and that all States have already been created.
-function sendIconDataTile(icon: DynamicIcon, data: Buffer | null, tile: Vect2d | any) {
+function sendIconDataTile(icon: DynamicIcon, data: Buffer | null, tile: PointType) {
     if (data?.length) {
         //TPClient.logIt("DEBUG", `Sending tile ${icon.getTileStateId(tile)} for icon '${icon.name}' with length ${data.length}`);
         TPClient.stateUpdate(icon.getTileStateId(tile), data.toString("base64"));
@@ -273,16 +273,17 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
         case 'declare': {
             // Create a new "layer stack" type icon with given name and size. Layer elements need to be added in following action(s).
             const size = data.length > 1 ? parseInt(data[1].value) || g_settings.defaultIconSize.width : g_settings.defaultIconSize.width;
-            icon.size = { width: size, height: size };
+            if (!Size.equals(icon.size, size))
+                Size.set(icon.size, size);
             // Handle tiling parameters, if any;  Added in v1.1.5
             if (data.length > 3 && data[2].id.endsWith("tile_x")) {
-                const tile = new Vect2d(parseInt(data[2].value) || 1, parseInt(data[3].value) || 1);
+                const tile: PointType = { x: parseInt(data[2].value) || 1, y: parseInt(data[3].value) || 1 };
                 // check if the tiling settings have changed; we may need to clean up any existing TP states first.
-                if (tile.x >= 1 && tile.y >= 1 && !icon.tile.equals(tile)) {
+                if (tile.x >= 1 && tile.y >= 1 && !Point.equals(icon.tile, tile)) {
                     // just clear out any States that may already have been created... we'll then re-create new ones as needed.
                     clearIconStates(icon);
                     // set the tile property after clearing out any old states.
-                    icon.tile = tile;
+                    Point.set(icon.tile, tile);
                 }
             }
             icon.delayGeneration = true;   // must explicitly generate
