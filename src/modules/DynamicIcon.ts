@@ -1,6 +1,6 @@
 
 import { ILayerElement } from './interfaces';
-import { Rectangle, SizeType, PointType } from './geometry';
+import { Rectangle, Size, SizeType, PointType } from './geometry';
 import { Canvas } from 'skia-canvas';
 import { Transformation, TransformScope } from './elements';
 import { PluginSettings } from './../common'
@@ -11,7 +11,7 @@ export default class DynamicIcon
     /** the icon name is also used for the corresponding TP State ID */
     name: string = "";
     /** This is the size of one "tile" (see also `actualSize()`); For now these must be square due to TP limitation. */
-    size: SizeType = PluginSettings.defaultIconSize;
+    size: SizeType = Size.new(PluginSettings.defaultIconSize);
     /** Specifies an optional grid to split the final image into multiple parts before sending to TP. */
     tile: PointType = { x: 1, y: 1 };
     /** `true` if icon was explicitly created with a "New" action, will require a corresponding "Render" action to actually draw it. */
