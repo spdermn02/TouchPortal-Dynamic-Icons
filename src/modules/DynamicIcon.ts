@@ -3,6 +3,7 @@ import { ILayerElement } from './interfaces';
 import { Rectangle, SizeType, PointType } from './geometry';
 import { Canvas } from 'skia-canvas';
 import { Transformation, TransformScope } from './elements';
+import { PluginSettings } from './../common'
 
 // Stores a collection of ILayerElement types as layers and produces a composite image from all the layers when rendered.
 export default class DynamicIcon
@@ -10,13 +11,13 @@ export default class DynamicIcon
     /** the icon name is also used for the corresponding TP State ID */
     name: string = "";
     /** This is the size of one "tile" (see also `actualSize()`); For now these must be square due to TP limitation. */
-    size: SizeType = { width: 256, height: 256 };
+    size: SizeType = PluginSettings.defaultIconSize;
     /** Specifies an optional grid to split the final image into multiple parts before sending to TP. */
     tile: PointType = { x: 1, y: 1 };
     /** `true` if icon was explicitly created with a "New" action, will require a corresponding "Render" action to actually draw it. */
     delayGeneration: boolean = false;
     /** Whether to use GPU for rendering (on supported hardware). Passed to skia-canvas's Canvas::gpu property. */
-    gpuRendering: boolean = true;
+    gpuRendering: boolean = PluginSettings.defaultGpuRendering;
     /** Whether to use additional output compression before sending image state data to TP. */
     compressOutput: boolean = true;
     /** Indicates if any TP State(s) have been created for this icon. */
