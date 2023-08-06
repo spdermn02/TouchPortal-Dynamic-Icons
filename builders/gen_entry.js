@@ -47,7 +47,7 @@ const entry_base =
 {
     "$schema": "https://pjiesco.com/touch-portal/entry.tp/schema",
     "sdk": 6,
-    "version": iVersion.toString(16),
+    "version": parseInt(iVersion.toString(16)),
     "touchportal-dynamic-icons": VERSION,
     "name": "Touch Portal Dynamic Icons",
     "id": "Touch Portal Dynamic Icons",
@@ -161,6 +161,14 @@ function makeActionData(id, type, label = "", deflt = "") {
     };
 }
 
+function makeTextData(id, label, dflt = "") {
+    return makeActionData(id, "text", label, dflt + '');
+}
+
+function makeColorData(id, label = "", dflt = "#00000000") {
+    return makeActionData(id, "color", label + (label ? " " : "") + "Color", dflt + '');
+}
+
 function makeChoiceData(id, label, choices, dflt) {
     const d = makeActionData(id, "choice", label, typeof dflt === "undefined" ? choices[0] : dflt);
     d.valueChoices = choices;
@@ -176,7 +184,11 @@ function makeNumericData(id, label, dflt, min, max, allowDec = true) {
 }
 
 function makeIconNameData(idPrefix, label = "Icon Name") {
-    return makeActionData(idPrefix + "_name", "text", label);
+    return makeTextData(idPrefix + "_name", label);
+}
+
+function makeSizeTypeData(idPrefix, dflt = undefined) {
+    return makeChoiceData(idPrefix + "_unit", "Unit", ["%", "px"], dflt);
 }
 
 // Shared functions which create both a format string and data array.
@@ -295,17 +307,44 @@ function makeTransformData(opsList, idPrefix, /* out */ data) {
     return f;
 }
 
-function makeDrawStyleData(idPrefix, /* out */ data) {
+function makeDrawStyleData(idPrefix, /* out */ data, withShadow = true) {
     let i = data.length;
-    const format = `Fill\nColor{${i++}}Stroke\nWidth (%){${i++}}${NBSP}\nColor{${i++}}Shadow Size\n(blur, offset X, Y){${i++}}${NBSP}\nColor{${i++}}`;
-    const d = [
-        makeActionData(idPrefix +  "_style_fillColor", "color", "Fill Color", "#00000000"),
+    let format = `Fill\nColor{${i++}}Stroke\nWidth{${i++}}{${i++}}Stroke\nColor{${i++}}`;
+    data.push(
+        makeColorData(idPrefix +  "_style_fillColor", "Fill"),
         makeNumericData(idPrefix + "_style_line_width", "Stroke Width", 0, 0, 999999, true),
-        makeActionData(idPrefix +  "_style_line_color", "color", "Stroke Color", "#00000000"),
-        makeActionData(idPrefix +  "_style_shadow", "text", "Text", "0, 0, 0"),
-        makeActionData(idPrefix +  "_style_shadowColor", "color", "Shadow Color", "#000000FF"),
-    ];
-    data.push(...d);
+        makeSizeTypeData(idPrefix + "_style_line_width"),
+        makeColorData(idPrefix +  "_style_line_color", "Stroke"),
+    );
+    if (withShadow) {
+        format += `Shadow Size\n(blur, X, Y){${i++}}Shadow\nColor{${i++}}`;
+        data.push(
+            makeTextData(idPrefix +  "_style_shadow", "Shadow Coordinates", "0, 0, 0"),
+            makeColorData(idPrefix +  "_style_shadowColor", "Shadow", "#000000FF"),
+        );
+    }
+    return format;
+}
+
+function makeRectSizeData(idPrefix, /* out */ data, w = 100, h = 100, label = "Size", wLabel = "W", hLabel = "H") {
+    let i = data.length;
+    const format = `${label}\n${SP_EM}${wLabel} {${i++}}{${i++}}${NBSP}\n${hLabel} {${i++}}{${i++}}`;
+    data.push(
+        makeTextData(idPrefix + "_size_w", "Width", w.toString()),
+        makeSizeTypeData(idPrefix + "_size_w"),
+        makeTextData(idPrefix + "_size_h", "Height", h.toString()),
+        makeSizeTypeData(idPrefix + "_size_h"),
+		);
+    return format;
+}
+
+function makeBorderRadiusData(idPrefix, /* out */ data, r = 0) {
+    let i = data.length;
+    const format = `Border\nRadius {${i++}}{${i++}}`;
+    data.push(
+        makeTextData(idPrefix + "_radius", "Radius", r.toString()),
+        makeSizeTypeData(idPrefix + "_radius"),
+		);
     return format;
 }
 
@@ -332,10 +371,10 @@ function txInfoText(wrapLine = 0) {
 function addRectangleAction(id, name) {
     const descript = "Dynamic Icons: " +
         `Generate or layer a styled square/rounded shape. ${layerInfoText('shape')}\n` +
-        "Border radius and stroke width values are in percentage of icon dimension. Up to 4 radii can be specified for each corner starting at top left (separate by space/comma).";
+        "Size/radius/stroke width can be specified in percent of icon size or fixed pixels. Up to 4 radii can be specified, separated by commas, for each corner starting at top left.";
     let [format, data] = makeIconLayerCommonData(id);
-    format += `Border\nRadius (%) {${data.length}}`;
-    data.push(makeActionData("rect_radius", "text", "Border Radius", "0"));
+		format += makeRectSizeData("rect", data) + " ";
+		format += makeBorderRadiusData("rect", data) + " ";
     format += makeDrawStyleData("rect", data);
     addAction(id, name, descript, format, data);
 }
@@ -343,7 +382,7 @@ function addRectangleAction(id, name) {
 function addTextAction(id, name) {
     const descript = "Dynamic Icons: " +
         `Generate or layer styled text. ${layerInfoText('text')}\n` +
-        "Font is specified like the CSS 'font' shorthand property. Offset is percent of icon size, positive for right/down, negative for left/up. Stroke width is percentage of half the font size.";
+        "Font is specified like the CSS 'font' shorthand property. Offset is percent of icon size, positive for right/down, negative for left/up. Stroke width in % is based on half the font size.";
     let [format, data] = makeIconLayerCommonData(id);
     let i = data.length;
     format += `Text{${i++}} Font{${i++}}Align\n${SP_EM}${SP_EN}H{${i++}}${NBSP}\nV{${i++}}Offset\n (%) H{${i++}}${NBSP}\nV{${i++}}Tracking{${i++}}`;  // Baseline{${i++}}
@@ -415,6 +454,30 @@ function addBarGraphAction(id, name) {
         makeNumericData("bar_graph_width", "Bar Graph Width", 10, 1, 256, false),
     );
     addAction(id, name, descript, format, data, true);
+}
+
+function addProgressBarAction(id, name) {
+    const descript = "Dynamic Icons: " +
+        "Generate or layer a linear progress bar reflecting a data value between 0 and 100. " + layerInfoText('bar') + "\n" +
+        "Side padding means top & bottom for horizontal bars and left & right for vertical. Padding/radius/stroke width can be specified in percent of icon size or fixed pixels. " +
+        "Up to 4 radii can be specified, separated by commas, for each corner starting at top left. Values must be in the 0 - 100 range, decimals are OK.";
+    let [format, data] = makeIconLayerCommonData(id);
+    // let i = data.length;
+    format += `Direction {${data.length/* i++ */}} `; //Size {${i++}}{${i++}} `;
+    data.push(
+        makeChoiceData("pbar_dir", "Direction", ["➡\tL to R", "⬅\tR to L", "⟺\tL & R", "⬆\tB to T", "⬇\tT to B", "↕\tT & B"]),
+        // makeActionData("pbar_size", "text", "Size", "75"),
+        // makeSizeTypeData("pbar_size"),
+    );
+		format += makeRectSizeData("pbar", data, 25, 0, "Padding", "Sides", "Ends") + " ";
+		format += makeBorderRadiusData("pbar", data);
+    format += " Container:\n" + makeDrawStyleData("pbar_ctr", data).replace("Fill\n", "");
+    format += " Value:\n" + makeDrawStyleData("pbar_val", data, false).replace("Fill\n", "");
+    format += ` Set\nValue {${data.length}}`;
+    data.push(
+        makeActionData("pbar_value", "text", "Progress Value", "0"),
+    )
+    addAction(id, name, descript, format, data);
 }
 
 // Layered icon actions
@@ -531,6 +594,7 @@ function addSystemActions() {
 
 addProgressGaugeAction(  "icon_progGauge",  "Draw - Simple Round Gauge");
 addBarGraphAction(       "icon_barGraph",   "Draw - Simple Bar Graph");
+addProgressBarAction(    "icon_progBar",    "Draw - Linear Progress Bar");
 addTextAction(           "icon_text",       "Draw - Text");
 addImageAction(          "icon_image",      "Draw - Image");
 addRectangleAction(      "icon_rect",       "Draw - Rounded Shape");
