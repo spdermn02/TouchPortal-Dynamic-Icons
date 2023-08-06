@@ -63,7 +63,7 @@ export class Size implements SizeType
     /** Returns true is `sz` SizeType equals the `widthOrSize` SizeType or width & height values. */
     static equals(sz: SizeType, widthOrSize: number | SizeType, height?: number): boolean {
         if (typeof widthOrSize == "number")
-            return height != undefined && sz.width === widthOrSize && sz.height === height;
+            return sz.width === widthOrSize && sz.height === (height == undefined ? widthOrSize : height);
         return widthOrSize.width === sz.width && widthOrSize.height === sz.height;
     }
 

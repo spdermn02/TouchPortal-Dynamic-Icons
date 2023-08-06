@@ -73,7 +73,7 @@ export const Point =
     /** Returns true is this PointType equals the given PointType or x & y values. */
     equals(pt: PointType, xOrPt: number | PointType, y?: number): boolean {
         if (typeof xOrPt == "number")
-            return y != undefined && pt.x === xOrPt && pt.y === y;
+            return pt.x === xOrPt && pt.y === (y == undefined ? xOrPt : y);
         return xOrPt.x === pt.x && xOrPt.y === pt.y;
     },
 
