@@ -1,6 +1,6 @@
 
 import { ILayerElement } from './interfaces';
-import { Rectangle, SizeType, Vect2d } from './geometry';
+import { Rectangle, SizeType, PointType } from './geometry';
 import { Canvas } from 'skia-canvas';
 import { Transformation, TransformScope } from './elements';
 
@@ -12,7 +12,7 @@ export default class DynamicIcon
     /** This is the size of one "tile" (see also `actualSize()`); For now these must be square due to TP limitation. */
     size: SizeType = { width: 256, height: 256 };
     /** Specifies an optional grid to split the final image into multiple parts before sending to TP. */
-    tile: Vect2d = new Vect2d(1, 1);
+    tile: PointType = { x: 1, y: 1 };
     /** `true` if icon was explicitly created with a "New" action, will require a corresponding "Render" action to actually draw it. */
     delayGeneration: boolean = false;
     /** Whether to use GPU for rendering (on supported hardware). Passed to skia-canvas's Canvas::gpu property. */
@@ -39,7 +39,7 @@ export default class DynamicIcon
 
     /** Formats and returns a TP State ID for a given tile coordinate. Format is '<icon.name>_<column>_<row>'
         'x' and 'y' of `tile` are assumed to be zero-based; coordinates used in the State ID are 1-based (so, 1 is added to x and y values of `tile`). */
-    getTileStateId(tile: Vect2d | any) {
+    getTileStateId(tile: PointType | any) {
         return `${this.name}_${tile.x+1}_${tile.y+1}`;
     }
 
@@ -60,7 +60,7 @@ export default class DynamicIcon
                 // But for UI purposes it makes more sense to apply transform(s) after the thing one wants to transform. If we handle this on the action parsing side (index.ts or whatever),
                 // we'd have to resize the layers array to insert transforms in the correct places and also keep track of when to reset the transform.
                 let tx: Transformation | null = null;
-                let resetTx = null;
+                let resetTx: any = null;
                 while (i+1 < this.layers.length && this.layers[i+1].type === 'Transformation' && (tx = this.layers[i+1] as Transformation)?.scope == TransformScope.PreviousOne) {
                     if (!resetTx)
                         resetTx = ctx.getTransform();
