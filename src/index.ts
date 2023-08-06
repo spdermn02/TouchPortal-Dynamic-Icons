@@ -221,6 +221,7 @@ function handleControlAction(actionId: string, data: TpActionDataArrayType) {
                 const icon: DynamicIcon | undefined = g_dyanmicIconStates.get(n);
                 if (icon) {
                     clearIconStates(icon);
+                    g_globalImageCache.clearIconName(icon.name);
                     g_dyanmicIconStates.delete(n);
                 }
             });
