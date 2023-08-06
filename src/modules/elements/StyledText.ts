@@ -1,7 +1,7 @@
 
 import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces';
 import { ParseState } from '../types'
-import { Rectangle, Vect2d } from '../geometry';
+import { Point, PointType, Rectangle } from '../geometry';
 import { evaluateValue, evaluateStringValue } from '../../utils/helpers'
 import { DrawingStyle } from './';
 import { TextMetrics as SkiaTextMetrics } from 'skia-canvas';
@@ -20,7 +20,7 @@ export default class StyledText implements ILayerElement, IValuedElement
     private direction: 'ltr' | 'rtl' | 'inherit' = 'inherit';
     private tracking: number = 0;
     private wrap: boolean = true;
-    private offset: Vect2d = new Vect2d();
+    private offset: PointType = Point.new();
     private style: DrawingStyle = new DrawingStyle();
 
     private metrics: {
@@ -129,7 +129,7 @@ export default class StyledText implements ILayerElement, IValuedElement
         const tm = this.metrics.textMetrics;
 
         // Calculate the draw offset based on alignment settings.
-        let offset = new Vect2d();
+        let offset = Point.new();
         // horizontal
         switch (this.alignH) {
             case 'center':
@@ -161,8 +161,8 @@ export default class StyledText implements ILayerElement, IValuedElement
         // console.log(rect.size, offset, penAdjust, tm);
 
         // add any user-specified offset as percent of canvas size
-        if (!this.offset.isEmpty)
-            offset.add(Vect2d.mult(this.offset, rect.width * .01, rect.height * .01));
+        if (!Point.isNull(this.offset))
+            Point.plus_eq(offset, Point.times(this.offset, rect.width * .01, rect.height * .01));
         // move to position before drawing
         ctx.translate(offset.x, offset.y);
 
