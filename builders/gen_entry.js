@@ -15,9 +15,10 @@
 
 
 // Defaults
-var VERSION = "";
+var VERSION = process.env.npm_package_version;
 var OUTPUT_PATH = "base"
 var DEV_MODE = false;
+var PKG_NAME = process.env.npm_package_name || "touchportal-dynamic-icons";
 
 // Handle CLI arguments
 for (let i=2; i < process.argv.length; ++i) {
@@ -26,9 +27,6 @@ for (let i=2; i < process.argv.length; ++i) {
     else if (arg == "-o") OUTPUT_PATH = process.argv[++i];
     else if (arg == "-d") DEV_MODE = true;
 }
-// Try fall back to npm_package_version variable
-if (!VERSION && process.env.npm_package_version)
-    VERSION = process.env.npm_package_version;
 // Validate the version
 if (!VERSION) {
     console.error("No plugin version number, cannot continue :( \n Use -v <version.number> argument.");
@@ -48,12 +46,11 @@ const entry_base =
     "$schema": "https://pjiesco.com/touch-portal/entry.tp/schema",
     "sdk": 6,
     "version": parseInt(iVersion.toString(16)),
-    "touchportal-dynamic-icons": VERSION,
+    [PKG_NAME]: VERSION,
     "name": "Touch Portal Dynamic Icons",
     "id": "Touch Portal Dynamic Icons",
-    "plugin_start_cmd_mac":     DEV_MODE ? "" : "sh \"%TP_PLUGIN_FOLDER%\"touchportal-dynamic-icons/start.sh touchportal-dynamic-icons",
-    "plugin_start_cmd_linux":     DEV_MODE ? "" : "sh \"%TP_PLUGIN_FOLDER%\"touchportal-dynamic-icons/start.sh touchportal-dynamic-icons",
-    "plugin_start_cmd_windows": DEV_MODE ? "" : "\"%TP_PLUGIN_FOLDER%touchportal-dynamic-icons\\touchportal-dynamic-icons.exe\"",
+    "plugin_start_cmd":         DEV_MODE ? undefined : `sh %TP_PLUGIN_FOLDER%${PKG_NAME}/start.sh ${PKG_NAME}`,
+    "plugin_start_cmd_windows": DEV_MODE ? undefined : `"%TP_PLUGIN_FOLDER%${PKG_NAME}\\${PKG_NAME}.exe"`,
     "configuration": {
         "colorDark": "#23272A",
         "colorLight": "#7289DA"
@@ -91,7 +88,7 @@ const entry_base =
         {
             "id": "TP Dynamic Icons",
             "name": "Dynamic Icons",
-            "imagepath": "%TP_PLUGIN_FOLDER%touchportal-dynamic-icons/touchportal-dynamic-icons.png",
+            "imagepath": `%TP_PLUGIN_FOLDER%${PKG_NAME}/${PKG_NAME}.png`,
             "actions": [],
             "connectors": [],
             "states": [
@@ -334,7 +331,7 @@ function makeRectSizeData(idPrefix, /* out */ data, w = 100, h = 100, label = "S
         makeSizeTypeData(idPrefix + "_size_w"),
         makeTextData(idPrefix + "_size_h", "Height", h.toString()),
         makeSizeTypeData(idPrefix + "_size_h"),
-		);
+    );
     return format;
 }
 
@@ -344,7 +341,7 @@ function makeBorderRadiusData(idPrefix, /* out */ data, r = 0) {
     data.push(
         makeTextData(idPrefix + "_radius", "Radius", r.toString()),
         makeSizeTypeData(idPrefix + "_radius"),
-		);
+    );
     return format;
 }
 
@@ -373,8 +370,8 @@ function addRectangleAction(id, name) {
         `Generate or layer a styled square/rounded shape. ${layerInfoText('shape')}\n` +
         "Size/radius/stroke width can be specified in percent of icon size or fixed pixels. Up to 4 radii can be specified, separated by commas, for each corner starting at top left.";
     let [format, data] = makeIconLayerCommonData(id);
-		format += makeRectSizeData("rect", data) + " ";
-		format += makeBorderRadiusData("rect", data) + " ";
+    format += makeRectSizeData("rect", data) + " ";
+    format += makeBorderRadiusData("rect", data) + " ";
     format += makeDrawStyleData("rect", data);
     addAction(id, name, descript, format, data);
 }
@@ -469,8 +466,8 @@ function addProgressBarAction(id, name) {
         // makeActionData("pbar_size", "text", "Size", "75"),
         // makeSizeTypeData("pbar_size"),
     );
-		format += makeRectSizeData("pbar", data, 25, 0, "Padding", "Sides", "Ends") + " ";
-		format += makeBorderRadiusData("pbar", data);
+    format += makeRectSizeData("pbar", data, 25, 0, "Padding", "Sides", "Ends") + " ";
+    format += makeBorderRadiusData("pbar", data);
     format += " Container:\n" + makeDrawStyleData("pbar_ctr", data).replace("Fill\n", "");
     format += " Value:\n" + makeDrawStyleData("pbar_val", data, false).replace("Fill\n", "");
     format += ` Set\nValue {${data.length}}`;
