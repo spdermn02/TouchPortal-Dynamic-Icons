@@ -173,6 +173,8 @@ function renderAndSendIcon(icon: DynamicIcon) {
             return;
         }
 
+        // Icon is not tiled, send single image, which may need compressing or not.
+
         if (icon.compressOutput) {
             try {
                 // the sharp() constructor may throw
@@ -191,6 +193,7 @@ function renderAndSendIcon(icon: DynamicIcon) {
         }
         // Icon needs neither tiling nor compression, send data as-is.
         sendIconData(icon, data);
+
     })
     .catch((e: any) => {
         TPClient.logIt("ERROR", `Exception while rendering image for icon '${icon.name}': ${e}`);
@@ -265,9 +268,8 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
         case 'declare': {
             // Create a new "layer stack" type icon with given name and size. Layer elements need to be added in following action(s).
             const size = data.length > 1 ? parseInt(data[1].value) || PluginSettings.defaultIconSize.width : PluginSettings.defaultIconSize.width;
-            if (!Size.equals(icon.size, size))
-                Size.set(icon.size, size);
-            // Handle tiling parameters, if any;  Added in v1.1.5
+            Size.set(icon.size, size);
+            // Handle tiling parameters, if any;  Added in v1.2.0
             if (data.length > 3 && data[2].id.endsWith("tile_x")) {
                 const tile: PointType = { x: parseInt(data[2].value) || 1, y: parseInt(data[3].value) || 1 };
                 // check if the tiling settings have changed; we may need to clean up any existing TP states first.
@@ -299,7 +301,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
                 if (strVal.length < 9)
                     action = strVal[0] == 'F' ? 1 : 2
 
-                // GPU rendering setting choices: "default", "Enable", "Disable"; Added in v1.1.5
+                // GPU rendering setting choices: "default", "Enable", "Disable"; Added in v1.2.0
                 if (data.length > 2 && data[2].id.endsWith("gpu")) {
                     strVal = data[2].value.trim()
                     icon.gpuRendering = (strVal.startsWith("d") && PluginSettings.defaultGpuRendering) || strVal.startsWith("En")
