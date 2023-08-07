@@ -6,11 +6,14 @@
   "bin": {
     "touchportal-dynamic-icons": "dist/index.js"
   },
+  "config": {
+    "nodeTarget": "node18"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "pkg": "pkg .",
-    "pkg-win": "pkg --targets node18-win-x64 .",
-    "pkg-mac": "pkg --targets node18-macos-x64 .",
+    "pkg-win": "pkg --targets ${npm_package_config_nodeTarget}-win-x64 .",
+    "pkg-mac": "pkg --targets ${npm_package_config_nodeTarget}-macos-x64 .",
     "build": "tsc && node builders/build.js",
     "tsc": "tsc",
     "jest": "jest",
