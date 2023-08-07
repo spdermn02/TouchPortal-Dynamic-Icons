@@ -1,9 +1,10 @@
 
-import { ILayerElement, RenderContext2D } from "../interfaces";
-import { ParseState, Rectangle, Vect2d } from "../types";
+import { ILayerElement, RenderContext2D } from '../interfaces';
+import { ParseState } from '../types';
+import { Point, PointType, Rectangle } from '../geometry'
 import { PI2 } from '../../utils/consts';
 import { Canvas } from 'skia-canvas';
-import { evaluateValue, parseVect2dFromValue } from "../../utils/helpers";
+import { evaluateValue, parsePointFromValue } from '../../utils/helpers';
 
 export type TransformOpType = 'O' | 'R' | 'SC' | 'SK';    // offset (translate) | rotate | scale | skew
 
@@ -17,10 +18,10 @@ export default class Transformation implements ILayerElement
 {
     // all values are percentages coming from TP actions, not actual matrix values
     rotate: number = 0; // percent of 360 degrees
-    scale: Vect2d = new Vect2d(); // percent of requested image size (not the original source image), negative for reduction; eg: 100 is double size, -50 is half size.
-    translate: Vect2d = new Vect2d(); // percentage of relevant dimension of requested image size
+    scale: PointType = Point.new(); // percent of requested image size (not the original source image), negative for reduction; eg: 100 is double size, -50 is half size.
+    translate: PointType = Point.new(); // percentage of relevant dimension of requested image size
                                       // eg: x = 100 translates one full image width to the right (completely out of frame for an unscaled source image)
-    skew: Vect2d = new Vect2d(); // percent of requested image size (not the original source image)
+    skew: PointType = Point.new(); // percent of requested image size (not the original source image)
     transformOrder: TransformOpType[] = ['O', 'R', 'SC', 'SK'];
     scope: TransformScope = TransformScope.PreviousOne;
 
@@ -29,7 +30,7 @@ export default class Transformation implements ILayerElement
     get type() { return "Transformation"; }
 
     get isEmpty(): boolean {
-        return !this.rotate && this.translate.isEmpty && this.skew.isEmpty && !this.isScaling;
+        return !this.rotate && Point.isNull(this.translate) && Point.isNull(this.skew) && !this.isScaling;
     }
     get isScaling(): boolean {
         return this.scale.x != 100 || this.scale.y != 100;
@@ -47,7 +48,7 @@ export default class Transformation implements ILayerElement
                     this.rotate = evaluateValue(data.value);
                     break;
                 case 'trs':
-                    this.translate = parseVect2dFromValue(data.value);
+                    Point.set(this.translate, parsePointFromValue(data.value));
                     break;
                 case 'trsX':
                     this.translate.x = evaluateValue(data.value);
@@ -56,7 +57,7 @@ export default class Transformation implements ILayerElement
                     this.translate.y = data.value.trim() ? evaluateValue(data.value) : this.translate.x;
                     break;
                 case 'scl':
-                    this.scale = parseVect2dFromValue(data.value);
+                    Point.set(this.scale, parsePointFromValue(data.value));
                     break;
                 case 'sclX':
                     this.scale.x = evaluateValue(data.value);
@@ -65,7 +66,7 @@ export default class Transformation implements ILayerElement
                     this.scale.y = data.value.trim() ? evaluateValue(data.value) : this.scale.x;
                     break;
                 case 'skw':
-                    this.skew = parseVect2dFromValue(data.value);
+                    Point.set(this.skew, parsePointFromValue(data.value));
                     break;
                 case 'skwX':
                     this.skew.x = evaluateValue(data.value);
@@ -105,7 +106,7 @@ export default class Transformation implements ILayerElement
             return;
         }
 
-        const ctr: Vect2d = new Vect2d(rect.origin).add(rect.width * .5, rect.height * .5);
+        const ctr = Point.plus_eq(Point.new(rect.origin), rect.width * .5, rect.height * .5);
         let tCtx = ctx;
         // For a cumulative ("everything above") type Tx we need to apply it to a new canvas/context and then afterwards we draw the original canvas on top.
         if (this.scope == TransformScope.Cumulative)
@@ -116,11 +117,11 @@ export default class Transformation implements ILayerElement
         for (const op of this.transformOrder) {
             if (op === 'R' && this.rotate)
                 tCtx.rotate(this.rotate * .01 * PI2);
-            else if (op === 'O' && !this.translate.isEmpty)
+            else if (op === 'O' && !Point.isNull(this.translate))
                 tCtx.translate(this.translate.x * .01 * rect.width, this.translate.y * .01 * rect.height);
             else if (op === 'SC' && this.isScaling)
                 tCtx.scale(this.scale.x * .01, this.scale.y * .01);
-            else if (op === 'SK' && !this.skew.isEmpty)
+            else if (op === 'SK' && !Point.isNull(this.skew))
                 tCtx.transform(1, this.skew.y * .01, this.skew.x * .01, 1, 0, 0);
         }
         // translate back to top left corner before drawing

@@ -1,13 +1,7 @@
-import { IRenderable, RenderContext2D } from "../interfaces";
-import LineStyle from "./LineStyle";
-import { BrushStyle, ParseState, Vect2d } from "../types";
-
-class ShadowStyle {
-    blur: number = 0;
-    offset: Vect2d = new Vect2d();
-    color: BrushStyle = new BrushStyle("#0000");
-    get isEmpty(): boolean { return (this.blur <= 0 && this.offset.isEmpty) || this.color.isEmpty; }
-}
+import { parseNumericArrayString } from '../../utils/helpers';
+import { IRenderable, RenderContext2D } from '../interfaces';
+import { ParseState } from '../types';
+import { BrushStyle, LineStyle, ShadowStyle } from './';
 
 // Applies a drawing style to a canvas context, which includes all fill, stroke, and shadow attributes.
 export default class DrawingStyle implements IRenderable
@@ -15,16 +9,24 @@ export default class DrawingStyle implements IRenderable
     fill: BrushStyle = new BrushStyle();
     line: LineStyle = new LineStyle();
     shadow: ShadowStyle = new ShadowStyle();
+    strokeOver: boolean = true;  // the stroke is to be drawn on top of the fill if `true`, otherwise under the fill
 
     // IRenderable
     get type(): string { return "DrawingStyle"; }
+    // returns true if there is nothing at all to draw for this style
+    get isEmpty(): boolean { return this.fill.isEmpty && this.line.isEmpty && this.shadow.isEmpty; }
 
-    loadFromActionData(state: ParseState): DrawingStyle {
+    loadFromActionData(state: ParseState, dataIdPrefix:string = ""): DrawingStyle {
+        dataIdPrefix += 'style_';
         let lineParsed = false;
+        let atEnd = false;
         // the incoming data IDs should be structured with a naming convention
-        for (let i = state.pos, e = state.data.length; i < e; ++i) {
-            const data = state.data[i];
-            const dataType = data.id.split('style_').at(-1);  // last part of the data ID determines its meaning
+        for (let e = state.data.length; state.pos < e && !atEnd; ) {
+            const data = state.data[state.pos];
+            const dataType = data.id.split(dataIdPrefix).at(-1);  // last part of the data ID determines its meaning
+            if (!dataType)
+                break;
+            //console.log(state.pos, dataType);
             switch (dataType) {
                 case 'fillColor':
                     if (data.value.startsWith('#'))
@@ -32,30 +34,28 @@ export default class DrawingStyle implements IRenderable
                     break;
                 case 'shadowColor':
                     if (data.value.startsWith('#'))
-                        this.shadow.color = new BrushStyle(data.value);
+                        this.shadow.color = data.value;
                     break;
                 case 'shadow': {
                     // shadow is specified as (blur [,offsetX[,offsetY]])
-                    const s = data.value.split(',').map((m:string) => parseFloat(m) || 0);
-                    const len = s.length;
-                    if (len) {
-                        this.shadow.blur = s[0];
-                        if (len > 1) {
-                            this.shadow.offset.x = s[1];
-                            this.shadow.offset.y = len > 2 ? s[2] : s[1];
-                        }
+                    this.shadow.clear();
+                    const s = [];
+                    if (parseNumericArrayString(data.value, s, 3)) {
+                        this.shadow.blur = Math.max(s[0], 0);
+                        if (s.length > 1)
+                            this.shadow.offset.set(s[1], s.length > 2 ? s[2] : s[1]);
                     }
                     break;
                 }
                 default:
-                    if (lineParsed || !dataType || !dataType.startsWith('line_')) {
-                        i = e;  // end the loop on unknown data id
-                        continue;
+                    if (!lineParsed && dataType.startsWith('line_')) {
+                        this.line.loadFromActionData(state, dataIdPrefix);
+                        lineParsed = true;
                     }
-                    this.line.loadFromActionData(state);
-                    lineParsed = true;
-                    i = state.pos;
-                    continue;
+                    else {
+                        atEnd = true;
+                    }
+                    continue;  // do not increment position counter
             }
             ++state.pos;
         }
@@ -65,14 +65,62 @@ export default class DrawingStyle implements IRenderable
 
     // IRenderable
     render(ctx: RenderContext2D): void {
-        if (!this.shadow.isEmpty) {
-            ctx.shadowColor = this.shadow.color;
-            ctx.shadowBlur = this.shadow.blur;
-            ctx.shadowOffsetX = this.shadow.offset.x;
-            ctx.shadowOffsetY = this.shadow.offset.y;
-        }
-        if (!this.fill.isEmpty)
-            ctx.fillStyle = this.fill;
+        this.shadow.render(ctx);
         this.line.render(ctx);
+        this.fill.render(ctx);
     }
+
+    /** Fills and strokes the given path onto context using the current drawing style settings.
+     * The context is saved before drawing and restored afterwards.
+     * Any shadow is applied to fill layer, unless that is transparent, in which case it is applied on the stroke.
+     * The stroke can be drawn under or on top of the fill, depending on the value of `strokeOver` property.
+     */
+    renderPath(ctx: RenderContext2D, path: Path2D)
+    {
+        const haveFill = !this.fill.isEmpty;
+        const haveShadow = !this.shadow.isEmpty;
+
+        ctx.save();
+
+        if (!this.strokeOver)
+            this.strokePath(ctx, path, haveShadow)
+
+        if (haveFill) {
+            this.fill.render(ctx);
+            if (haveShadow && this.strokeOver) {
+                this.shadow.saveContext(ctx);
+                this.shadow.render(ctx);
+                ctx.fill(path);
+                this.shadow.restoreContext(ctx);
+            }
+            else {
+                ctx.fill(path);
+            }
+        }
+
+        if (this.strokeOver)
+            this.strokePath(ctx, path, haveShadow && !haveFill)
+
+        ctx.restore();
+    }
+
+    /** Draws just the current stroke (line) style onto the given path, with or w/out she current shadow (if any).
+     * It does NOT save or restore full context, only shadow properties (if a shadow is used).
+     */
+    strokePath(ctx: RenderContext2D, path: Path2D, withShadow: boolean = false) {
+        if (this.line.isEmpty)
+            return;
+        this.line.render(ctx);
+        if (withShadow) {
+            this.shadow.saveContext(ctx);
+            this.shadow.render(ctx);
+            ctx.stroke(path);
+            this.shadow.restoreContext(ctx);
+        }
+        else {
+            ctx.stroke(path);
+        }
+
+    }
+
 }

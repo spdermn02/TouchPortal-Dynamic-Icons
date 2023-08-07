@@ -2,7 +2,7 @@
 import sharp from 'sharp';
 import { loadImage } from 'skia-canvas';
 import { Mutex } from 'async-mutex';
-import { SizeType } from './types';
+import { SizeType } from './geometry';
 import { logIt } from '../common'
 import { isAbsolute as isAbsPath, join as pjoin } from 'path';
 

@@ -15,9 +15,10 @@
 
 
 // Defaults
-var VERSION = "";
+var VERSION = process.env.npm_package_version;
 var OUTPUT_PATH = "base"
 var DEV_MODE = false;
+var PKG_NAME = process.env.npm_package_name || "touchportal-dynamic-icons";
 
 // Handle CLI arguments
 for (let i=2; i < process.argv.length; ++i) {
@@ -26,9 +27,6 @@ for (let i=2; i < process.argv.length; ++i) {
     else if (arg == "-o") OUTPUT_PATH = process.argv[++i];
     else if (arg == "-d") DEV_MODE = true;
 }
-// Try fall back to npm_package_version variable
-if (!VERSION && process.env.npm_package_version)
-    VERSION = process.env.npm_package_version;
 // Validate the version
 if (!VERSION) {
     console.error("No plugin version number, cannot continue :( \n Use -v <version.number> argument.");
@@ -47,13 +45,12 @@ const entry_base =
 {
     "$schema": "https://pjiesco.com/touch-portal/entry.tp/schema",
     "sdk": 6,
-    "version": iVersion.toString(16),
-    "touchportal-dynamic-icons": VERSION,
+    "version": parseInt(iVersion.toString(16)),
+    [PKG_NAME]: VERSION,
     "name": "Touch Portal Dynamic Icons",
     "id": "Touch Portal Dynamic Icons",
-    "plugin_start_cmd_mac":     DEV_MODE ? "" : "sh \"%TP_PLUGIN_FOLDER%\"touchportal-dynamic-icons/start.sh touchportal-dynamic-icons",
-    "plugin_start_cmd_linux":     DEV_MODE ? "" : "sh \"%TP_PLUGIN_FOLDER%\"touchportal-dynamic-icons/start.sh touchportal-dynamic-icons",
-    "plugin_start_cmd_windows": DEV_MODE ? "" : "\"%TP_PLUGIN_FOLDER%touchportal-dynamic-icons\\touchportal-dynamic-icons.exe\"",
+    "plugin_start_cmd":         DEV_MODE ? undefined : `sh %TP_PLUGIN_FOLDER%${PKG_NAME}/start.sh ${PKG_NAME}`,
+    "plugin_start_cmd_windows": DEV_MODE ? undefined : `"%TP_PLUGIN_FOLDER%${PKG_NAME}\\${PKG_NAME}.exe"`,
     "configuration": {
         "colorDark": "#23272A",
         "colorLight": "#7289DA"
@@ -74,13 +71,24 @@ const entry_base =
             "default": "",
             "readOnly": false,
             "description": "Base directory to use when loading image files specified using a relative path. When left empty, the default is Touch Portal's configuration directory for the current user."
-        }
+        },
+        {
+            "name": "Enable GPU Rendering by Default",
+            "type": "text",
+            "default": "Yes",
+            "readOnly": false,
+            "description": "Enables or disables using hardware acceleration (GPU), when available, for generating icon images. One of: \"yes, true, 1, or enable\" to enable, anything else to disable.\n" +
+                "This setting can be also be overridden per icon. Changing this setting does not affect any icons already generated since the plugin was started.\n\n" +
+                "When disabled, all image processing happens on the CPU, which may be slower and/or produce slightly different results in some cases.\n\n" +
+                "GPU rendering is only supported on some hardware/OS/drivers, and is disabled on others regardless of this setting.\n\n" +
+                "Note that at least some CPU will be used when generating icons in any case, most notably for image file loading and final output PNG compression."
+        },
     ],
     "categories": [
         {
             "id": "TP Dynamic Icons",
             "name": "Dynamic Icons",
-            "imagepath": "%TP_PLUGIN_FOLDER%touchportal-dynamic-icons/touchportal-dynamic-icons.png",
+            "imagepath": `%TP_PLUGIN_FOLDER%${PKG_NAME}/${PKG_NAME}.png`,
             "actions": [],
             "connectors": [],
             "states": [
@@ -150,6 +158,14 @@ function makeActionData(id, type, label = "", deflt = "") {
     };
 }
 
+function makeTextData(id, label, dflt = "") {
+    return makeActionData(id, "text", label, dflt + '');
+}
+
+function makeColorData(id, label = "", dflt = "#00000000") {
+    return makeActionData(id, "color", label + (label ? " " : "") + "Color", dflt + '');
+}
+
 function makeChoiceData(id, label, choices, dflt) {
     const d = makeActionData(id, "choice", label, typeof dflt === "undefined" ? choices[0] : dflt);
     d.valueChoices = choices;
@@ -165,7 +181,11 @@ function makeNumericData(id, label, dflt, min, max, allowDec = true) {
 }
 
 function makeIconNameData(idPrefix, label = "Icon Name") {
-    return makeActionData(idPrefix + "_name", "text", label);
+    return makeTextData(idPrefix + "_name", label);
+}
+
+function makeSizeTypeData(idPrefix, dflt = undefined) {
+    return makeChoiceData(idPrefix + "_unit", "Unit", ["%", "px"], dflt);
 }
 
 // Shared functions which create both a format string and data array.
@@ -284,17 +304,44 @@ function makeTransformData(opsList, idPrefix, /* out */ data) {
     return f;
 }
 
-function makeDrawStyleData(idPrefix, /* out */ data) {
+function makeDrawStyleData(idPrefix, /* out */ data, withShadow = true) {
     let i = data.length;
-    const format = `Fill\nColor{${i++}}Stroke\nWidth (%){${i++}}${NBSP}\nColor{${i++}}Shadow Size\n(blur, offset X, Y){${i++}}${NBSP}\nColor{${i++}}`;
-    const d = [
-        makeActionData(idPrefix +  "_style_fillColor", "color", "Fill Color", "#00000000"),
+    let format = `Fill\nColor{${i++}}Stroke\nWidth{${i++}}{${i++}}Stroke\nColor{${i++}}`;
+    data.push(
+        makeColorData(idPrefix +  "_style_fillColor", "Fill"),
         makeNumericData(idPrefix + "_style_line_width", "Stroke Width", 0, 0, 999999, true),
-        makeActionData(idPrefix +  "_style_line_color", "color", "Stroke Color", "#00000000"),
-        makeActionData(idPrefix +  "_style_shadow", "text", "Text", "0, 0, 0"),
-        makeActionData(idPrefix +  "_style_shadowColor", "color", "Shadow Color", "#000000FF"),
-    ];
-    data.push(...d);
+        makeSizeTypeData(idPrefix + "_style_line_width"),
+        makeColorData(idPrefix +  "_style_line_color", "Stroke"),
+    );
+    if (withShadow) {
+        format += `Shadow Size\n(blur, X, Y){${i++}}Shadow\nColor{${i++}}`;
+        data.push(
+            makeTextData(idPrefix +  "_style_shadow", "Shadow Coordinates", "0, 0, 0"),
+            makeColorData(idPrefix +  "_style_shadowColor", "Shadow", "#000000FF"),
+        );
+    }
+    return format;
+}
+
+function makeRectSizeData(idPrefix, /* out */ data, w = 100, h = 100, label = "Size", wLabel = "W", hLabel = "H") {
+    let i = data.length;
+    const format = `${label}\n${SP_EM}${wLabel} {${i++}}{${i++}}${NBSP}\n${hLabel} {${i++}}{${i++}}`;
+    data.push(
+        makeTextData(idPrefix + "_size_w", "Width", w.toString()),
+        makeSizeTypeData(idPrefix + "_size_w"),
+        makeTextData(idPrefix + "_size_h", "Height", h.toString()),
+        makeSizeTypeData(idPrefix + "_size_h"),
+    );
+    return format;
+}
+
+function makeBorderRadiusData(idPrefix, /* out */ data, r = 0) {
+    let i = data.length;
+    const format = `Border\nRadius {${i++}}{${i++}}`;
+    data.push(
+        makeTextData(idPrefix + "_radius", "Radius", r.toString()),
+        makeSizeTypeData(idPrefix + "_radius"),
+    );
     return format;
 }
 
@@ -321,10 +368,10 @@ function txInfoText(wrapLine = 0) {
 function addRectangleAction(id, name) {
     const descript = "Dynamic Icons: " +
         `Generate or layer a styled square/rounded shape. ${layerInfoText('shape')}\n` +
-        "Border radius and stroke width values are in percentage of icon dimension. Up to 4 radii can be specified for each corner starting at top left (separate by space/comma).";
+        "Size/radius/stroke width can be specified in percent of icon size or fixed pixels. Up to 4 radii can be specified, separated by commas, for each corner starting at top left.";
     let [format, data] = makeIconLayerCommonData(id);
-    format += `Border\nRadius (%) {${data.length}}`;
-    data.push(makeActionData("rect_radius", "text", "Border Radius", "0"));
+    format += makeRectSizeData("rect", data) + " ";
+    format += makeBorderRadiusData("rect", data) + " ";
     format += makeDrawStyleData("rect", data);
     addAction(id, name, descript, format, data);
 }
@@ -332,7 +379,7 @@ function addRectangleAction(id, name) {
 function addTextAction(id, name) {
     const descript = "Dynamic Icons: " +
         `Generate or layer styled text. ${layerInfoText('text')}\n` +
-        "Font is specified like the CSS 'font' shorthand property. Offset is percent of icon size, positive for right/down, negative for left/up. Stroke width is percentage of half the font size.";
+        "Font is specified like the CSS 'font' shorthand property. Offset is percent of icon size, positive for right/down, negative for left/up. Stroke width in % is based on half the font size.";
     let [format, data] = makeIconLayerCommonData(id);
     let i = data.length;
     format += `Text{${i++}} Font{${i++}}Align\n${SP_EM}${SP_EN}H{${i++}}${NBSP}\nV{${i++}}Offset\n (%) H{${i++}}${NBSP}\nV{${i++}}Tracking{${i++}}`;  // Baseline{${i++}}
@@ -406,15 +453,42 @@ function addBarGraphAction(id, name) {
     addAction(id, name, descript, format, data, true);
 }
 
+function addProgressBarAction(id, name) {
+    const descript = "Dynamic Icons: " +
+        "Generate or layer a linear progress bar reflecting a data value between 0 and 100. " + layerInfoText('bar') + "\n" +
+        "Side padding means top & bottom for horizontal bars and left & right for vertical. Padding/radius/stroke width can be specified in percent of icon size or fixed pixels. " +
+        "Up to 4 radii can be specified, separated by commas, for each corner starting at top left. Values must be in the 0 - 100 range, decimals are OK.";
+    let [format, data] = makeIconLayerCommonData(id);
+    // let i = data.length;
+    format += `Direction {${data.length/* i++ */}} `; //Size {${i++}}{${i++}} `;
+    data.push(
+        makeChoiceData("pbar_dir", "Direction", ["➡\tL to R", "⬅\tR to L", "⟺\tL & R", "⬆\tB to T", "⬇\tT to B", "↕\tT & B"]),
+        // makeActionData("pbar_size", "text", "Size", "75"),
+        // makeSizeTypeData("pbar_size"),
+    );
+    format += makeRectSizeData("pbar", data, 25, 0, "Padding", "Sides", "Ends") + " ";
+    format += makeBorderRadiusData("pbar", data);
+    format += " Container:\n" + makeDrawStyleData("pbar_ctr", data).replace("Fill\n", "");
+    format += " Value:\n" + makeDrawStyleData("pbar_val", data, false).replace("Fill\n", "");
+    format += ` Set\nValue {${data.length}}`;
+    data.push(
+        makeActionData("pbar_value", "text", "Progress Value", "0"),
+    )
+    addAction(id, name, descript, format, data);
+}
+
 // Layered icon actions
 
 function addStartLayersAction(id, name) {
     const descript = "Dynamic Icons: " + name + "\n" +
         "Start a new Layered Icon. Add elements(s) in following 'Draw' and 'Layer' action(s) and then use the 'Generate' action to produce the icon.";
-    const format = "Icon Name {0} of size {1} (pixels)";
+    const format = "Icon Name {0} of size {1} (pixels square, each tile), tiled to {2} column(s) wide and {3} row(s) high.";
+    const tileChoices = Array.from({length: 15}, (x, i) => (i+1).toString());  // ["1"..."15"]
     const data = [
         makeIconNameData(id),
-        makeActionData("icon_size", "text", "Icon Size", "256")
+        makeActionData("icon_size", "text", "Icon Size", "256"),
+        makeChoiceData("icon_tile_x", "Tile Columns", tileChoices),
+        makeChoiceData("icon_tile_y", "Tile Rows", tileChoices),
     ];
     addAction(id, name, descript, format, data);
 }
@@ -448,10 +522,11 @@ function addGenerateLayersAction(id, name) {
     const descript = "Dynamic Icons: " +
         "Finalize and/or Render a dynamic image icon which has been created using preceding 'New' and 'Draw/Layer' actions using the same Icon Name.\n" +
         "'Finalize' marks the icon as finished, removing any extra layers which may have been added previously. 'Render' produces the actual icon in its current state and sends it to TP.";
-    const format = "Icon Named {0} {1}";
+    const format = "Icon Named {0} {1} | Enable GPU Rendering: {2} (default is set in plugin Settings)";
     const data = [
         makeIconNameData(id),
         makeChoiceData("icon_generate_action", "Action", ["Finalize & Render", "Finalize Only", "Render Only"]),
+        makeChoiceData("icon_generate_gpu", "Enable GPU Rendering", ["default", "Enable", "Disable"]),
     ];
     addAction(id, name, descript, format, data);
 }
@@ -516,6 +591,7 @@ function addSystemActions() {
 
 addProgressGaugeAction(  "icon_progGauge",  "Draw - Simple Round Gauge");
 addBarGraphAction(       "icon_barGraph",   "Draw - Simple Bar Graph");
+addProgressBarAction(    "icon_progBar",    "Draw - Linear Progress Bar");
 addTextAction(           "icon_text",       "Draw - Text");
 addImageAction(          "icon_image",      "Draw - Image");
 addRectangleAction(      "icon_rect",       "Draw - Rounded Shape");

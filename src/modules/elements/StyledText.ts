@@ -1,10 +1,9 @@
 
-import { ILayerElement, IValuedElement, RenderContext2D } from "../interfaces";
-import { ParseState, Rectangle, Vect2d } from "../types";
-import { evaluateValue, evaluateStringValue } from "../../utils/helpers"
-import DrawingStyle from "./DrawingStyle";
-import { TextMetrics as SkiaTextMetrics } from 'skia-canvas';
-type SkiaTextMetrics = typeof SkiaTextMetrics;
+import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces';
+import { ParseState } from '../types'
+import { Point, PointType, Rectangle } from '../geometry';
+import { evaluateValue, evaluateStringValue } from '../../utils/helpers'
+import { DrawingStyle } from './';
 
 // Draws text on a canvas context with various options. The text can be fully styled with the embedded DrawingStyle property.
 export default class StyledText implements ILayerElement, IValuedElement
@@ -19,11 +18,11 @@ export default class StyledText implements ILayerElement, IValuedElement
     private direction: 'ltr' | 'rtl' | 'inherit' = 'inherit';
     private tracking: number = 0;
     private wrap: boolean = true;
-    private offset: Vect2d = new Vect2d();
+    private offset: PointType = Point.new();
     private style: DrawingStyle = new DrawingStyle();
 
     private metrics: {
-        textMetrics: SkiaTextMetrics | null,  // skia-canvas extended TextMetrics type
+        textMetrics: TextMetrics | any | null,  // skia-canvas extended TextMetrics type
         multiline: boolean
     } = { textMetrics: null, multiline: false };
 
@@ -108,13 +107,15 @@ export default class StyledText implements ILayerElement, IValuedElement
         // Calculate the stroke width first, if any.
         let penAdjust = 0;
         if (!this.style.line.isEmpty) {
-            if (this.style.line.widthScale == 1) {
+            if (this.style.line.width.isRelative && this.style.line.widthScale == 1) {
                 // stroke line width is percentage of half the font size; only calculate if we haven't already.
                 const charMetric:any = ctx.measureText("W");
                 this.style.line.widthScale = Math.max(charMetric.width, charMetric.fontBoundingBoxAscent + charMetric.fontBoundingBoxDescent) * .005;
             }
             // need to offset the draw origin by half of the line width, otherwise it may clip off an edge
             penAdjust = this.style.line.scaledWidth * .5;
+            // save the current context shadow settings -- we may need to restore these before drawing the stroke (if we also have a fill).
+            this.style.shadow.saveContext(ctx);
         }
 
         // Use 'middle' baseline to get metrics and as default (may change after metrics are calculated).
@@ -128,7 +129,7 @@ export default class StyledText implements ILayerElement, IValuedElement
         const tm = this.metrics.textMetrics;
 
         // Calculate the draw offset based on alignment settings.
-        let offset = new Vect2d();
+        let offset = Point.new();
         // horizontal
         switch (this.alignH) {
             case 'center':
@@ -160,16 +161,20 @@ export default class StyledText implements ILayerElement, IValuedElement
         // console.log(rect.size, offset, penAdjust, tm);
 
         // add any user-specified offset as percent of canvas size
-        if (!this.offset.isEmpty)
-            offset.add(Vect2d.mult(this.offset, rect.width * .01, rect.height * .01));
+        if (!Point.isNull(this.offset))
+            Point.plus_eq(offset, Point.times(this.offset, rect.width * .01, rect.height * .01));
         // move to position before drawing
         ctx.translate(offset.x, offset.y);
 
         // set canvas drawing style properties
         this.style.render(ctx);
 
-        if (!this.style.fill.isEmpty)
+        if (!this.style.fill.isEmpty) {
             ctx.fillText(this.text, rect.x, rect.y);
+            // prevent shadow from being drawn on the stroke as well
+            if (penAdjust)
+                this.style.shadow.restoreContext(ctx);
+        }
         if (penAdjust) // will be non-zero if we have a stroke to draw
             ctx.strokeText(this.text, rect.x, rect.y);
 
