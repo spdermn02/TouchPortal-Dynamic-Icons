@@ -1,8 +1,9 @@
 
 import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces';
+import { Alignment } from '../enums';
 import { ParseState } from '../types'
 import { Point, PointType, Rectangle } from '../geometry';
-import { evaluateValue, evaluateStringValue } from '../../utils/helpers'
+import { evaluateValue, evaluateStringValue, parseAlignmentFromValue } from '../../utils/helpers'
 import { DrawingStyle } from './';
 
 // Draws text on a canvas context with various options. The text can be fully styled with the embedded DrawingStyle property.
@@ -13,8 +14,7 @@ export default class StyledText implements ILayerElement, IValuedElement
     private text: string = "";
     private font: string = "";
     private fontVariant: string = 'common-ligatures discretionary-ligatures contextual';  // ensure ligature support for named symbol fonts
-    private alignH: 'left' | 'center' | 'right' = 'center';
-    private alignV: 'top' | 'middle' | 'bottom'  = 'middle';
+    private alignment: Alignment = Alignment.CENTER;
     private direction: 'ltr' | 'rtl' | 'inherit' = 'inherit';
     private tracking: number = 0;
     private wrap: boolean = true;
@@ -56,10 +56,12 @@ export default class StyledText implements ILayerElement, IValuedElement
                     this.style.line.widthScale = 1;  // depends on font, reset it
                     break;
                 case 'alignH':
-                    this.alignH = (data.value as typeof this.alignH);
+                    this.alignment &= ~Alignment.H_MASK;
+                    this.alignment |= parseAlignmentFromValue(data.value, Alignment.H_MASK);
                     break;
                 case 'alignV':
-                    this.alignV = (data.value as typeof this.alignV);
+                    this.alignment &= ~Alignment.V_MASK;
+                    this.alignment |= parseAlignmentFromValue(data.value, Alignment.V_MASK);
                     break;
                 case 'ofsH':
                     this.offset.x = evaluateValue(data.value);
@@ -98,7 +100,6 @@ export default class StyledText implements ILayerElement, IValuedElement
 
         ctx.font = this.font;
         ctx.fontVariant = this.fontVariant;
-        ctx.textAlign = this.alignH;
         ctx.direction = this.direction;
         ctx.textTracking = this.tracking;
         ctx.textWrap = this.wrap;
@@ -118,8 +119,9 @@ export default class StyledText implements ILayerElement, IValuedElement
             this.style.shadow.saveContext(ctx);
         }
 
-        // Use 'middle' baseline to get metrics and as default (may change after metrics are calculated).
-        // This is important for vertical alignment code below to work.
+        // Use 'center' alignment and 'middle' baseline to get metrics and as default (may change after metrics are calculated).
+        // This is important for the offset calculation code below to work.
+        ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         if (!this.metrics.textMetrics) {
             this.metrics.textMetrics = ctx.measureText(this.text);
@@ -131,21 +133,27 @@ export default class StyledText implements ILayerElement, IValuedElement
         // Calculate the draw offset based on alignment settings.
         let offset = Point.new();
         // horizontal
-        switch (this.alignH) {
-            case 'center':
-                offset.x = (rect.width * 0.5 + tm.actualBoundingBoxLeft + tm.actualBoundingBoxRight);  break;
-            case 'left':
-                offset.x = rect.width * .025 + penAdjust;  break;  // add some left padding
-            case 'right':
-                offset.x = rect.width - rect.width * .025 - penAdjust;  break; // add some right padding
+        switch (this.alignment & Alignment.H_MASK) {
+            case Alignment.HCENTER:
+            case Alignment.JUSTIFY:
+                offset.x = (rect.width * 0.5 + tm.actualBoundingBoxLeft + tm.actualBoundingBoxRight);
+                break;
+            case Alignment.LEFT:
+                ctx.textAlign = 'left';
+                offset.x = rect.width * .025 + penAdjust;
+                break;  // add some left padding
+            case Alignment.RIGHT:
+                ctx.textAlign = 'right';
+                offset.x = rect.width - rect.width * .025 - penAdjust;
+                break; // add some right padding
         }
         // vertical alignment is tricksier!  this may not work perfectly for all fonts since it relies heavily on their declared metrics, and those are not always as expected.
-        switch (this.alignV) {
-            case 'middle':
+        switch (this.alignment & Alignment.V_MASK) {
+            case Alignment.VCENTER:
                 offset.y = (rect.height - tm.actualBoundingBoxAscent - tm.actualBoundingBoxDescent) * 0.5 +
                            (this.metrics.multiline ? tm.actualBoundingBoxAscent : tm.fontBoundingBoxAscent);
                 break;
-            case 'top':
+            case Alignment.TOP:
                 if (this.metrics.multiline) {
                     ctx.textBaseline = 'top';
                     offset.y = tm.actualBoundingBoxAscent + penAdjust;
@@ -153,7 +161,7 @@ export default class StyledText implements ILayerElement, IValuedElement
                 }
                 offset.y = tm.fontBoundingBoxAscent + penAdjust;
                 break;
-            case 'bottom':
+            case Alignment.BOTTOM:
                 ctx.textBaseline = 'top';
                 offset.y = rect.height - tm.actualBoundingBoxDescent - tm.fontBoundingBoxAscent - penAdjust;
                 break;

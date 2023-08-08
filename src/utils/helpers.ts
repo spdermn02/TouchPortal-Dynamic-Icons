@@ -1,4 +1,5 @@
 import { logIt } from '../common'
+import { Alignment } from '../modules/enums';
 import { PointType } from '../modules/geometry';
 
 const USE_DYNAMIC_VALUE_EVAL:number = 1;  // 0 = none; 1 = Function;
@@ -82,6 +83,49 @@ export function parsePointFromValue(value: string): PointType {
     if (parseNumericArrayString(value, valPr, 2)) {
         ret.x = valPr[0];
         ret.y = valPr.length > 1 ? valPr[1] : ret.x;
+    }
+    return ret;
+}
+
+/** Parses a string value into an Alignment enum type result and returns it.
+    Accepted string values (brackets indicate the minimum # of characters required):
+        Horizontal: "[l]eft", "[c]enter", "[r]ight", "[j]ustify"
+        Vertical:   "[t]op", "[m]iddle", "[b]ottom", "[ba]seline"
+    Which direction(s) to evaluate can be specified in the `atype` parameter as one of the alignment type masks.
+ */
+export function parseAlignmentFromValue(value: string, atype: Alignment = Alignment.H_MASK | Alignment.V_MASK): Alignment {
+    let ret: Alignment = Alignment.NONE;
+
+    if (atype & Alignment.H_MASK) {
+        // "left", "center", "right", "justify"
+        switch (value[0]) {
+            case 'c':
+                ret |= Alignment.HCENTER;
+                break;
+            case 'l':
+                ret |= Alignment.LEFT;
+                break;
+            case 'r':
+                ret |= Alignment.RIGHT;
+                break;
+            case 'j':
+                ret |= Alignment.JUSTIFY;
+                break;
+        }
+    }
+    if (atype & Alignment.V_MASK) {
+        // "top", "middle", "bottom", "baseline"
+        switch (value[0]) {
+            case 'm':
+                ret |= Alignment.VCENTER;
+                break;
+            case 't':
+                ret |= Alignment.TOP;
+                break;
+            case 'b':
+                ret |= (value[1] == 'a' ? Alignment.BASELINE : Alignment.BOTTOM);
+                break;
+        }
     }
     return ret;
 }
