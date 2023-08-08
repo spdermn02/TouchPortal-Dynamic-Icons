@@ -13,15 +13,13 @@ export default class DynamicIcon
     /** This is the size of one "tile" (see also `actualSize()`); For now these must be square due to TP limitation. */
     size: SizeType = Size.new(PluginSettings.defaultIconSize);
     /** Specifies an optional grid to split the final image into multiple parts before sending to TP. */
-    tile: PointType = { x: 1, y: 1 };
+    tile: PointType = { x: 0, y: 0 };
     /** `true` if icon was explicitly created with a "New" action, will require a corresponding "Render" action to actually draw it. */
     delayGeneration: boolean = false;
     /** Whether to use GPU for rendering (on supported hardware). Passed to skia-canvas's Canvas::gpu property. */
     gpuRendering: boolean = PluginSettings.defaultGpuRendering;
     /** Whether to use additional output compression before sending image state data to TP. */
     compressOutput: boolean = true;
-    /** Indicates if any TP State(s) have been created for this icon. */
-    stateCreated: boolean = false;
     /** Used while building a icon from TP layer actions to keep track of current layer being affected. */
     nextIndex: number = 0;
     /** The array of elements which will be rendered. */
@@ -42,6 +40,10 @@ export default class DynamicIcon
         'x' and 'y' of `tile` are assumed to be zero-based; coordinates used in the State ID are 1-based (so, 1 is added to x and y values of `tile`). */
     getTileStateId(tile: PointType | any) {
         return `${this.name}_${tile.x+1}_${tile.y+1}`;
+    }
+
+    getTileStateName(tile: PointType) {
+        return `${this.name} - Tile col. ${tile.x+1}, row ${tile.y+1}`
     }
 
     async render() : Promise<Buffer> {
