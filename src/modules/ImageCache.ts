@@ -220,18 +220,14 @@ export class ImageCache
 
     /** Removes all entries for a specific icon name from the cache. This will also affect any other icons using the same cached image. */
     public async clearIconName(name: string) {
-        let anyCleared = false;
         await this.mutex.runExclusive(async() => {
             for (const [k, v] of this.cache.entries()) {
                 if (v.iconNames.includes(name)) {
                     this.cache.delete(k);
-                    logIt("INFO", `Cached image ${k.split(',')[0]} for icon '${name}' was removed.`);
-                    anyCleared = true;
+                    logIt("INFO", `Removed cached image ${k.split(',')[0]} for icon '${name}'.`);
                 }
             }
         });
-        if (!anyCleared)
-            logIt("INFO", "Cached image", name, "not found.");
     }
 
 }
