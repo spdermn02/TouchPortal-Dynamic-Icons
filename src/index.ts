@@ -75,58 +75,59 @@ function sendIconLists() {
     TPClient.choiceUpdate("dynamic_icons_control_command_icon", nameArry.length ? ["All", ...nameArry] : ["[ no icons created ]"]);
 }
 
-// Creates a TP state(s) for an icon if it/they hasn't been created yet. An icon may use multiple states if it is tiled.
-function createTpIconStateIfNeeded(icon: DynamicIcon) {
-    if (icon.stateCreated)
-        return;
-
-    icon.stateCreated = true;
-    if (icon.isTiled) {
-        for (let y=0; y < icon.tile.y; ++y)
-            for (let x=0; x < icon.tile.x; ++x) {
-                try {
-                    TPClient.createState(
-                        icon.getTileStateId({x: x, y: y}),              // id
-                        `${icon.name} - Tile col. ${x+1}, row ${y+1}`,  // name
-                        "",        // default value
-                        icon.name  // parent group, use icon name
-                    );
-                }
-                catch { /* ignore, client logs errors */ }
-            }
-    }
-    else {
-        try { TPClient.createState(/* id */ icon.name, /* name */ icon.name, "", /* category */ "Dynamic Icons"); }
-        catch { /* ignore, client logs errors */ }
-    }
-    sendIconLists();
-}
-
-// Removes any TP state(s) for an icon that have already been created.
+// Creates or removes TP State(s) for an icon as needed based on current and new tiling properties.
+// An icon may use multiple states if it is tiled.
+// Removes any TP state(s) for an icon that have already been created and are no longer needed,
+// eg. when the tiling properties change or an icon is deleted entirely.
 // Note this uses the icon's _current_ `tile` property value to determine state IDs to remove.
-function clearIconStates(icon: DynamicIcon) {
-    if (!icon.stateCreated)
-        return;
+function createOrRemoveIconStates(icon: DynamicIcon, newTiles: PointType) {
+    const newIsTiled = (newTiles.x > 1 || newTiles.y > 1);
 
+    // Remove any old states based on the current icon config
     if (icon.isTiled) {
-        for (let y=0; y < icon.tile.y; ++y)
+        for (let y=0; y < icon.tile.y; ++y) {
             for (let x=0; x < icon.tile.x; ++x) {
-                try { TPClient.removeState(icon.getTileStateId({x: x, y: y})); }
+                if (newIsTiled && x < newTiles.x && y < newTiles.y)
+                    continue
+                try { TPClient.removeState(icon.getTileStateId({x: x, y: y})) }
                 catch { /* ignore */ }
             }
+        }
     }
-    else {
+    else if (icon.tile.x) {
         try { TPClient.removeState(/* id */ icon.name); }
         catch { /* ignore */ }
     }
-    icon.stateCreated = false;
+
+    // Create new states, if any
+    if (newIsTiled) {
+        for (let y=0; y < newTiles.y; ++y) {
+            for (let x=0; x < newTiles.x; ++x) {
+                if (icon.isTiled && x < icon.tile.x && y < icon.tile.y)
+                    continue
+                try {
+                    const tile = {x: x, y: y};
+                    TPClient.createState(
+                        icon.getTileStateId(tile),
+                        icon.getTileStateName(tile),
+                        "",        // default value
+                        icon.name  // parent group, use icon name
+                    )
+                }
+                catch { /* ignore, client logs errors */ }
+            }
+        }
+    }
+    else if (newTiles.x) {
+        try { TPClient.createState(/* id */ icon.name, /* name */ icon.name, "", /* category */ "Dynamic Icons"); }
+        catch { /* ignore, client logs errors */ }
+    }
 }
 
 // Send TP State update with an icon's image data. This is used for untiled images (most common scenario).
 function sendIconData(icon: DynamicIcon, data: Buffer | null) {
     if (data?.length) {
         // TPClient.logIt("DEBUG", `Sending data for icon '${icon.name}' with length ${data.length}`);
-        createTpIconStateIfNeeded(icon);
         TPClient.stateUpdate(icon.name, data.toString("base64"));
     }
 }
@@ -223,7 +224,7 @@ function handleControlAction(actionId: string, data: TpActionDataArrayType) {
             iList.forEach((n) => {
                 const icon: DynamicIcon | undefined = g_dyanmicIconStates.get(n);
                 if (icon) {
-                    clearIconStates(icon);
+                    createOrRemoveIconStates(icon, Point.new());
                     g_globalImageCache.clearIconName(icon.name);
                     g_dyanmicIconStates.delete(n);
                 }
@@ -266,24 +267,27 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
     switch (actionId)
     {
         case 'declare': {
-            // Create a new "layer stack" type icon with given name and size. Layer elements need to be added in following action(s).
-            const size = data.length > 1 ? parseInt(data[1].value) || PluginSettings.defaultIconSize.width : PluginSettings.defaultIconSize.width;
-            Size.set(icon.size, size);
-            // Handle tiling parameters, if any;  Added in v1.2.0
-            if (data.length > 3 && data[2].id.endsWith("tile_x")) {
-                const tile: PointType = { x: parseInt(data[2].value) || 1, y: parseInt(data[3].value) || 1 };
-                // check if the tiling settings have changed; we may need to clean up any existing TP states first.
-                if (tile.x >= 1 && tile.y >= 1 && !Point.equals(icon.tile, tile)) {
-                    // just clear out any States that may already have been created... we'll then re-create new ones as needed.
-                    clearIconStates(icon);
-                    // set the tile property after clearing out any old states.
-                    Point.set(icon.tile, tile);
-                }
-            }
+            // Create or modify a "layer stack" type icon. Layer elements need to be added in following action(s).
             icon.delayGeneration = true;   // must explicitly generate
             icon.nextIndex = 0;   // reset position index, this increments each time we parse a layer element into the icon
-            // create the TP state(s) now if we haven't yet; this way a user can create the new state at any time, separate from the render action.
-            createTpIconStateIfNeeded(icon);
+            // Set the size property -- for now we can actually only draw square icons due to TP limitations so "size" is just one number for both width and height.
+            const size = data.length > 1 ? parseInt(data[1].value) || PluginSettings.defaultIconSize.width : PluginSettings.defaultIconSize.width;
+            Size.set(icon.size, size);
+            let tile: PointType = { x: 1, y: 1}
+            // Handle tiling parameters, if any;  Added in v1.2.0
+            if (data.length > 3 && data[2].id.endsWith("tile_x"))
+                tile = { x: parseInt(data[2].value) || 1, y: parseInt(data[3].value) || 1 };
+            // Create the TP state(s) now if we haven't yet; this way a user can create the new state at any time, separate from the render action.
+            // Also check if the tiling settings have changed; we may need to clean up any existing TP states first or create new ones.
+            if (!Point.equals(icon.tile, tile)) {
+                // Adjust icon states based on current tile property vs. the new one.
+                createOrRemoveIconStates(icon, tile);
+                // Update the icons list state if this is a new icon.
+                if (!icon.tile.x)
+                    sendIconLists()
+                // Set the tile property after adjusting the states.
+                Point.set(icon.tile, tile);
+            }
             return;
         }
 
@@ -479,8 +483,18 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
     }
 
     // render individual single-layered icon now
-    if (!icon.delayGeneration && icon.layers.length > 0)
+    if (!icon.delayGeneration && icon.layers.length > 0) {
+        // A new icon has tile = {0,0}, which is a way to check if we need to create a new TP State for it
+        if (!icon.tile.x) {
+            const tile: PointType = { x: 1, y: 1 }
+            // Create a new state now.
+            createOrRemoveIconStates(icon, tile)
+            // Set the tile property.
+            Point.set(icon.tile, tile)
+            sendIconLists()
+        }
         renderAndSendIcon(icon);
+    }
 
 }  // handleIconAction()
 
