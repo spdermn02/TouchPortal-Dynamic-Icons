@@ -309,7 +309,7 @@ function makeDrawStyleData(idPrefix, /* out */ data, withShadow = true) {
     let format = `Fill\nColor{${i++}}Stroke\nWidth{${i++}}{${i++}}Stroke\nColor{${i++}}`;
     data.push(
         makeColorData(idPrefix +  "_style_fillColor", "Fill"),
-        makeNumericData(idPrefix + "_style_line_width", "Stroke Width", 0, 0, 999999, true),
+        makeTextData(idPrefix + "_style_line_width", "Stroke Width", "0"),
         makeSizeTypeData(idPrefix + "_style_line_width"),
         makeColorData(idPrefix +  "_style_line_color", "Stroke"),
     );
