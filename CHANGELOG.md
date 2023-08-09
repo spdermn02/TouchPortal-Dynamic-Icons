@@ -58,4 +58,5 @@
 
 ---
 ## Next version
-* Allow updating a Canvas Filter layer's filter property using the "Update Value" action.
+* Allow updating an Effect Filter layer's _filter_ property using the "Update a Value" action.
+* Icon names in the _Plugin Action_ action and _List of created icons_ state are now sorted alphabetically.

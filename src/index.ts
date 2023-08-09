@@ -70,7 +70,7 @@ function getLayerIndexFromActionData(actionData: any[], currentLen: number) {
 
 // Updates state of current icons list and command action selector.
 function sendIconLists() {
-    const nameArry = [...g_dyanmicIconStates.keys()];
+    const nameArry = [...g_dyanmicIconStates.keys()].sort();
     TPClient.stateUpdate("dynamic_icons_createdIconsList", nameArry.join(','));
     TPClient.choiceUpdate("dynamic_icons_control_command_icon", nameArry.length ? ["All", ...nameArry] : ["[ no icons created ]"]);
 }
