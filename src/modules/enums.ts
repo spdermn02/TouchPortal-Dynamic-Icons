@@ -2,7 +2,7 @@
 export const enum Orientation { H, V };
 
 export const enum Alignment {
-		NONE     = 0,
+    NONE     = 0,
     LEFT     = 0x01,
     RIGHT    = 0x02,
     HCENTER  = 0x04,
