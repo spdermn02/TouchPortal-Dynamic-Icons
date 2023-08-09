@@ -48,3 +48,14 @@
 ### Build Scripts:
 - Changes for MacOS and Linux builds to include the required VIPS graphics library binary.
 - Update/fix the TP startup command line in entry.tp for MacOS and Linux builds.
+
+---
+## v1.2.0-alpha2
+* Fixes issue with missing TP states when changing icon tiling properties (https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/12).
+* Fixes stoke width action data fields to allow text input (for variables and evaluated expressions).
+* A warning is no longer logged when deleting an icon instance which doesn't have any image layers.
+
+
+---
+## Next version
+* Allow updating a Canvas Filter layer's filter property using the "Update Value" action.
