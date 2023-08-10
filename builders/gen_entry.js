@@ -400,7 +400,7 @@ function addTextAction(id, name) {
 function addImageAction(id, name, withTx = true) {
     let descript = "Dynamic Icons: " +
         `Generate or layer an image. ${layerInfoText('image')} ` +
-        "File paths are relative to TP's 'plugins' folder (or use absolute paths).\n";
+        "File paths are relative to this plugin's \"Default Image Files Path\" setting, or use absolute paths.\n";
     let [format, data] = makeIconLayerCommonData(id);
     let i = data.length;
     format += `Image\nFile {${i++}}Resize\nFit {${i++}}`;
@@ -459,12 +459,9 @@ function addProgressBarAction(id, name) {
         "Side padding means top & bottom for horizontal bars and left & right for vertical. Padding/radius/stroke width can be specified in percent of icon size or fixed pixels. " +
         "Up to 4 radii can be specified, separated by commas, for each corner starting at top left. Values must be in the 0 - 100 range, decimals are OK.";
     let [format, data] = makeIconLayerCommonData(id);
-    // let i = data.length;
-    format += `Direction {${data.length/* i++ */}} `; //Size {${i++}}{${i++}} `;
+    format += `Direction {${data.length}} `;
     data.push(
         makeChoiceData("pbar_dir", "Direction", ["➡\tL to R", "⬅\tR to L", "⟺\tL & R", "⬆\tB to T", "⬇\tT to B", "↕\tT & B"]),
-        // makeActionData("pbar_size", "text", "Size", "75"),
-        // makeSizeTypeData("pbar_size"),
     );
     format += makeRectSizeData("pbar", data, 25, 0, "Padding", "Sides", "Ends") + " ";
     format += makeBorderRadiusData("pbar", data);
@@ -563,8 +560,8 @@ function addTransformAction(id, name, withIndex = false) {
 function addValueUpdateAction(id, name) {
     const descript = "Dynamic Icons: " +
         "Update a value on an element in an existing icon. " +
-        "Elements which can be updated are anything with a single value like progress bar, series graph, or text. " +
-        "Value type must match the element type (numeric/string), and may contain math and other evaluated expressions.\n" +
+        "Elements which can be updated: Gauge, Graph and Bar values, Text content, Image source, and Effect Filter. " +
+        "Value type must match the element type (numeric/string), and may contain math and other JS expressions.\n" +
         "Icon with same Name must already exist and contain a supported element type at the specified position. " +
         "Position indexes start at 1 (non-layered icons have only one position). Specify a negative index to count from the bottom of a layer stack.";
     let [format, data] = makeIconLayerCommonData(id, true);
