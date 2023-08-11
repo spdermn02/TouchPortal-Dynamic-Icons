@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
 // Generates entry.tp JSON file.
-// usage: node gen_entry.js [-v <plugin.version.numbers>] [-o <output/path or - for stdout>] [-d]
-// A version number is required; it may also be passed via npm_package_version env. variable.
-// -d (dev mode) will exclude the plugin_start commands in the TP file, for running the binary separately.
+// usage: node builders/gen_entry.js [-v <plugin.version.numbers>] [-o <output/path or - for stdout>] [-d]
+// or via npm: npm run gen-entry [-- <options to pass through to this script>]
+// Default version number will be the current version from package.json (as well as some other constants).
+// -d (dev mode) switch will exclude the plugin_start commands in the TP file, for running the binary separately.
 
 
 ///  ***  NOTE  NOTE  NOTE   ***
@@ -13,12 +14,14 @@
 //  On the plugin side the action handlers parse these parts and can hand the data down the component tree as needed.
 //
 
+const path = require("path");
+const { writeFileSync } = require("fs");
+const pkgConfig = require("../package.json");
 
 // Defaults
-var VERSION = process.env.npm_package_version;
+var VERSION = pkgConfig.version;
 var OUTPUT_PATH = "base"
 var DEV_MODE = false;
-var PKG_NAME = process.env.npm_package_name || "touchportal-dynamic-icons";
 
 // Handle CLI arguments
 for (let i=2; i < process.argv.length; ++i) {
@@ -27,11 +30,7 @@ for (let i=2; i < process.argv.length; ++i) {
     else if (arg == "-o") OUTPUT_PATH = process.argv[++i];
     else if (arg == "-d") DEV_MODE = true;
 }
-// Validate the version
-if (!VERSION) {
-    console.error("No plugin version number, cannot continue :( \n Use -v <version.number> argument.");
-    process.exit(1);
-}
+
 // Create integer version number from dotted notation in form of ((MAJ << 16) | (MIN << 8) | PATCH)
 // Each version part is limited to the range of 0-99.
 var iVersion = 0;
@@ -46,11 +45,11 @@ const entry_base =
     "$schema": "https://pjiesco.com/touch-portal/entry.tp/schema",
     "sdk": 6,
     "version": parseInt(iVersion.toString(16)),
-    [PKG_NAME]: VERSION,
     "name": "Touch Portal Dynamic Icons",
     "id": "Touch Portal Dynamic Icons",
-    "plugin_start_cmd":         DEV_MODE ? undefined : `sh %TP_PLUGIN_FOLDER%${PKG_NAME}/start.sh ${PKG_NAME}`,
-    "plugin_start_cmd_windows": DEV_MODE ? undefined : `"%TP_PLUGIN_FOLDER%${PKG_NAME}\\${PKG_NAME}.exe"`,
+    [pkgConfig.name]: VERSION,
+    "plugin_start_cmd":         DEV_MODE ? undefined : `sh %TP_PLUGIN_FOLDER%${pkgConfig.name}/start.sh ${pkgConfig.name}`,
+    "plugin_start_cmd_windows": DEV_MODE ? undefined : `"%TP_PLUGIN_FOLDER%${pkgConfig.name}\\${pkgConfig.name}.exe"`,
     "configuration": {
         "colorDark": "#23272A",
         "colorLight": "#7289DA"
@@ -88,7 +87,7 @@ const entry_base =
         {
             "id": "TP Dynamic Icons",
             "name": "Dynamic Icons",
-            "imagepath": `%TP_PLUGIN_FOLDER%${PKG_NAME}/${PKG_NAME}.png`,
+            "imagepath": `%TP_PLUGIN_FOLDER%${pkgConfig.name}/${pkgConfig.name}.png`,
             "actions": [],
             "connectors": [],
             "states": [
@@ -616,10 +615,8 @@ if (OUTPUT_PATH === '-') {
     process.exit(0);
 }
 
-const fs = require('fs');
-const path = require('path');
-const outfile = path.join(OUTPUT_PATH, "/entry.tp");
-fs.writeFileSync(outfile, output);
+const outfile = path.join(OUTPUT_PATH, "entry.tp");
+writeFileSync(outfile, output);
 console.log("Wrote output to file:", outfile);
 if (DEV_MODE) {
     console.warn("!!!=== Generated DEV MODE entry.tp file ===!!!");
