@@ -13,15 +13,6 @@ import { dirname as pdirname, join as pjoin } from 'path';
 // -------------------------------
 // Constants
 
-// Options for the 'sharp' lib image compression. These are passed to sharp() when generating PNG results.
-// These probably should be user-settable somehow (plugin settings or via Actions) since they can really affect performance vs. quality and CPU usage.
-// See imageCache.ts (ImageCacheOptions) or https://sharp.pixelplumbing.com/api-output#png for option descriptions.
-const IMAGE_COMPRESSOR_OPTIONS = {
-    compressionLevel: 4,   // MP: 4 seems to give the highest effective compression in my tests, no gains with higher levels but does slow down.
-    effort: 1,             // MP: 1 actually uses less CPU time than higher values (contrary to what sharp docs suggest) and gives slightly higher compression.
-    palette: true          // MP: Again the docs suggest enabling this would be slower but my tests show a significant speed improvement.
-}
-
 // Default image base directory to TP's config folder for current user.
 // This is used to resolve relative paths when loading images, via the ImageCache.cacheOptions.baseImagePath setting.
 // User can override this with the "Default Image Files Path" plugin setting in TP.
@@ -152,11 +143,15 @@ function renderAndSendIcon(icon: DynamicIcon) {
                 // the sharp() constructor may throw
                 const img = new sharp(data, { premultiplied: true });
                 const slice = { left: 0, top: 0, width: icon.size.width, height: icon.size.height };
+                // "Workaround" that compression level of 0 with sharp makes a huge file, but for now we use sharp for tiling, so...
+                const pngOptions = {...icon.outputCompressionOptions};
+                if (!pngOptions.compressionLevel)
+                    pngOptions.compressionLevel = 1;
                 for (let y=0; y < icon.tile.y; ++y) {
                     for (let x=0; x < icon.tile.x; ++x) {
                         // extract image slice, encode PNG, and send the tile
                         img.extract(slice)
-                        .png(IMAGE_COMPRESSOR_OPTIONS)
+                        .png(pngOptions)
                         .toBuffer()
                         .then((data: Buffer) => sendIconDataTile(icon, data, {x: x, y: y}) )
                         .catch((e: any) => {
@@ -176,11 +171,11 @@ function renderAndSendIcon(icon: DynamicIcon) {
 
         // Icon is not tiled, send single image, which may need compressing or not.
 
-        if (icon.compressOutput) {
+        if (icon.outputCompressionOptions.compressionLevel > 0) {
             try {
                 // the sharp() constructor may throw
                 new sharp(data, { premultiplied: true })
-                .png(IMAGE_COMPRESSOR_OPTIONS)
+                .png(icon.outputCompressionOptions)
                 .toBuffer()
                 .then((data: Buffer) => sendIconData(icon, data) )
                 .catch((e: any) => {
@@ -307,8 +302,13 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 
                 // GPU rendering setting choices: "default", "Enable", "Disable"; Added in v1.2.0
                 if (data.length > 2 && data[2].id.endsWith("gpu")) {
-                    strVal = data[2].value.trim()
-                    icon.gpuRendering = (strVal.startsWith("d") && PluginSettings.defaultGpuRendering) || strVal.startsWith("En")
+                    strVal = data[2].value[0]
+                    icon.gpuRendering = (strVal == "d" && PluginSettings.defaultGpuRendering) || strVal == "E"
+                }
+                // Output compression choices: "default", "none", "1"..."9"; Added in v1.2.0
+                if (data.length > 3 && data[3].id.endsWith("cl")) {
+                    strVal = data[3].value[0]
+                    icon.outputCompressionOptions.compressionLevel = strVal == "d" ? PluginSettings.defaultOutputCompressionLevel : parseInt(strVal) || 0
                 }
             }
 
@@ -347,7 +347,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             barGraph.maxExtent = icon.actualSize().width;
             ++icon.nextIndex
             if (!icon.delayGeneration)
-                icon.compressOutput = false;  // simple bar graphs don't benefit from compression
+                icon.outputCompressionOptions.compressionLevel = 0;  // simple bar graphs don't benefit from compression
             break
         }
 
@@ -546,6 +546,9 @@ TPClient.on("Settings", (settings:{ [key:string]:string }[]) => {
         }
         else if (key.startsWith('Enable GPU Rendering')) {
             PluginSettings.defaultGpuRendering = /(?:[1-9]\d*|yes|true|enabled?)/i.test(val);
+        }
+        else if (key.includes('Output Image Compression')) {
+            PluginSettings.defaultOutputCompressionLevel = /^\d$/.test(val) ? parseInt(val) : 0;
         }
     });
 })

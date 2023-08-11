@@ -18,12 +18,19 @@ export default class DynamicIcon
     delayGeneration: boolean = false;
     /** Whether to use GPU for rendering (on supported hardware). Passed to skia-canvas's Canvas::gpu property. */
     gpuRendering: boolean = PluginSettings.defaultGpuRendering;
-    /** Whether to use additional output compression before sending image state data to TP. */
-    compressOutput: boolean = true;
     /** Used while building a icon from TP layer actions to keep track of current layer being affected. */
     nextIndex: number = 0;
     /** The array of elements which will be rendered. */
     layers: ILayerElement[] = [];
+    // Options for the 'sharp' lib image compression. These are passed to sharp() when generating PNG results.
+    // `compressionLevel` of `0` disables compression step entirely on non-tiled icons (sharp lib is never invoked);
+    // On tiled icons we're using sharp already to split up the tiles, so `0` forces the compression level of 1 because 0 makes huge files.
+    // See https://sharp.pixelplumbing.com/api-output#png for option descriptions.
+    outputCompressionOptions: any = {
+        compressionLevel: PluginSettings.defaultOutputCompressionLevel,
+        effort: 1,        // MP: 1 actually uses less CPU time than higher values (contrary to what sharp docs suggest) and gives slightly higher compression.
+        palette: true     // MP: Again the docs suggest enabling this would be slower but my tests show a significant speed improvement.
+    };
 
     constructor(init?: Partial<DynamicIcon>) { Object.assign(this, init); }
 
