@@ -1,5 +1,4 @@
 import TP from 'touchportal-api'
-import sharp from 'sharp'   // for final result image compression
 import { pluginId } from './utils/consts'
 import { ParseState, TpActionDataArrayType } from './modules/types'
 import { ILayerElement, IValuedElement } from './modules/interfaces';
@@ -7,7 +6,7 @@ import { Point, PointType, Size } from './modules/geometry';
 import DynamicIcon from "./modules/DynamicIcon";
 import * as m_el from "./modules/elements";
 import { default as g_globalImageCache, ImageCache } from './modules/ImageCache'
-import { setCommonLogger, PluginSettings } from './common'
+import { setTPClient, PluginSettings } from './common'
 import { dirname as pdirname, join as pjoin } from 'path';
 
 // -------------------------------
@@ -28,8 +27,8 @@ const DEFAULT_IMAGE_FILE_BASE_PATH = pjoin(pdirname(process.argv0), '..', '..');
 const g_dyanmicIconStates:Map<string, DynamicIcon> = new Map();
 
 const TPClient = new TP.Client();
-// hackish way to share the TP client "logger" with other modules
-setCommonLogger((...args: any[]) => { TPClient.logIt(...args) });
+// share the TP client and logger with other modules
+setTPClient(TPClient);
 
 // Set default image path here. It should be overwritten anyway when Settings are processed,
 // but this preserves BC with previous 1.1 alpha versions w/out the setting. Could eventually be removed.
@@ -115,86 +114,6 @@ function createOrRemoveIconStates(icon: DynamicIcon, newTiles: PointType) {
     }
 }
 
-// Send TP State update with an icon's image data. This is used for untiled images (most common scenario).
-function sendIconData(icon: DynamicIcon, data: Buffer | null) {
-    if (data?.length) {
-        // TPClient.logIt("DEBUG", `Sending data for icon '${icon.name}' with length ${data.length}`);
-        TPClient.stateUpdate(icon.name, data.toString("base64"));
-    }
-}
-
-// Send TP State update with one of an icon's tiled images.
-// This version assumes the icon is tiled and that all States have already been created.
-function sendIconDataTile(icon: DynamicIcon, data: Buffer | null, tile: PointType) {
-    if (data?.length) {
-        //TPClient.logIt("DEBUG", `Sending tile ${icon.getTileStateId(tile)} for icon '${icon.name}' with length ${data.length}`);
-        TPClient.stateUpdate(icon.getTileStateId(tile), data.toString("base64"));
-    }
-}
-
-// Render and send an icon to TP. The resulting image may be compressed and/or tiled before sending.
-// This function only calls async methods w/out awaiting (icon.render()), and should return "immediately."
-function renderAndSendIcon(icon: DynamicIcon) {
-    icon.render()
-    .then((data: Buffer) => {
-
-        if (icon.isTiled) {
-            try {
-                // the sharp() constructor may throw
-                const img = new sharp(data, { premultiplied: true });
-                const slice = { left: 0, top: 0, width: icon.size.width, height: icon.size.height };
-                // "Workaround" that compression level of 0 with sharp makes a huge file, but for now we use sharp for tiling, so...
-                const pngOptions = {...icon.outputCompressionOptions};
-                if (!pngOptions.compressionLevel)
-                    pngOptions.compressionLevel = 1;
-                for (let y=0; y < icon.tile.y; ++y) {
-                    for (let x=0; x < icon.tile.x; ++x) {
-                        // extract image slice, encode PNG, and send the tile
-                        img.extract(slice)
-                        .png(pngOptions)
-                        .toBuffer()
-                        .then((data: Buffer) => sendIconDataTile(icon, data, {x: x, y: y}) )
-                        .catch((e: any) => {
-                            TPClient.logIt("ERROR", `Exception while generating tile ${x + y} for icon '${icon.name}': ${e}`);
-                        });
-                        slice.left += slice.width;
-                    }
-                    slice.left = 0;
-                    slice.top += slice.height;
-                }
-            }
-            catch (e) {
-                TPClient.logIt("ERROR", `Exception while reading generated image for icon '${icon.name}': ${e}`);
-            }
-            return;
-        }
-
-        // Icon is not tiled, send single image, which may need compressing or not.
-
-        if (icon.outputCompressionOptions.compressionLevel > 0) {
-            try {
-                // the sharp() constructor may throw
-                new sharp(data, { premultiplied: true })
-                .png(icon.outputCompressionOptions)
-                .toBuffer()
-                .then((data: Buffer) => sendIconData(icon, data) )
-                .catch((e: any) => {
-                    TPClient.logIt("ERROR", `Exception while compressing image for icon '${icon.name}': ${e}`);
-                });
-            }
-            catch (e) {
-                TPClient.logIt("ERROR", `Exception while reading generated image for icon '${icon.name}': ${e}`);
-            }
-            return;
-        }
-        // Icon needs neither tiling nor compression, send data as-is.
-        sendIconData(icon, data);
-
-    })
-    .catch((e: any) => {
-        TPClient.logIt("ERROR", `Exception while rendering image for icon '${icon.name}': ${e}`);
-    });
-}
 
 // -------------------------------
 // Action handlers
@@ -315,7 +234,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             if (action & 1)
                 icon.layers.length = icon.nextIndex;   // trim any old layers
             if (action & 2)
-                renderAndSendIcon(icon);
+                icon.render();
 
             return;
         }
@@ -472,7 +391,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             // When updating a value/tx, there is an option to generate the icon immediately (w/out an explicit "generate" action)
             const render = data.at(-1)
             if (render && render.id.endsWith("render") && render.value === "Yes")
-                renderAndSendIcon(icon)
+                icon.render();
             return
         }
 
@@ -493,7 +412,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             Point.set(icon.tile, tile)
             sendIconLists()
         }
-        renderAndSendIcon(icon);
+        icon.render();
     }
 
 }  // handleIconAction()

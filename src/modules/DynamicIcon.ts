@@ -1,9 +1,9 @@
-
+import sharp from 'sharp'   // for final result image compression
 import { ILayerElement } from './interfaces';
 import { Rectangle, Size, SizeType, PointType } from './geometry';
 import { Canvas } from 'skia-canvas';
 import { Transformation, TransformScope } from './elements';
-import { PluginSettings } from './../common'
+import { PluginSettings, TPClient, logIt } from './../common'
 
 // Stores a collection of ILayerElement types as layers and produces a composite image from all the layers when rendered.
 export default class DynamicIcon
@@ -21,12 +21,11 @@ export default class DynamicIcon
     /** Used while building a icon from TP layer actions to keep track of current layer being affected. */
     nextIndex: number = 0;
     /** The array of elements which will be rendered. */
-    layers: ILayerElement[] = [];
+    readonly layers: ILayerElement[] = [];
     // Options for the 'sharp' lib image compression. These are passed to sharp() when generating PNG results.
-    // `compressionLevel` of `0` disables compression step entirely on non-tiled icons (sharp lib is never invoked);
-    // On tiled icons we're using sharp already to split up the tiles, so `0` forces the compression level of 1 because 0 makes huge files.
+    // `compressionLevel` of `0` disables compression step entirely (sharp lib is never invoked).
     // See https://sharp.pixelplumbing.com/api-output#png for option descriptions.
-    outputCompressionOptions: any = {
+    readonly outputCompressionOptions: any = {
         compressionLevel: PluginSettings.defaultOutputCompressionLevel,
         effort: 1,        // MP: 1 actually uses less CPU time than higher values (contrary to what sharp docs suggest) and gives slightly higher compression.
         palette: true     // MP: Again the docs suggest enabling this would be slower but my tests show a significant speed improvement.
@@ -53,7 +52,98 @@ export default class DynamicIcon
         return `${this.name} - Tile col. ${tile.x+1}, row ${tile.y+1}`
     }
 
-    async render() : Promise<Buffer> {
+    // Send TP State update with an icon's image data. This is used for untiled images (most common scenario).
+    private sendStateData(stateId: string, data: Buffer | null) {
+        if (data?.length) {
+            // logIt("DEBUG", `Sending data for icon state '${stateId}' with length ${data.length}`);
+            TPClient.stateUpdate(stateId, data.toString("base64"));
+        }
+    }
+
+    // Sends the canvas contents directly, w/out any compression or tiling.
+    private async sendCanvasImage(stateId: string, canvas: typeof Canvas) {
+        canvas.toBuffer('png')
+        .then((data: Buffer) => {
+            this.sendStateData(stateId, data);
+        })
+        .catch((e: any) => {
+            logIt("ERROR", `Exception while reading canvas buffer for icon '${this.name}': ${e}`);
+        });
+    }
+
+    // Sends the canvas contents after re-compressing it with Sharp.
+    private async sendCompressedImage(canvas: typeof Canvas) {
+        canvas.toBuffer('png')
+        .then((data: Buffer) => {
+            try {
+                // the sharp() constructor may throw
+                new sharp(data, { premultiplied: true })
+                .png(this.outputCompressionOptions)
+                .toBuffer()
+                .then((data: Buffer) => this.sendStateData(this.name, data) )
+                .catch((e: any) => {
+                    logIt("ERROR", `Exception while compressing image for icon '${this.name}': ${e}`);
+                });
+            }
+            catch (e) {
+                logIt("ERROR", `Skia exception while loading buffer for icon '${this.name}': ${e}`);
+            }
+        })
+        .catch((e: any) => {
+            logIt("ERROR", `Exception while reading canvas buffer for icon '${this.name}': ${e}`);
+        });
+    }
+
+    // Sends the canvas tiled, w/out compression.
+    // While this isn't really any faster than using Skia anyway, it does use less CPU and/or uses GPU instead when that option is enabled.
+    private async sendCanvasTiles(canvas: typeof Canvas) {
+        const w = this.size.width, h = this.size.height;
+        for (let y=0; y < this.tile.y; ++y) {
+            for (let x=0; x < this.tile.x; ++x) {
+                try {
+                    const tileCtx = new Canvas(w, h).getContext("2d");
+                    tileCtx.drawCanvas(canvas, x * w, y * h, w, h, 0, 0, w, h);
+                    this.sendCanvasImage(this.getTileStateId({x: x, y: y}), tileCtx.canvas);
+                }
+                catch (e) {
+                    logIt("ERROR", `Exception while extracting tile ${x + y} for icon '${this.name}': ${e}`);
+                }
+            }
+        }
+    }
+
+    // Send the canvas contents by breaking up into tiles using Sharp, with added compression.
+    // Much more efficient than using the method in sendCanvasTiles() and then compressing each resulting canvas tile.
+    private async sendCompressedTiles(canvas: typeof Canvas) {
+        canvas.toBuffer('png')
+        .then((data: Buffer) => {
+            try {
+                const w = this.size.width, h = this.size.height;
+                // the sharp() constructor may throw
+                const img = new sharp(data, { premultiplied: true });
+                for (let y=0; y < this.tile.y; ++y) {
+                    for (let x=0; x < this.tile.x; ++x) {
+                        // extract image slice, encode PNG, and send the tile
+                        img.extract({ left: x * w, top: y * h, width: w, height: h })
+                        .png(this.outputCompressionOptions)
+                        .toBuffer()
+                        .then((data: Buffer) => this.sendStateData(this.getTileStateId({x: x, y: y}), data) )
+                        .catch((e: any) => {
+                            logIt("ERROR", `Exception while extracting/compressing tile ${x + y} for icon '${this.name}': ${e}`);
+                        });
+                    }
+                }
+            }
+            catch (e) {
+                logIt("ERROR", `Skia exception while loading buffer for icon '${this.name}': ${e}`);
+            }
+        })
+        .catch((e: any) => {
+            logIt("ERROR", `Exception while reading canvas buffer for icon '${this.name}': ${e}`);
+        });
+    }
+
+    async render() {
         try {
             const rect = Rectangle.fromSize(this.actualSize());
             const ctx = new Canvas(rect.width, rect.height).getContext("2d");
@@ -82,11 +172,25 @@ export default class DynamicIcon
                 if (resetTx)
                     ctx.setTransform(resetTx);
             }
-            return ctx.canvas.toBuffer('png');
+
+            if (this.isTiled) {
+                if (this.outputCompressionOptions.compressionLevel > 0)
+                    this.sendCompressedTiles(ctx.canvas);
+                else
+                    this.sendCanvasTiles(ctx.canvas);
+                return;
+            }
+
+            // Not tiled, send whole rendered canvas at once.
+
+            if (this.outputCompressionOptions.compressionLevel > 0)
+                this.sendCompressedImage(ctx.canvas);
+            else
+                this.sendCanvasImage(this.name, ctx.canvas)
+
         }
         catch (e) {
-            console.error(e);
-            return Buffer.from("")
+            logIt("ERROR", `Exception while rendering icon '${this.name}': ${e}`);
         }
 
     };
