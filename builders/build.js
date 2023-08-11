@@ -10,7 +10,15 @@ const { execSync } = require("child_process");
 // sharp/vips library path constants
 const SHARP_ROOT = "./node_modules/sharp"
 const SHARP_BUILD = SHARP_ROOT + "/build/Release"
-const SHARP_VENDOR_V = "8.12.2"
+
+// use CLI -p argument to override build target platforms
+var targetPlatform = ["Windows", "MacOS", "Linux"]
+
+// Handle CLI arguments
+for (let i=2; i < process.argv.length; ++i) {
+    const arg = process.argv[i];
+    if (arg == "-p") targetPlatform = process.argv[++i].split(',');
+}
 
 const build = async(platform, options ) => {
     if( fs.existsSync(`./base/${platform}`) ) {
@@ -34,13 +42,20 @@ const build = async(platform, options ) => {
     else if (platform == "MacOS") {
         sharpPlatform = 'darwin'
     }
-    else if (platform == "MacOS-Arm64") {
+    // MacOS-Arm64 ?
+    else if (platform != "Linux") {
         console.error("Can't handle platform " + platform)
         exit(1)
     }
 
     if (platform != "Windows" )  {
-        libvipsSrcPath = `${SHARP_ROOT}/vendor/${SHARP_VENDOR_V}/${sharpPlatform}-x64/lib`
+        const vendorLibDir = fs.readdirSync(`${SHARP_ROOT}/vendor/`, { recursive: false, withFileTypes: false } ).filter(fn => /^\d+\.\d+\.\d+$/.test(fn)).at(-1)
+        if (!vendorLibDir) {
+            console.error("Could not locate sharp vendor lib version/directory in " + `${SHARP_ROOT}/vendor/`)
+            exit(1)
+        }
+        console.log(`Found sharp lib vendor v${vendorLibDir}`)
+        libvipsSrcPath = `${SHARP_ROOT}/vendor/${vendorLibDir}/${sharpPlatform}-x64/lib`
         fs.copyFileSync("./base/start.sh", `./base/${platform}/start.sh`)
     }
 
@@ -93,11 +108,11 @@ const copyFileSync = function(filePath, destDir) {
     return fse.copySync(filePath, path.join(destDir, path.basename(filePath)))
 }
 
-const executeBuilds= async () => {
-    cleanInstallers()
-    await build("Windows")
-    await build("MacOS")
-    await build("Linux")
+const executeBuilds = function() {
+    // cleanInstallers()
+    targetPlatform.forEach(
+       p => build(p)
+    )
 }
 
 executeBuilds();
