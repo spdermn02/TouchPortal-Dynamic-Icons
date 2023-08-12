@@ -76,6 +76,7 @@ export default class RoundProgressGauge implements ILayerElement, IValuedElement
         const radius = rect.width * .39  // approximates the original ratio of 100 for 256px icon size
         const startAngle = this.startingDegree * PI / 180
         const endAngle = startAngle + (PI2 + startAngle - startAngle) * (this.counterClockwise ? -this.value : this.value) * .01
+        const currentFilter = ctx.filter;
 
         ctx.save()
 
@@ -86,8 +87,9 @@ export default class RoundProgressGauge implements ILayerElement, IValuedElement
             ctx.beginPath()
             ctx.arc(cx, cy, radius+5, 0, PI2)
             ctx.fillStyle = this.shadowColor
-            ctx.filter = 'blur(5px)'
+            ctx.filter = currentFilter + ' blur(5px)'
             ctx.fill()
+            ctx.filter = currentFilter;
         }
 
         if (this.highlightOn && !this.indicatorColor.isEmpty) {
@@ -95,12 +97,10 @@ export default class RoundProgressGauge implements ILayerElement, IValuedElement
             ctx.arc(cx, cy, radius, startAngle, endAngle, this.counterClockwise)
             ctx.strokeStyle = this.indicatorColor
             ctx.lineWidth = rect.width * .012
-            ctx.filter = 'blur(5px)'
+            ctx.filter = currentFilter + ' blur(5px)'
             ctx.stroke()
+            ctx.filter = currentFilter;
         }
-
-        // Reset blur to 0
-        ctx.filter = 'blur(0px)';
 
         if (!this.backgroundColor.isEmpty) {
             ctx.beginPath();
