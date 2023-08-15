@@ -15,6 +15,9 @@
     "pkg-win": "pkg --targets ${npm_package_config_nodeTarget}-win-x64 .",
     "pkg-mac": "pkg --targets ${npm_package_config_nodeTarget}-macos-x64 .",
     "build": "tsc && node builders/build.js",
+    "build-win": "tsc && node builders/build.js -p Windows",
+    "build-mac": "tsc && node builders/build.js -p MacOS",
+    "build-linux": "tsc && node builders/build.js -p Linux",
     "tsc": "tsc",
     "jest": "jest",
     "ts-node-dev": "ts-node-dev",
@@ -22,7 +25,8 @@
     "lint:fix": "eslint ./src/**/*.ts --fix",
     "lint:watch": "nodemon --watch .eslintrc.js --exec \"npm run lint\"",
     "start": "ts-node ./src/index.ts",
-    "start-dist": "tsc && pkg . && node ./dist/index.js"
+    "start-dist": "tsc && pkg . && node ./dist/index.js",
+    "gen-entry": "node builders/gen_entry.js"
   },
   "repository": {
     "type": "git",
@@ -43,7 +47,7 @@
   "homepage": "https://github.com/spdermn02/TouchPortal-Dynamic-Icons#readme",
   "dependencies": {
     "async-mutex": "^0.4.0",
-    "sharp": "^0.30.7",
+    "sharp": "0.30.7",
     "skia-canvas": "^1.0.1",
     "touchportal-api": "^3.2.1"
   },
