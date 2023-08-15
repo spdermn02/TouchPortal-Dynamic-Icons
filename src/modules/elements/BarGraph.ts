@@ -36,10 +36,10 @@ export default class BarGraph implements ILayerElement, IValuedElement
                     this.backgroundColorOn = (data.value === "On")
                     break
                 case 'backround_color':   // note spelling; keep for BC
-                    this.backgroundColor = new BrushStyle(data.value)
+                    this.backgroundColor.color = data.value
                     break
                 case 'color':
-                    this.barColor = new BrushStyle(data.value)
+                    this.barColor.color = data.value
                     break
                 case 'value':
                     this.setValue(data.value)
@@ -63,11 +63,11 @@ export default class BarGraph implements ILayerElement, IValuedElement
             return
         ctx.save()
         if( this.backgroundColorOn && !this.backgroundColor.isEmpty) {
-            ctx.fillStyle = this.backgroundColor
+            ctx.fillStyle = this.backgroundColor.style
             ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
         }
         if (!this.barColor.isEmpty) {
-            ctx.fillStyle = this.barColor
+            ctx.fillStyle = this.barColor.style
             let x1 = rect.width - (this.values.length * this.barWidth)
             this.values.forEach((value) => {
                 const percentage = value / 100

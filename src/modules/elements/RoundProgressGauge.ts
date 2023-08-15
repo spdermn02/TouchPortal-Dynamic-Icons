@@ -34,10 +34,10 @@ export default class RoundProgressGauge implements ILayerElement, IValuedElement
                     this.shadowOn = (data.value === "On")
                     break
                 case 'shadow_color':
-                    this.shadowColor = new BrushStyle(data.value)
+                    this.shadowColor.color = data.value
                     break
                 case 'color':
-                    this.indicatorColor = new BrushStyle(data.value)
+                    this.indicatorColor.color = data.value
                     break
                 case 'highlight':
                     this.highlightOn = (data.value === "On")
@@ -52,7 +52,7 @@ export default class RoundProgressGauge implements ILayerElement, IValuedElement
                     this.capStyle = data.value as CanvasLineCap
                     break
                 case 'background_color':
-                    this.backgroundColor = new BrushStyle(data.value)
+                    this.backgroundColor.color = data.value
                     break
                 case 'counterclockwise':
                     this.counterClockwise = data.value.toLowerCase() === 'counter clockwise'
@@ -87,7 +87,7 @@ export default class RoundProgressGauge implements ILayerElement, IValuedElement
             //Shadow
             ctx.beginPath()
             ctx.arc(cx, cy, radius+5, 0, PI2)
-            ctx.fillStyle = this.shadowColor
+            ctx.fillStyle = this.shadowColor.style
             ctx.filter = addFilter + 'blur(5px)'
             ctx.fill()
             ctx.filter = currentFilter;
@@ -96,7 +96,7 @@ export default class RoundProgressGauge implements ILayerElement, IValuedElement
         if (this.highlightOn && !this.indicatorColor.isEmpty) {
             ctx.beginPath();
             ctx.arc(cx, cy, radius, startAngle, endAngle, this.counterClockwise)
-            ctx.strokeStyle = this.indicatorColor
+            ctx.strokeStyle = this.indicatorColor.style
             ctx.lineWidth = Math.max(minSize * .012, 1)
             ctx.filter = addFilter + 'blur(5px)'
             ctx.stroke()
@@ -106,14 +106,14 @@ export default class RoundProgressGauge implements ILayerElement, IValuedElement
         if (!this.backgroundColor.isEmpty) {
             ctx.beginPath();
             ctx.arc(cx, cy, radius, 0, PI2)
-            ctx.fillStyle=this.backgroundColor
+            ctx.fillStyle = this.backgroundColor.style
             ctx.fill()
         }
 
         if (!this.indicatorColor.isEmpty) {
             ctx.beginPath();
             ctx.arc(cx,cy,radius * .9, startAngle, endAngle, this.counterClockwise)
-            ctx.strokeStyle = this.indicatorColor
+            ctx.strokeStyle = this.indicatorColor.style
             ctx.lineWidth = minSize * .0585
             ctx.stroke();
         }

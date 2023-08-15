@@ -17,8 +17,8 @@ export default class LineStyle implements IRenderable
 
     // IRenderable
     get type(): string { return "LineStyle"; }
-    // returns true if color is empty or line width is zero
-    get isEmpty(): boolean { return this.scaledWidth <= 0 /* || this.pen.isEmpty */; }
+    // returns true if color is invalid or line width is zero
+    get isEmpty(): boolean { return this.scaledWidth <= 0 || this.pen.isNull; }
     get scaledWidth(): number { return this.width.isRelative ? this.width.value * this.widthScale : this.width.value; }
 
     loadFromActionData(state: ParseState, dataIdPrefix:string = ""): LineStyle {
@@ -39,8 +39,7 @@ export default class LineStyle implements IRenderable
                         this.widthScale = 1;
                     break;
                 case 'color':
-                    if (data.value.startsWith('#'))
-                        this.pen = new BrushStyle(data.value);
+                    this.pen.color = data.value;
                     break;
                 case 'cap':
                     this.cap = data.value as typeof this.cap;
@@ -69,7 +68,7 @@ export default class LineStyle implements IRenderable
         if (!ctx || this.isEmpty)
             return;
         ctx.lineWidth = this.scaledWidth;
-        ctx.strokeStyle = this.pen;
+        ctx.strokeStyle = this.pen.style;
         ctx.lineCap = this.cap;
         ctx.lineJoin = this.join;
         ctx.miterLimit = this.miterLimit;

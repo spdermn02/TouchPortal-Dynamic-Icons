@@ -1,17 +1,45 @@
 import { IRenderable, RenderContext2D } from '../interfaces';
 
-// just a convenience string alias class for now, maybe extended later for gradients.
+// just a convenience string container class for now, maybe extended later for gradients.
 // TODO: Gradients!
 
-export default class BrushStyle extends String implements IRenderable {
-    get type(): string { return "BrushStyle"; }
-    // returns true if color string is empty or represents a transparent color
-    get isEmpty(): boolean {
-        const len = this.length;
-        return !len || (len == 9 && this.endsWith("00")) || (len == 4 && this.endsWith("0"));
+export default class BrushStyle implements IRenderable {
+    private _color: string = "";
+    private _empty: boolean = true;
+
+    constructor(color?: string) {
+        if (color)
+            this.color = color;
     }
+
+    get type(): string { return "BrushStyle"; }
+
+    /** true if color string is empty OR represents a transparent color. */
+    get isEmpty(): boolean { return this._empty; }
+    /** true if color string is empty. */
+    get isNull(): boolean { return this._color.length > 0; }
+
+    set color(v: string) {
+        if (!v) {
+            this._color = "";
+            this._empty = true;
+            return;
+        }
+
+        if (!v.startsWith('#'))
+            return;
+
+        this._color = v;
+        this._empty = (v.length == 9 && v.endsWith("00")) || (v.length == 4 && v.endsWith("0"));
+    }
+    get color(): string { return this._color; }
+
+    get style(): string | CanvasGradient | CanvasPattern {
+        return this._color;
+    }
+
     render(ctx: RenderContext2D): void {
-        if (!this.isEmpty)
-            ctx.fillStyle = this;
+        if (!this.isNull)
+            ctx.fillStyle = this.style;
     }
 }
