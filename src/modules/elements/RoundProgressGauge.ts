@@ -69,14 +69,15 @@ export default class RoundProgressGauge implements ILayerElement, IValuedElement
 
     // ILayerElement
     render(ctx: RenderContext2D, rect: Rectangle): void {
-        if (!ctx || rect.isEmpty)
-            return
-        const cx = rect.width * .5
-        const cy = cx
-        const radius = rect.width * .39  // approximates the original ratio of 100 for 256px icon size
-        const startAngle = this.startingDegree * PI / 180
-        const endAngle = startAngle + (PI2 + startAngle - startAngle) * (this.counterClockwise ? -this.value : this.value) * .01
-        const currentFilter = ctx.filter;
+
+        const cx = rect.width * .5,
+            cy = rect.height * .5,
+            minSize = Math.min(rect.width, rect.height),
+            radius = minSize * .39,  // approximates the original ratio of 100 for 256px icon size
+            startAngle = this.startingDegree * PI / 180,
+            endAngle = startAngle + PI2 * (this.counterClockwise ? -this.value : this.value) * .01,
+            currentFilter = ctx.filter,
+            addFilter = currentFilter && currentFilter != "none" ? currentFilter + " " : ""
 
         ctx.save()
 
@@ -87,7 +88,7 @@ export default class RoundProgressGauge implements ILayerElement, IValuedElement
             ctx.beginPath()
             ctx.arc(cx, cy, radius+5, 0, PI2)
             ctx.fillStyle = this.shadowColor
-            ctx.filter = currentFilter + ' blur(5px)'
+            ctx.filter = addFilter + 'blur(5px)'
             ctx.fill()
             ctx.filter = currentFilter;
         }
@@ -96,8 +97,8 @@ export default class RoundProgressGauge implements ILayerElement, IValuedElement
             ctx.beginPath();
             ctx.arc(cx, cy, radius, startAngle, endAngle, this.counterClockwise)
             ctx.strokeStyle = this.indicatorColor
-            ctx.lineWidth = rect.width * .012
-            ctx.filter = currentFilter + ' blur(5px)'
+            ctx.lineWidth = Math.max(minSize * .012, 1)
+            ctx.filter = addFilter + 'blur(5px)'
             ctx.stroke()
             ctx.filter = currentFilter;
         }
@@ -113,7 +114,7 @@ export default class RoundProgressGauge implements ILayerElement, IValuedElement
             ctx.beginPath();
             ctx.arc(cx,cy,radius * .9, startAngle, endAngle, this.counterClockwise)
             ctx.strokeStyle = this.indicatorColor
-            ctx.lineWidth = rect.width * .0585
+            ctx.lineWidth = minSize * .0585
             ctx.stroke();
         }
 
