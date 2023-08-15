@@ -2,7 +2,8 @@ import { logIt } from '../common'
 import { Alignment } from '../modules/enums';
 import { PointType } from '../modules/geometry';
 
-const USE_DYNAMIC_VALUE_EVAL:number = 1;  // 0 = none; 1 = Function;
+// Used to validate if a string is a single numeric value. Accepts leading sign, base prefix (0x/0b/0o), decimals, and exponential notation.
+const NUMBER_VALIDATION_REGEX = new RegExp(/^[+-]?(?:0[xbo])?\d+(?:\.\d*)?(?:e[+-]?\d+)?$/);
 
 /** Evaluates a numeric expression within an arbitrary string. Returns zero if evaluation fails or value string was empty.
     Note that the number formats must be "language neutral," meaning always period for decimal separator and no thousands separators. */
@@ -10,13 +11,19 @@ export function evaluateValue(value: string): number {
     if (!value)
         return 0
     try {
-        if (USE_DYNAMIC_VALUE_EVAL == 1)
-            return (new Function( `"use strict"; return (${value})`))() || 0;
-        else
-            return parseFloat(value) || 0;
+        // First try parsing the string as a single number. Even using a regex check this is still ~6x faster overall for single numeric values.
+        // For expressions there's a little unnecessary overhead but it's fractions of a percent difference since the regex is fast.
+        // Unfortunately we can't just call Number() or parseFloat() first, and check for NaN return,
+        // because they'll return any number at the start of a string and ignore the rest (eg from "2 + 2" they return 2).
+        // Use Number() c'tor vs. parseFloat() because it also handles base prefixes (0x/0b/0o).
+        if (NUMBER_VALIDATION_REGEX.test(value))
+            return Number(value) || 0;
+
+        // If it's not just a plain number then evaluate it as an expression.
+        return (new Function( `"use strict"; return (${value})`))() || 0;
     }
     catch (e) {
-        logIt("WARN", "Error evaluating the expression '" + value + "':", e)
+        logIt("WARN", "Error evaluating the numeric expression '" + value + "':", e)
         return 0
     }
 }
@@ -27,13 +34,11 @@ export function evaluateValue(value: string): number {
     It even works with TP values embedded inside the {...} part, eg. "Half of a global TP Value = ${${value:dynamic_icon_value_2} / 2}"
 */
 export function evaluateStringValue(value: string): string {
-    if (!USE_DYNAMIC_VALUE_EVAL)
-        return value
     try {
         return (new Function('return `' + value + '`')());
     }
     catch (e) {
-        logIt("WARN", "Error evaluating the expression '" + value + "':", e)
+        logIt("WARN", "Error evaluating the string expression '" + value + "':", e)
         return value
     }
 }
