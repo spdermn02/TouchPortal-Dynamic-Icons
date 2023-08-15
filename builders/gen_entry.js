@@ -83,6 +83,19 @@ const entry_base =
                 "GPU rendering is only supported on some hardware/OS/drivers, and is disabled on others regardless of this setting.\n\n" +
                 "Note that at least some CPU will be used when generating icons in any case, most notably for image file loading and final output PNG compression."
         },
+        {
+            "name": "Default Output Image Compression Level (0-9)",
+            "type": "text",
+            "default": "4",
+            "readOnly": false,
+            "description": "Sets or disables the default image compression level of generated icons. This can be set to a number between 1 (low compression) and 9 (high compression)," +
+                " or 0 (zero) to disable compression entirely.\n" +
+                "This option can be also be overridden per icon. Changing this setting does not affect any icons already generated since the plugin was started.\n\n" +
+                "Compression affects the final image data size which will be sent to the TP device for display. The higher the compression level, the smaller the final size." +
+                " However, compression uses CPU resources, proportional to the compression level (higher level means more CPU use) and may produce lower quality images.\n\n" +
+                "Large image data sizes may impact the performance of the connected TP device to the point that it becomes unusable due to the lag. " +
+                "This setting can be adjusted to fine-tune the impact of dynamic icon generation on your computer vs. efficient delivery of images to the TP device."
+        },
     ],
     "categories": [
         {
@@ -519,11 +532,12 @@ function addGenerateLayersAction(id, name) {
     const descript = "Dynamic Icons: " +
         "Finalize and/or Render a dynamic image icon which has been created using preceding 'New' and 'Draw/Layer' actions using the same Icon Name.\n" +
         "'Finalize' marks the icon as finished, removing any extra layers which may have been added previously. 'Render' produces the actual icon in its current state and sends it to TP.";
-    const format = "Icon Named {0} {1} | Enable GPU Rendering: {2} (default is set in plugin Settings)";
+    const format = "Icon Named {0} {1} | Enable GPU Rendering: {2} Compression Level: {3} (defaults are set in plugin Settings)";
     const data = [
         makeIconNameData(id),
         makeChoiceData("icon_generate_action", "Action", ["Finalize & Render", "Finalize Only", "Render Only"]),
         makeChoiceData("icon_generate_gpu", "Enable GPU Rendering", ["default", "Enable", "Disable"]),
+        makeChoiceData("icon_generate_cl", "Image Compression Level", ["default", "None", "1 (low)", "2", "3", "4", "5", "6", "7", "8", "9 (high)"]),
     ];
     addAction(id, name, descript, format, data);
 }

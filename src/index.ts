@@ -1,5 +1,4 @@
 import TP from 'touchportal-api'
-import sharp from 'sharp'   // for final result image compression
 import { pluginId } from './utils/consts'
 import { ParseState, TpActionDataArrayType } from './modules/types'
 import { ILayerElement, IValuedElement } from './modules/interfaces';
@@ -7,20 +6,11 @@ import { Point, PointType, Size } from './modules/geometry';
 import DynamicIcon from "./modules/DynamicIcon";
 import * as m_el from "./modules/elements";
 import { default as g_globalImageCache, ImageCache } from './modules/ImageCache'
-import { setCommonLogger, PluginSettings } from './common'
+import { setTPClient, PluginSettings } from './common'
 import { dirname as pdirname, join as pjoin } from 'path';
 
 // -------------------------------
 // Constants
-
-// Options for the 'sharp' lib image compression. These are passed to sharp() when generating PNG results.
-// These probably should be user-settable somehow (plugin settings or via Actions) since they can really affect performance vs. quality and CPU usage.
-// See imageCache.ts (ImageCacheOptions) or https://sharp.pixelplumbing.com/api-output#png for option descriptions.
-const IMAGE_COMPRESSOR_OPTIONS = {
-    compressionLevel: 4,   // MP: 4 seems to give the highest effective compression in my tests, no gains with higher levels but does slow down.
-    effort: 1,             // MP: 1 actually uses less CPU time than higher values (contrary to what sharp docs suggest) and gives slightly higher compression.
-    palette: true          // MP: Again the docs suggest enabling this would be slower but my tests show a significant speed improvement.
-}
 
 // Default image base directory to TP's config folder for current user.
 // This is used to resolve relative paths when loading images, via the ImageCache.cacheOptions.baseImagePath setting.
@@ -37,8 +27,8 @@ const DEFAULT_IMAGE_FILE_BASE_PATH = pjoin(pdirname(process.argv0), '..', '..');
 const g_dyanmicIconStates:Map<string, DynamicIcon> = new Map();
 
 const TPClient = new TP.Client();
-// hackish way to share the TP client "logger" with other modules
-setCommonLogger((...args: any[]) => { TPClient.logIt(...args) });
+// share the TP client and logger with other modules
+setTPClient(TPClient);
 
 // Set default image path here. It should be overwritten anyway when Settings are processed,
 // but this preserves BC with previous 1.1 alpha versions w/out the setting. Could eventually be removed.
@@ -124,82 +114,6 @@ function createOrRemoveIconStates(icon: DynamicIcon, newTiles: PointType) {
     }
 }
 
-// Send TP State update with an icon's image data. This is used for untiled images (most common scenario).
-function sendIconData(icon: DynamicIcon, data: Buffer | null) {
-    if (data?.length) {
-        // TPClient.logIt("DEBUG", `Sending data for icon '${icon.name}' with length ${data.length}`);
-        TPClient.stateUpdate(icon.name, data.toString("base64"));
-    }
-}
-
-// Send TP State update with one of an icon's tiled images.
-// This version assumes the icon is tiled and that all States have already been created.
-function sendIconDataTile(icon: DynamicIcon, data: Buffer | null, tile: PointType) {
-    if (data?.length) {
-        //TPClient.logIt("DEBUG", `Sending tile ${icon.getTileStateId(tile)} for icon '${icon.name}' with length ${data.length}`);
-        TPClient.stateUpdate(icon.getTileStateId(tile), data.toString("base64"));
-    }
-}
-
-// Render and send an icon to TP. The resulting image may be compressed and/or tiled before sending.
-// This function only calls async methods w/out awaiting (icon.render()), and should return "immediately."
-function renderAndSendIcon(icon: DynamicIcon) {
-    icon.render()
-    .then((data: Buffer) => {
-
-        if (icon.isTiled) {
-            try {
-                // the sharp() constructor may throw
-                const img = new sharp(data, { premultiplied: true });
-                const slice = { left: 0, top: 0, width: icon.size.width, height: icon.size.height };
-                for (let y=0; y < icon.tile.y; ++y) {
-                    for (let x=0; x < icon.tile.x; ++x) {
-                        // extract image slice, encode PNG, and send the tile
-                        img.extract(slice)
-                        .png(IMAGE_COMPRESSOR_OPTIONS)
-                        .toBuffer()
-                        .then((data: Buffer) => sendIconDataTile(icon, data, {x: x, y: y}) )
-                        .catch((e: any) => {
-                            TPClient.logIt("ERROR", `Exception while generating tile ${x + y} for icon '${icon.name}': ${e}`);
-                        });
-                        slice.left += slice.width;
-                    }
-                    slice.left = 0;
-                    slice.top += slice.height;
-                }
-            }
-            catch (e) {
-                TPClient.logIt("ERROR", `Exception while reading generated image for icon '${icon.name}': ${e}`);
-            }
-            return;
-        }
-
-        // Icon is not tiled, send single image, which may need compressing or not.
-
-        if (icon.compressOutput) {
-            try {
-                // the sharp() constructor may throw
-                new sharp(data, { premultiplied: true })
-                .png(IMAGE_COMPRESSOR_OPTIONS)
-                .toBuffer()
-                .then((data: Buffer) => sendIconData(icon, data) )
-                .catch((e: any) => {
-                    TPClient.logIt("ERROR", `Exception while compressing image for icon '${icon.name}': ${e}`);
-                });
-            }
-            catch (e) {
-                TPClient.logIt("ERROR", `Exception while reading generated image for icon '${icon.name}': ${e}`);
-            }
-            return;
-        }
-        // Icon needs neither tiling nor compression, send data as-is.
-        sendIconData(icon, data);
-
-    })
-    .catch((e: any) => {
-        TPClient.logIt("ERROR", `Exception while rendering image for icon '${icon.name}': ${e}`);
-    });
-}
 
 // -------------------------------
 // Action handlers
@@ -307,15 +221,20 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 
                 // GPU rendering setting choices: "default", "Enable", "Disable"; Added in v1.2.0
                 if (data.length > 2 && data[2].id.endsWith("gpu")) {
-                    strVal = data[2].value.trim()
-                    icon.gpuRendering = (strVal.startsWith("d") && PluginSettings.defaultGpuRendering) || strVal.startsWith("En")
+                    strVal = data[2].value[0]
+                    icon.gpuRendering = (strVal == "d" && PluginSettings.defaultGpuRendering) || strVal == "E"
+                }
+                // Output compression choices: "default", "none", "1"..."9"; Added in v1.2.0
+                if (data.length > 3 && data[3].id.endsWith("cl")) {
+                    strVal = data[3].value[0]
+                    icon.outputCompressionOptions.compressionLevel = strVal == "d" ? PluginSettings.defaultOutputCompressionLevel : parseInt(strVal) || 0
                 }
             }
 
             if (action & 1)
                 icon.layers.length = icon.nextIndex;   // trim any old layers
             if (action & 2)
-                renderAndSendIcon(icon);
+                icon.render();
 
             return;
         }
@@ -347,7 +266,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             barGraph.maxExtent = icon.actualSize().width;
             ++icon.nextIndex
             if (!icon.delayGeneration)
-                icon.compressOutput = false;  // simple bar graphs don't benefit from compression
+                icon.outputCompressionOptions.compressionLevel = 0;  // simple bar graphs don't benefit from compression
             break
         }
 
@@ -472,7 +391,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             // When updating a value/tx, there is an option to generate the icon immediately (w/out an explicit "generate" action)
             const render = data.at(-1)
             if (render && render.id.endsWith("render") && render.value === "Yes")
-                renderAndSendIcon(icon)
+                icon.render();
             return
         }
 
@@ -493,7 +412,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             Point.set(icon.tile, tile)
             sendIconLists()
         }
-        renderAndSendIcon(icon);
+        icon.render();
     }
 
 }  // handleIconAction()
@@ -546,6 +465,9 @@ TPClient.on("Settings", (settings:{ [key:string]:string }[]) => {
         }
         else if (key.startsWith('Enable GPU Rendering')) {
             PluginSettings.defaultGpuRendering = /(?:[1-9]\d*|yes|true|enabled?)/i.test(val);
+        }
+        else if (key.includes('Output Image Compression')) {
+            PluginSettings.defaultOutputCompressionLevel = /^\d$/.test(val) ? parseInt(val) : 0;
         }
     });
 })
