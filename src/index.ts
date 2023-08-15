@@ -421,7 +421,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 // -------------------------------
 // Event handlers
 
-TPClient.on("Action", (message:any /*,  hold?:boolean */) => {
+function onAction(message:any /*,  hold?:boolean */) {
     // TPClient.logIt("INFO",`Action ${message.actionId}`);  console.dir(message);
     if (!message.data.length)
         return;  // we have no actions w/out data members
@@ -449,9 +449,11 @@ TPClient.on("Action", (message:any /*,  hold?:boolean */) => {
             TPClient.logIt("ERROR", "Unknown action for this plugin:", message.actionId);
             return;
     }
-})
+}
 
-TPClient.on("Settings", (settings:{ [key:string]:string }[]) => {
+TPClient.on("Action", onAction)
+
+function onSettings(settings:{ [key:string]:string }[]) {
     settings.forEach((s) => {
         const key:string = Object.keys(s)[0];
         const val:string = Object.values(s)[0].toString().trim();
@@ -470,16 +472,17 @@ TPClient.on("Settings", (settings:{ [key:string]:string }[]) => {
             PluginSettings.defaultOutputCompressionLevel = /^\d$/.test(val) ? parseInt(val) : 0;
         }
     });
-})
+}
 
-TPClient.on("Info", (message?:any) => {
+TPClient.on("Settings", onSettings)
+
+TPClient.on("Info", function (message?:any) {
     TPClient.logIt("INFO","Connected to Touch Portal "+JSON.stringify(message))
     sendIconLists()
 })
 
 process.on('uncaughtException', function(e) {
-    TPClient.logIt("ERROR", "Exception:", e.message)
-    console.error(e.stack)
+    TPClient.logIt("ERROR", "Exception:", e.message, "\n", e.stack)
     // process.exit(1);
 });
 
