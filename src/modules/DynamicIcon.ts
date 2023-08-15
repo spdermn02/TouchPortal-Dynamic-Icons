@@ -52,7 +52,7 @@ export default class DynamicIcon
         return `${this.name} - Tile col. ${tile.x+1}, row ${tile.y+1}`
     }
 
-    // Send TP State update with an icon's image data. This is used for untiled images (most common scenario).
+    // Send TP State update with an icon's image data. The data Buffer is encoded to base64 before transmission.
     private sendStateData(stateId: string, data: Buffer | null) {
         if (data?.length) {
             // logIt("DEBUG", `Sending data for icon state '${stateId}' with length ${data.length}`);
@@ -102,6 +102,7 @@ export default class DynamicIcon
             for (let x=0; x < this.tile.x; ++x) {
                 try {
                     const tileCtx = new Canvas(w, h).getContext("2d");
+                    tileCtx.canvas.gpu = this.gpuRendering;
                     tileCtx.drawCanvas(canvas, x * w, y * h, w, h, 0, 0, w, h);
                     this.sendCanvasImage(this.getTileStateId({x: x, y: y}), tileCtx.canvas);
                 }
