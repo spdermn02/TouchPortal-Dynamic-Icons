@@ -62,19 +62,18 @@ export default class DynamicIcon
 
     // Sends the canvas contents directly, w/out any compression or tiling.
     private async sendCanvasImage(stateId: string, canvas: typeof Canvas) {
-        canvas.toBuffer('png')
-        .then((data: Buffer) => {
-            this.sendStateData(stateId, data);
-        })
-        .catch((e: any) => {
-            logIt("ERROR", `Exception while reading canvas buffer for icon '${this.name}': ${e}`);
-        });
+        try {
+            this.sendStateData(stateId, await canvas.toBuffer('png'));
+        }
+        catch (e) {
+            logIt("ERROR", `Exception while reading canvas buffer for icon '${self.name}': ${e}`);
+        }
     }
 
     // Sends the canvas contents after re-compressing it with Sharp.
     private async sendCompressedImage(canvas: typeof Canvas) {
-        canvas.toBuffer('png')
-        .then((data: Buffer) => {
+        try {
+            const data: Buffer = await canvas.toBuffer('png');
             try {
                 // the sharp() constructor may throw
                 new sharp(data, { premultiplied: true })
@@ -88,10 +87,10 @@ export default class DynamicIcon
             catch (e) {
                 logIt("ERROR", `Skia exception while loading buffer for icon '${this.name}': ${e}`);
             }
-        })
-        .catch((e: any) => {
+        }
+        catch(e) {
             logIt("ERROR", `Exception while reading canvas buffer for icon '${this.name}': ${e}`);
-        });
+        };
     }
 
     // Sends the canvas tiled, w/out compression.
@@ -107,7 +106,7 @@ export default class DynamicIcon
                     this.sendCanvasImage(this.getTileStateId({x: x, y: y}), tileCtx.canvas);
                 }
                 catch (e) {
-                    logIt("ERROR", `Exception while extracting tile ${x + y} for icon '${this.name}': ${e}`);
+                    logIt("ERROR", `Exception while extracting tile ${x + y} at ${x*w},${y*h} of ${this.tile.x * w}x${this.tile.y * h} for icon '${this.name}': ${e}`);
                 }
             }
         }
@@ -116,8 +115,8 @@ export default class DynamicIcon
     // Send the canvas contents by breaking up into tiles using Sharp, with added compression.
     // Much more efficient than using the method in sendCanvasTiles() and then compressing each resulting canvas tile.
     private async sendCompressedTiles(canvas: typeof Canvas) {
-        canvas.toBuffer('png')
-        .then((data: Buffer) => {
+        try {
+            const data: Buffer = await canvas.toBuffer('png');
             try {
                 const w = this.size.width, h = this.size.height;
                 // the sharp() constructor may throw
@@ -130,7 +129,7 @@ export default class DynamicIcon
                         .toBuffer()
                         .then((data: Buffer) => this.sendStateData(this.getTileStateId({x: x, y: y}), data) )
                         .catch((e: any) => {
-                            logIt("ERROR", `Exception while extracting/compressing tile ${x + y} for icon '${this.name}': ${e}`);
+                            logIt("ERROR", `Exception while extracting/compressing tile ${x + y} at ${x*w},${y*h} of ${this.tile.x * w}x${this.tile.y * h} for icon '${this.name}': ${e}`);
                         });
                     }
                 }
@@ -138,10 +137,10 @@ export default class DynamicIcon
             catch (e) {
                 logIt("ERROR", `Skia exception while loading buffer for icon '${this.name}': ${e}`);
             }
-        })
-        .catch((e: any) => {
+        }
+        catch(e) {
             logIt("ERROR", `Exception while reading canvas buffer for icon '${this.name}': ${e}`);
-        });
+        };
     }
 
     async render() {
@@ -187,11 +186,11 @@ export default class DynamicIcon
             if (this.outputCompressionOptions.compressionLevel > 0)
                 this.sendCompressedImage(ctx.canvas);
             else
-                this.sendCanvasImage(this.name, ctx.canvas)
+                this.sendCanvasImage(this.name, ctx.canvas);
 
         }
-        catch (e) {
-            logIt("ERROR", `Exception while rendering icon '${this.name}': ${e}`);
+        catch (e: any) {
+            logIt("ERROR", `Exception while rendering icon '${this.name}': ${e}\n${e.stack}`);
         }
 
     };
