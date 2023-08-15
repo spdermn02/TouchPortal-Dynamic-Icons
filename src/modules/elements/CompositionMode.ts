@@ -4,7 +4,7 @@ import { ParseState } from "../types";
 // Applies a globalCompositeOperation to a canvas context.
 export default class CompositionMode implements ILayerElement
 {
-    mode: string = "source-over";
+    mode: GlobalCompositeOperation = "source-over";
 
     get type(): string { return "CompositionMode"; }
     // returns true mode string is empty
@@ -18,7 +18,7 @@ export default class CompositionMode implements ILayerElement
                 case 'mode': {
                     const value = state.data[i].value.trim()
                     if (value)
-                        this.mode = value
+                        this.mode = value as GlobalCompositeOperation;
                     break
                 }
                 default:

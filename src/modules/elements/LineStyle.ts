@@ -10,8 +10,8 @@ export default class LineStyle implements IRenderable
     width: UnitValue = new UnitValue(0, "%");
     widthScale: number = 1;
     pen: BrushStyle = new BrushStyle();
-    cap: 'butt' | 'round' | 'square' = 'butt';
-    join: 'round' | 'bevel' | 'miter' = 'miter';
+    cap: CanvasLineCap = 'butt';
+    join: CanvasLineJoin = 'miter';
     miterLimit: number = 10;
     lineDash: number[] = [];
 
@@ -42,10 +42,10 @@ export default class LineStyle implements IRenderable
                     this.pen.color = data.value;
                     break;
                 case 'cap':
-                    this.cap = data.value as typeof this.cap;
+                    this.cap = data.value as CanvasLineCap;
                     break;
                 case 'join':
-                    this.join = data.value as typeof this.join;
+                    this.join = data.value as CanvasLineJoin;
                     break;
                 case 'miterLimit':
                     this.miterLimit = parseFloat(data.value) || this.miterLimit;
