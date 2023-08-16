@@ -29,12 +29,10 @@ export default class DrawingStyle implements IRenderable
             //console.log(state.pos, dataType);
             switch (dataType) {
                 case 'fillColor':
-                    if (data.value.startsWith('#'))
-                        this.fill = new BrushStyle(data.value);
+                    this.fill.color = data.value;
                     break;
                 case 'shadowColor':
-                    if (data.value.startsWith('#'))
-                        this.shadow.color = data.value;
+                    this.shadow.color = data.value;
                     break;
                 case 'shadow': {
                     // shadow is specified as (blur [,offsetX[,offsetY]])

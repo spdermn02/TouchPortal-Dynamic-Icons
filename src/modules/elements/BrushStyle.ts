@@ -17,7 +17,7 @@ export default class BrushStyle implements IRenderable {
     /** true if color string is empty OR represents a transparent color. */
     get isEmpty(): boolean { return this._empty; }
     /** true if color string is empty. */
-    get isNull(): boolean { return this._color.length > 0; }
+    get isNull(): boolean { return !this._color.length; }
 
     set color(v: string) {
         if (!v) {
