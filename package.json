@@ -48,7 +48,7 @@
   "dependencies": {
     "async-mutex": "^0.4.0",
     "sharp": "0.30.7",
-    "skia-canvas": "^1.0.1",
+    "skia-canvas": "mpaperno/skia-canvas#1.0.3",
     "touchportal-api": "^3.2.1"
   },
   "devDependencies": {
