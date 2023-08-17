@@ -1,0 +1,74 @@
+name: Build and release version as draft
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+
+  init:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      clean_vers: ${{ steps.set_version.outputs.clean_vers }}
+      tag_vers:  ${{ steps.lasttag.outputs.tag }}
+    steps:
+      - name: Get last version tag
+        id: lasttag
+        uses: oprypin/find-latest-tag@v1
+        with:
+          repository: ${{ github.repository }}
+
+      - name: Set Version Strings
+        uses: actions/github-script@v4
+        id: set_version
+        with:
+          script: |
+            const clean_v = "${{ steps.lasttag.outputs.tag }}".replace('v', '')
+            core.setOutput('clean_vers', clean_v)
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.lasttag.outputs.tag }}
+          release_name: ${{ steps.lasttag.outputs.tag }} Release
+          draft: true
+          prerelease: true
+
+  build:
+    name: Build
+    needs: init
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ windows-latest, macos-latest, ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Use Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 18
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Build
+        run: npm install && npm run build -- -p ${{ runner.os }}
+
+      - name: Upload assets
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.init.outputs.upload_url }}
+          asset_path: ./Installers/touchportal-dynamic-icons-${{ runner.os }}-${{ needs.init.outputs.clean_vers }}.tpp
+          asset_name: touchportal-dynamic-icons-${{ runner.os }}-${{ needs.init.outputs.clean_vers }}.tpp
+          asset_content_type: application/zip
