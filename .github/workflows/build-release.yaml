@@ -1,0 +1,89 @@
+name: Build and release version as draft
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version:  ${{ steps.pckg_ver.outputs.version }}
+    steps:
+      - name: Checkout package.json
+        uses: actions/checkout@v3
+        with:
+          sparse-checkout: |
+            package.json
+          sparse-checkout-cone-mode: false
+
+      - name: "Get package version"
+        uses: actions/github-script@v6
+        id: pckg_ver
+        with:
+          result-encoding: string
+          script: |
+            try {
+              const pckgJson = require('./package.json')
+              const v = pckgJson.version
+              core.setOutput('version', v)
+              console.log("Package version is", v)
+            } catch(err) {
+              core.error("Error trying to read package.json")
+              core.setFailed(err)
+            }
+
+      - name: Create Release
+        id: create_release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v${{ steps.pckg_ver.outputs.version }}
+          name: v${{ steps.pckg_ver.outputs.version }} Release
+          draft: true
+          prerelease: true
+          allowUpdates: true
+          removeArtifacts: true
+          omitBodyDuringUpdate: true
+          omitDraftDuringUpdate: true
+          omitNameDuringUpdate: true
+          omitPrereleaseDuringUpdate: true
+
+  build:
+    name: Build
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ windows-latest, macos-latest, ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Use Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 18
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: NPM install
+        run: |
+          npm install
+          mkdir ./Installers
+
+      - name: Build
+        run: npm run build -- -p ${{ runner.os }}
+
+      - name: Upload assets
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.release.outputs.upload_url }}
+          asset_path: ./Installers/touchportal-dynamic-icons-${{ runner.os }}-${{ needs.release.outputs.version }}.tpp
+          asset_name: touchportal-dynamic-icons-${{ runner.os }}-${{ needs.release.outputs.version }}.tpp
+          asset_content_type: application/zip

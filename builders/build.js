@@ -33,22 +33,22 @@ const build = async(platform, options ) => {
     let libvipsSrcPath = SHARP_BUILD
     let libvipsDestPath = `./base/${platform}/`
 
-    if (platform == "Windows" ) {
+    if (platform.toLowerCase() == "windows" ) {
         osTarget = "win"
         sharpPlatform = "win32"
         execName += ".exe"
         libvipsDestPath += `${SHARP_BUILD}/`
     }
-    else if (platform == "MacOS") {
+    else if (platform.toLowerCase() == "macos") {
         sharpPlatform = 'darwin'
     }
     // MacOS-Arm64 ?
-    else if (platform != "Linux") {
+    else if (platform.toLowerCase() != "linux") {
         console.error("Can't handle platform " + platform)
         exit(1)
     }
 
-    if (platform != "Windows" )  {
+    if (platform.toLowerCase() != "windows" )  {
         const vendorLibDir = fs.readdirSync(`${SHARP_ROOT}/vendor/`, { recursive: false, withFileTypes: false } ).filter(fn => /^\d+\.\d+\.\d+$/.test(fn)).at(-1)
         if (!vendorLibDir) {
             console.error("Could not locate sharp vendor lib version/directory in " + `${SHARP_ROOT}/vendor/`)
@@ -77,19 +77,19 @@ const build = async(platform, options ) => {
       ".",
     ]);
 
-    console.log("Running Zip File Creation")
+    let platform_arch = platform
+    if(options?.type)
+        platform_arch += `-${options.type}`
+    const packageName = path.normalize(`./Installers/${packageJson.name}-${platform_arch}-${packageJson.version}.tpp`)
+
+    console.log(`Creating zip file '${packageName}'`)
     const zip = new AdmZip()
     zip.addLocalFolder(
       path.normalize(`./base/${platform}/`),
       packageJson.name
     );
 
-    let packageName = `./Installers/${packageJson.name}-${platform}-${packageJson.version}.tpp`
-    if( options?.type !== undefined ) {
-      packageName = `./Installers/${packageJson.name}-${platform}-${options.type}-${packageJson.version}.tpp`
-    }
-
-    zip.writeZip(path.normalize(packageName))
+    zip.writeZip(packageName)
 
     console.log("Cleaning Up")
     fs.rmSync(`./base/${platform}`, { recursive : true})
