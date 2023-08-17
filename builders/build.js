@@ -77,17 +77,17 @@ const build = async(platform, options ) => {
       ".",
     ]);
 
-    console.log("Running Zip File Creation")
+    let platform_arch = platform
+    if( options?.type !== undefined )
+        platform_arch += `-${options.type}`
+    const packageName = path.join(".", "Installers", `${packageJson.name}-${platform_arch}-${packageJson.version}.tpp`)
+
+    console.log(`Creating zip file '${packageName}'`)
     const zip = new AdmZip()
     zip.addLocalFolder(
       path.normalize(`./base/${platform}/`),
       packageJson.name
     );
-
-    let packageName = `./Installers/${packageJson.name}-${platform}-${packageJson.version}.tpp`
-    if( options?.type !== undefined ) {
-      packageName = `./Installers/${packageJson.name}-${platform}-${options.type}-${packageJson.version}.tpp`
-    }
 
     zip.writeZip(packageName)
 
