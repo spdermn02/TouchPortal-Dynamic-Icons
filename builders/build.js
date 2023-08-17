@@ -33,22 +33,22 @@ const build = async(platform, options ) => {
     let libvipsSrcPath = SHARP_BUILD
     let libvipsDestPath = `./base/${platform}/`
 
-    if (platform == "Windows" ) {
+    if (platform.toLowerCase() == "windows" ) {
         osTarget = "win"
         sharpPlatform = "win32"
         execName += ".exe"
         libvipsDestPath += `${SHARP_BUILD}/`
     }
-    else if (platform == "MacOS") {
+    else if (platform.toLowerCase() == "macos") {
         sharpPlatform = 'darwin'
     }
     // MacOS-Arm64 ?
-    else if (platform != "Linux") {
+    else if (platform.toLowerCase() != "linux") {
         console.error("Can't handle platform " + platform)
         exit(1)
     }
 
-    if (platform != "Windows" )  {
+    if (platform.toLowerCase() != "windows" )  {
         const vendorLibDir = fs.readdirSync(`${SHARP_ROOT}/vendor/`, { recursive: false, withFileTypes: false } ).filter(fn => /^\d+\.\d+\.\d+$/.test(fn)).at(-1)
         if (!vendorLibDir) {
             console.error("Could not locate sharp vendor lib version/directory in " + `${SHARP_ROOT}/vendor/`)
@@ -89,7 +89,7 @@ const build = async(platform, options ) => {
       packageName = `./Installers/${packageJson.name}-${platform}-${options.type}-${packageJson.version}.tpp`
     }
 
-    zip.writeZip(path.normalize(packageName))
+    zip.writeZip(packageName)
 
     console.log("Cleaning Up")
     fs.rmSync(`./base/${platform}`, { recursive : true})
