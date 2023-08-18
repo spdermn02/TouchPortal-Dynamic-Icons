@@ -44,7 +44,7 @@ export default class BarGraph implements ILayerElement, IValuedElement
                 case 'value':
                     this.setValue(data.value)
                     break
-                case 'width"':
+                case 'width':
                     this.barWidth = parseInt(data.value) || this.barWidth
                     break
                 default:
