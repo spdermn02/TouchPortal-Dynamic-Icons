@@ -19,12 +19,12 @@
 ---
 ## v1.1.0
 ### New Features:
-- Allow dynamically evaluate names for images files (https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/6)
+- Allow dynamically evaluate names for images files [#6](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/6)
 - An image layer's source file property can now be updated using the "Update a Value" action.
-- Use 'file' type input fields for image source (for TP v3.1b8+) (https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/7)
-- Add plugin setting to control default base image directory (https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/8)
+- Use 'file' type input fields for image source (for TP v3.1b8+) [#7](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/7)
+- Add plugin setting to control default base image directory [#8](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/8)
 ### Fixes:
-- Fix name of icon that is built with plugin (https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/9)
+- Fix name of icon that is built with plugin [#9](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/9)
 
 ---
 ## v1.2.0-alpha1 - Tiled Icons & More Options
@@ -51,12 +51,31 @@
 
 ---
 ## v1.2.0-alpha2
-* Fixes issue with missing TP states when changing icon tiling properties (https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/12).
+* Fixes issue with missing TP states when changing icon tiling properties. [#12](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/12)
 * Fixes stoke width action data fields to allow text input (for variables and evaluated expressions).
 * A warning is no longer logged when deleting an icon instance which doesn't have any image layers.
 
 
 ---
 ## Next version
-* Allow updating an Effect Filter layer's _filter_ property using the "Update a Value" action.
-* Icon names in the _Plugin Action_ action and _List of created icons_ state are now sorted alphabetically.
+### New Features:
+- The compression level of produced icon images can now be specified globally in plugin settings and/or per icon in the Generate Layered Icon action. Compression can also be disabled entirely. [#16](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/16)
+- An Effect Filter layer's _filter_ property can now be changed using the Update a Value action. [6a8774ec](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/6a8774ec16d0379661aa71617d08f3959e48aafb)
+
+### Fixes:
+- Fixes a slow memory leak issue which can get significant if icons are generated continuously over a period of time (probably since v1.1.0-a1). [#18](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/issues/18)
+- Fixes that the Simple Bar Graph 'bar width' property was ignored and the width was always 10px (since v1.1.0-a1). [17869df](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/17869df7f3d338941aa0bd70e963637f1e7fe310)
+- Fixes that a Canvas Filer wouldn't be properly applied to a Simple Round Gauge, nor any following layers. [1768f291](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/1768f291d896e1154db6c6e50e4ce207844dfde6)
+- Fixes that Windows-style paths (with backslashes) in the Image action's 'file' property were mangled (since v1.1.0). [0c4f5b5](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/0c4f5b5d9ccbabb99c5e834e27ca238854eb736a)
+- Fixed wording about relative file paths on Image action. [7b1c76e7](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/7b1c76e7389a73c6ba1c6e9cf265f07622e0cafe)
+
+### Changes:
+- Icon names in the _Plugin Action_ action and _List of created icons_ state are now sorted alphabetically. [00977f3a](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/00977f3a8904a68d4a378d8a91a7248919b9bf3d)
+- Performance improvements and optimizations.
+  [4f6c9b5a](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/4f6c9b5abb73b96fffbcd630bc25f84413ee044d),
+  [07e4d3fe](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/07e4d3feceaa2f30811b6129b8c8ce0fd770ea5d),
+  [f0e6d816](https://github.com/mpaperno/skia-canvas/commit/f0e6d816fd4770e313ed29c284e773eb947d7600) (skia-canvas),
+  [c364fbdb](https://github.com/mpaperno/skia-canvas/commit/c364fbdb5d109187b9aa8bf0676497a2c64a4b90) (skia-canvas)
+
+### Build Scripts:
+- Individual platform release builds can now be `npm run` with  `build-win`, `build-mac`, `build-linux` or `build -- -p (windows|linux|macos)`  [#17](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/17)
