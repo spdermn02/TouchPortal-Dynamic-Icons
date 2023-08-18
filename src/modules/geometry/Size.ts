@@ -13,19 +13,18 @@ export class Size implements SizeType
         Size.set(this, widthOrSize, height);
     }
 
-    // get width() { return this.x; }
-    // set width(val: number) { this.x = val; }
-
-    // get height() { return this.y; }
-    // set height(val: number) { this.y = val; }
-
     /** Returns true if either of the width or height are less than or equal to zero. */
     get isEmpty() { return Size.isEmpty(this); }
     /** Returns true if both width and height values are zero. */
     get isNull(): boolean { return Size.isNull(this); }
 
-    set(widthOrSize: number | Size = 0, height?: number): Size { return Size.set(this, widthOrSize, height) as Size; }
+    /** Set the width and height properties.
+        The `widthOrSize` parameter can be any object containing 'width' and 'height' properties, or a numeric value for the 'width' value.
+        In the latter case, if a `height` parameter is passed, it is assigned to the 'height' value; otherwise the `widthOrSize` parameter
+        is used for both 'width' and 'height'.  */
+    set(widthOrSize: number | SizeType = 0, height?: number): Size { return Size.set(this, widthOrSize, height) as Size; }
 
+    toString() { Size.toString(this); }
 
     // Static methods operate only on generic `SizeType` types, not `Size`.
     // This is generally faster for creation and read-only access than an full new instance of `Size`, but slower for writes/updates.
@@ -65,6 +64,10 @@ export class Size implements SizeType
         if (typeof widthOrSize == "number")
             return sz.width === widthOrSize && sz.height === (height == undefined ? widthOrSize : height);
         return widthOrSize.width === sz.width && widthOrSize.height === sz.height;
+    }
+
+    static toString(sz: SizeType, name: string = "Size"): string {
+        return `${name}{w: ${sz.width}, h:${sz.height}}`;
     }
 
 }
