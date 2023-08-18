@@ -33,6 +33,8 @@ export default class DynamicImage implements ILayerElement, IValuedElement
     // IValuedElement
     // Sets/updates the image source.
     setValue(value: string) {
+        if (process.platform == "win32")
+            value = value.replace(/\\/g, "\\\\");
         this.source = evaluateStringValue(value.trim());
     }
 
