@@ -33,32 +33,38 @@ export default class DynamicImage implements ILayerElement, IValuedElement
     // IValuedElement
     // Sets/updates the image source.
     setValue(value: string) {
-        if (process.platform == "win32")
+        // Fixup \ in Windows paths to \\, otherwise they're treated as escapes in the following eval.
+        // Ignore any value that contains a / to preserve code (eg. regex), since that's not a legal Windows path character anyway.
+        if (process.platform == "win32" && value.indexOf('/') < 0)
             value = value.replace(/\\/g, "\\\\");
         this.source = evaluateStringValue(value.trim());
     }
 
     loadFromActionData(state: ParseState): DynamicImage {
+        let atEnd = false;
         let txParsed = false;
-        for (let i = state.pos, e = state.data.length; i < e; ++i) {
-            const dataType = state.data[i].id.split('image_').at(-1);  // last part of the data ID determines its meaning
+        for (let e = state.data.length; state.pos < e && !atEnd;) {
+            const data = state.data[state.pos];
+            const dataType = data.id.split('image_').at(-1);  // last part of the data ID determines its meaning
+            if (!dataType)
+                break;
             switch (dataType) {
                 case 'src':
-                    this.setValue(state.data[i].value);
+                    this.setValue(data.value);
                     break;
                 case 'fit':
-                    this.resizeOptions['fit'] = state.data[i].value;
+                    this.resizeOptions.fit = data.value;
                     break;
                 default:
                     // any following fields should be transform data
-                    if (txParsed || this.isEmpty || !dataType || !dataType.startsWith('tx_')) {
-                        i = e;  // end loop
-                        continue;
+                    if (!txParsed && dataType.startsWith('tx_')) {
+                        this.loadTransform(state);
+                        txParsed = true;
                     }
-                    this.transform = new Transformation().loadFromActionData(state);
-                    txParsed = true;
-                    i = state.pos;
-                    continue;
+                    else {
+                        atEnd = true;
+                    }
+                    continue;  // do not increment position counter
             }
             ++state.pos;
         }
