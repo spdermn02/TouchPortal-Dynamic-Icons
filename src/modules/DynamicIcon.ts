@@ -20,6 +20,8 @@ export default class DynamicIcon
     gpuRendering: boolean = PluginSettings.defaultGpuRendering;
     /** Used while building a icon from TP layer actions to keep track of current layer being affected. */
     nextIndex: number = 0;
+    /** Flag to indicate early v1.2-alpha style tiling where the specified icon size was per tile instead of overall size. TODO: Remove  */
+    sizeIsActual: boolean = true;
     /** The array of elements which will be rendered. */
     readonly layers: ILayerElement[] = [];
     // Options for the 'sharp' lib image compression. These are passed to sharp() when generating PNG results.
@@ -36,10 +38,12 @@ export default class DynamicIcon
     /** true if the image should be split into parts before delivery, false otherwise. Checks if either of `tile.x` or `tile.y` are `> 1`. */
     get isTiled() { return this.tile.x > 1 || this.tile.y > 1; }
 
-    /** Calculates and returns actual pixel dimensions of this image, which is going to be the `size` property
-        multiplied by the number of grid cells specified in `tile` property for each dimension.  */
+    /** Returns actual pixel dimensions of this image, which is either same as the `size` property if `sizeIsActual` is true,
+        or otherwise the `size` property multiplied by the number of grid cells specified in `tile` property for each dimension.
+        TODO: Remove
+    */
     actualSize() : SizeType {
-        return { width: this.size.width * this.tile.x, height: this.size.height * this.tile.y };
+        return this.sizeIsActual ? this.size : { width: this.size.width * this.tile.x, height: this.size.height * this.tile.y };
     }
 
     /** Formats and returns a TP State ID for a given tile coordinate. Format is '<icon.name>_<column>_<row>'
@@ -96,17 +100,24 @@ export default class DynamicIcon
     // Sends the canvas tiled, w/out compression.
     // While this isn't really any faster than using Skia anyway, it does use less CPU and/or uses GPU instead when that option is enabled.
     private async sendCanvasTiles(canvas: typeof Canvas) {
-        const w = this.size.width, h = this.size.height;
+        const size = this.actualSize(),
+            tileW = Math.ceil(size.width / this.tile.x),
+            tileH = Math.ceil(size.height / this.tile.y);
         for (let y=0; y < this.tile.y; ++y) {
             for (let x=0; x < this.tile.x; ++x) {
+                const tl = tileW * x,
+                    tt = tileH * y,
+                    tw = Math.min(tileW, size.width - tl),
+                    th = Math.min(tileH, size.height - tt);
                 try {
-                    const tileCtx = new Canvas(w, h).getContext("2d");
+                    // Extract tile-sized part of the current canvas onto a new canvas which is the size of a tile.
+                    const tileCtx = new Canvas(tw, th).getContext("2d");
                     tileCtx.canvas.gpu = this.gpuRendering;
-                    tileCtx.drawCanvas(canvas, x * w, y * h, w, h, 0, 0, w, h);
+                    tileCtx.drawCanvas(canvas, tl, tt, tw, th, 0, 0, tw, th);
                     this.sendCanvasImage(this.getTileStateId({x: x, y: y}), tileCtx.canvas);
                 }
                 catch (e) {
-                    logIt("ERROR", `Exception while extracting tile ${x + y} at ${x*w},${y*h} of ${this.tile.x * w}x${this.tile.y * h} for icon '${this.name}': ${e}`);
+                    logIt("ERROR", `Exception for icon '${this.name}' while extracting tile ${x + y} at ${tl},${tt} of size ${tw}x${th} from icon ${Size.toString(size)}: ${e}`);
                 }
             }
         }
@@ -118,18 +129,24 @@ export default class DynamicIcon
         try {
             const data: Buffer = await canvas.toBuffer('png');
             try {
-                const w = this.size.width, h = this.size.height;
+                const size = this.actualSize(),
+                    tileW = Math.ceil(size.width / this.tile.x),
+                    tileH = Math.ceil(size.height / this.tile.y);
                 // the sharp() constructor may throw
                 const img = new sharp(data, { premultiplied: true });
                 for (let y=0; y < this.tile.y; ++y) {
                     for (let x=0; x < this.tile.x; ++x) {
+                        const tl = tileW * x,
+                            tt = tileH * y,
+                            tw = Math.min(tileW, size.width - tl),
+                            th = Math.min(tileH, size.height - tt);
                         // extract image slice, encode PNG, and send the tile
-                        img.extract({ left: x * w, top: y * h, width: w, height: h })
+                        img.extract({ left: tl, top: tt, width: tw, height: th })
                         .png(this.outputCompressionOptions)
                         .toBuffer()
                         .then((data: Buffer) => this.sendStateData(this.getTileStateId({x: x, y: y}), data) )
                         .catch((e: any) => {
-                            logIt("ERROR", `Exception while extracting/compressing tile ${x + y} at ${x*w},${y*h} of ${this.tile.x * w}x${this.tile.y * h} for icon '${this.name}': ${e}`);
+                            logIt("ERROR", `Exception for icon '${this.name}' while extracting/compressing tile ${x + y} at ${tl},${tt} of size ${tw}x${th} from icon ${Size.toString(size)}: ${e}`);
                         });
                     }
                 }
