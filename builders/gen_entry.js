@@ -68,10 +68,8 @@ const entry_base =
     "settings": [
         {
             "name": "Default Icon Size",
-            "type": "number",
+            "type": "text",
             "default": `${PluginSettings.defaultIconSize.width} x ${PluginSettings.defaultIconSize.height}`,
-            "minValue": 8,
-            "maxValue": 1920, // arbitrary
             "readOnly": false,
             "description": "Image size produced when using standalone 'Draw' actions for producing icons, without any layering."
         },
@@ -95,8 +93,10 @@ const entry_base =
         },
         {
             "name": "Default Output Image Compression Level (0-9)",
-            "type": "text",
+            "type": "number",
             "default": PluginSettings.defaultOutputCompressionLevel.toString(),
+            "minValue": 0,
+            "maxValue": 9,
             "readOnly": false,
             "description": "Sets or disables the default image compression level of generated icons. This can be set to a number between 1 (low compression) and 9 (high compression)," +
                 " or 0 (zero) to disable compression entirely.\n" +
