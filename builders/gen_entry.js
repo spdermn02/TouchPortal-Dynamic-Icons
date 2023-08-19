@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 // Generates entry.tp JSON file.
-// usage: node builders/gen_entry.js [-v <plugin.version.numbers>] [-o <output/path or - for stdout>] [-d]
+// usage: node builders/gen_entry.js [-v <plugin.version.numbers>] [-b <build-number>] [-o <output/path or - for stdout>] [-d]
 // or via npm: npm run gen-entry [-- <options to pass through to this script>]
-// Default version number will be the current version from package.json (as well as some other constants).
+// Default version and build numbers will be from the current package.json (as well as some other constants).
 // -d (dev mode) switch will exclude the plugin_start commands in the TP file, for running the binary separately.
 
 
@@ -20,6 +20,7 @@ const pkgConfig = require("../package.json");
 
 // Defaults
 var VERSION = pkgConfig.version;
+var BUILD_NUM = pkgConfig.config.build;
 var OUTPUT_PATH = "base"
 var DEV_MODE = false;
 
@@ -27,14 +28,15 @@ var DEV_MODE = false;
 for (let i=2; i < process.argv.length; ++i) {
     const arg = process.argv[i];
     if      (arg == "-v") VERSION = process.argv[++i];
+    else if (arg == "-b") BUILD_NUM = process.argv[++i];
     else if (arg == "-o") OUTPUT_PATH = process.argv[++i];
     else if (arg == "-d") DEV_MODE = true;
 }
 
-// Create integer version number from dotted notation in form of ((MAJ << 16) | (MIN << 8) | PATCH)
-// Each version part is limited to the range of 0-99.
+// Create integer version number from dotted notation in form of ( (MAJ << 24) | (MIN << 16) | (PATCH << 8) | BUILD )
+// When printed in base 16 this comes out as, eg. for 1.23.4+b5 as "01230405". Each version part is limited to the range of 0-99.
 var iVersion = 0;
-for (const part of VERSION.split('-', 1)[0].split('.', 3))
+for (const part of [...VERSION.split('-', 1)[0].split('.', 3), BUILD_NUM])
     iVersion = iVersion << 8 | (parseInt(part) & 0xFF);
 
 // --------------------------------------
