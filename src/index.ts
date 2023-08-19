@@ -181,17 +181,27 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
     switch (actionId)
     {
         case 'declare': {
+            if (data.length < 2) {
+                TPClient.logIt("ERROR", "Missing all data for icon '" + iconName + "' action " + actionId);
+                return;
+            }
             // Create or modify a "layer stack" type icon. Layer elements need to be added in following action(s).
             icon.delayGeneration = true;   // must explicitly generate
-            icon.nextIndex = 0;   // reset position index, this increments each time we parse a layer element into the icon
-            // Set the size property -- for now we can actually only draw square icons due to TP limitations so "size" is just one number for both width and height.
-            const size = data.length > 1 ? parseInt(data[1].value) || PluginSettings.defaultIconSize.width : PluginSettings.defaultIconSize.width;
+            icon.nextIndex = 0;   // reset layer position index, this increments each time we parse a layer element into the icon
+            // Parse and set the size property(ies).
+            const size = Size.new(parseInt(data[parseState.pos++].value) || PluginSettings.defaultIconSize.width);
+            // Size height parameter; Added in v1.2-alpha3
+            if (data.length > parseState.pos && data[parseState.pos].id.endsWith("size_h"))
+                size.height = parseInt(data[parseState.pos++].value) || PluginSettings.defaultIconSize.height
+            else
+                icon.sizeIsActual = false;  // set flag indicating tiling style is for < v1.2-alpha3. TODO: Remove
             Size.set(icon.size, size);
-            let tile: PointType = { x: 1, y: 1}
+
             // Handle tiling parameters, if any;  Added in v1.2.0
-            if (data.length > 3 && data[2].id.endsWith("tile_x"))
-                tile = { x: parseInt(data[2].value) || 1, y: parseInt(data[3].value) || 1 };
-            // Create the TP state(s) now if we haven't yet; this way a user can create the new state at any time, separate from the render action.
+            let tile: PointType = { x: 1, y: 1}
+            if (data.length > parseState.pos + 1 && data[parseState.pos].id.endsWith("tile_x"))
+                tile = { x: parseInt(data[parseState.pos++].value) || 1, y: parseInt(data[parseState.pos].value) || 1 };
+            // Create the TP state(s) now if we haven't yet (icon.tile will be 0,0); this way a user can create the new state at any time, separate from the render action.
             // Also check if the tiling settings have changed; we may need to clean up any existing TP states first or create new ones.
             if (!Point.equals(icon.tile, tile)) {
                 // Adjust icon states based on current tile property vs. the new one.
@@ -458,9 +468,13 @@ function onSettings(settings:{ [key:string]:string }[]) {
         const key:string = Object.keys(s)[0];
         const val:string = Object.values(s)[0].toString().trim();
         if (key.startsWith('Default Icon Size')) {
-            const size:number = parseInt(val) || 0;
-            if (size >= 8)
-                PluginSettings.defaultIconSize = {width: size, height: size};
+            const sizeArry = val.split(/\s*[x, ]\s*/);
+            const size = Size.new(parseInt(sizeArry[0]) || 0);
+            if (size.width >= 8)  {
+                if (sizeArry.length > 1)
+                    size.height = parseInt(sizeArry[1]) || size.width;
+                PluginSettings.defaultIconSize = size;
+            }
         }
         else if (key.startsWith('Default Image Files Path')) {
             ImageCache.cacheOptions.baseImagePath = val || DEFAULT_IMAGE_FILE_BASE_PATH;
