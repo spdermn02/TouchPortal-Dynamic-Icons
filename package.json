@@ -1,13 +1,14 @@
 {
   "name": "touchportal-dynamic-icons",
   "version": "1.2.0-alpha2",
+  "config": {
+    "build" : 2,
+    "nodeTarget": "node18"
+  },
   "description": "Generate Dynamic Icons for Touch Portal on Actions and 0-100% values",
   "main": "src/index.js",
   "bin": {
     "touchportal-dynamic-icons": "dist/index.js"
-  },
-  "config": {
-    "nodeTarget": "node18"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
