@@ -15,8 +15,17 @@
 //
 
 const path = require("path");
-const { writeFileSync } = require("fs");
+const { writeFileSync, existsSync, statSync } = require("fs");
 const pkgConfig = require("../package.json");
+
+const COMMON_JS_PATH = "./dist/common.js";
+
+if (!existsSync(COMMON_JS_PATH) || statSync(COMMON_JS_PATH).mtimeMs < statSync("./src/common.ts").mtimeMs) {
+    console.error(COMMON_JS_PATH + " settings file not found or is older than source version, please run 'npm run tsc' first or 'npm run gen-entry'");
+    process.exit(1);
+}
+
+const { PluginSettings } = require("../" + COMMON_JS_PATH);
 
 // Defaults
 var VERSION = pkgConfig.version;
@@ -58,7 +67,7 @@ const entry_base =
         {
             "name": "Default Icon Size",
             "type": "number",
-            "default": "256",
+            "default": `${PluginSettings.defaultIconSize.width} x ${PluginSettings.defaultIconSize.height}`,
             "minValue": 8,
             "maxValue": 1920, // arbitrary
             "readOnly": false,
@@ -74,7 +83,7 @@ const entry_base =
         {
             "name": "Enable GPU Rendering by Default",
             "type": "text",
-            "default": "Yes",
+            "default": PluginSettings.defaultGpuRendering ? "Yes" : "No",
             "readOnly": false,
             "description": "Enables or disables using hardware acceleration (GPU), when available, for generating icon images. One of: \"yes, true, 1, or enable\" to enable, anything else to disable.\n" +
                 "This setting can be also be overridden per icon. Changing this setting does not affect any icons already generated since the plugin was started.\n\n" +
@@ -85,7 +94,7 @@ const entry_base =
         {
             "name": "Default Output Image Compression Level (0-9)",
             "type": "text",
-            "default": "4",
+            "default": PluginSettings.defaultOutputCompressionLevel.toString(),
             "readOnly": false,
             "description": "Sets or disables the default image compression level of generated icons. This can be set to a number between 1 (low compression) and 9 (high compression)," +
                 " or 0 (zero) to disable compression entirely.\n" +
