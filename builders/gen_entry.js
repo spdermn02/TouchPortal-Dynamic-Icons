@@ -500,14 +500,16 @@ function addProgressBarAction(id, name) {
 function addStartLayersAction(id, name) {
     const descript = "Dynamic Icons: " + name + "\n" +
         "Start a new Layered Icon. Add elements(s) in following 'Draw' and 'Layer' action(s) and then use the 'Generate' action to produce the icon.";
-    const format = "Icon Name {0} of size {1} (pixels square, each tile), tiled to {2} column(s) wide and {3} row(s) high.";
+    let [format, data] = makeIconLayerCommonData(id);
+    let i = data.length;
+    format += `of size {${i++}} wide by {${i++}} high (pixels), tiled to {${i++}} column(s) wide and {${i++}} row(s) high.`;
     const tileChoices = Array.from({length: 15}, (x, i) => (i+1).toString());  // ["1"..."15"]
-    const data = [
-        makeIconNameData(id),
-        makeActionData("icon_size", "text", "Icon Size", "256"),
+    data.push(
+        makeTextData("icon_size", "Icon Width", PluginSettings.defaultIconSize.width),
+        makeTextData("icon_size_h", "Icon Height", PluginSettings.defaultIconSize.height),
         makeChoiceData("icon_tile_x", "Tile Columns", tileChoices),
         makeChoiceData("icon_tile_y", "Tile Rows", tileChoices),
-    ];
+    );
     addAction(id, name, descript, format, data);
 }
 
