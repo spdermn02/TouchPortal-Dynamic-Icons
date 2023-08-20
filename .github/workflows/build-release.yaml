@@ -18,34 +18,55 @@ jobs:
         uses: actions/checkout@v3
         with:
           sparse-checkout: |
-            package.json
-          sparse-checkout-cone-mode: false
+            .github/actions
 
-      - name: "Get package version"
+      - name: "Get package version and check if release exists"
         uses: actions/github-script@v6
         id: pckg_ver
         with:
           result-encoding: string
           script: |
             try {
-              const pckgJson = require('./package.json')
-              const v = pckgJson.version
-              core.setOutput('version', v)
-              console.log("Package version is", v)
+              const pckgJson = require('./package.json');
+              const v = pckgJson.version;
+              core.setOutput('version', v);
+              console.log("Package version is", v);
+
+              const { owner, repo } = context.repo;
+              const tag = "v" + v;
+              let exists = false;
+              try {
+                const releases = await github.rest.repos.listReleases({ owner, repo });
+                exists = !!releases.data.find((r) => r.tag_name == tag );
+              }
+              catch { }
+              console.log("Release for tag", tag, "already exists:", exists);
+              core.setOutput('release_exists', exists);
             } catch(err) {
-              core.error("Error trying to read package.json")
               core.setFailed(err)
             }
+
+      - name: "Get release notes"
+        if: ${{ steps.pckg_ver.outputs.release_exists == 'false' }}
+        uses: ./.github/actions/get-release-notes
+        id: release_notes
+        with:
+          version_tag: ${{ steps.pckg_ver.outputs.version }}
+          changelog_ascending: true
+          fallback_to_latest: true
 
       - name: Create Release
         id: create_release
         uses: ncipollo/release-action@v1
         with:
           tag: v${{ steps.pckg_ver.outputs.version }}
-          name: v${{ steps.pckg_ver.outputs.version }} Release
+          name: ${{ steps.release_notes.outputs.release_title }}
+          body: ${{ steps.release_notes.outputs.release_notes }}
           draft: true
           prerelease: true
           allowUpdates: true
+          updateOnlyUnreleased: true
+          skipIfReleaseExists: false
           removeArtifacts: true
           omitBodyDuringUpdate: true
           omitDraftDuringUpdate: true
