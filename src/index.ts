@@ -8,6 +8,7 @@ import * as m_el from "./modules/elements";
 import { default as g_globalImageCache, ImageCache } from './modules/ImageCache'
 import { setTPClient, PluginSettings } from './common'
 import { dirname as pdirname, join as pjoin } from 'path';
+const { version: pluginVersion } = require('../package.json');  // 'import' causes lint error in VSCode
 
 // -------------------------------
 // Constants
@@ -491,7 +492,7 @@ function onSettings(settings:{ [key:string]:string }[]) {
 TPClient.on("Settings", onSettings)
 
 TPClient.on("Info", function (message?:any) {
-    TPClient.logIt("INFO","Connected to Touch Portal "+JSON.stringify(message))
+    TPClient.logIt("INFO", `Connected to Touch Portal v${message.tpVersionString} with running plugin v${pluginVersion} (entry.tp v${message.pluginVersion})`)
     sendIconLists()
 })
 
