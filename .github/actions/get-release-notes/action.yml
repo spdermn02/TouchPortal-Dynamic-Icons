@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: MIT
+name: 'Extract Release Notes'
+description: 'Extract release notes from a CHANGELOG file.'
+author: 'Maxim Paperno'
+branding:
+  icon: 'file-text'
+  color: 'white'
+inputs:
+  version_tag:
+    description:
+      'The version tag to look for, as it appears in headings (eg. "v1.2.3-beta2"), or "latest" (default) to get the latest notes.'
+    required: false
+    default: 'latest'
+  changelog_file:
+    description: 'The input path of the changelog file. Default: .`CHANGELOG.md`'
+    required: false
+    default: './CHANGELOG.md'
+  changelog_ascending:
+    description: 'Specify that the change log lists changes in ascending order, newest at end. Default is false, latest release at top.'
+    required: false
+    default: false
+  fallback_to_latest:
+    description: 'Fall back to getting the latest version release notes if a block which matches "version_tag" is not found. Default is false.'
+    required: false
+    default: false
+  output_file:
+    description: 'An optional file path/name to write the extracted title and release notes to.'
+    required: false
+    default: ''
+outputs:
+  release_title:
+    description: 'The full heading line with version number. The leading "## " will be stripped and the result trimmed.'
+  release_notes:
+    description: 'The release notes body for found version.'
+runs:
+  using: 'node16'
+  main: 'index.js'
