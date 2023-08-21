@@ -15,8 +15,17 @@
 //
 
 const path = require("path");
-const { writeFileSync } = require("fs");
+const { writeFileSync, existsSync, statSync } = require("fs");
 const pkgConfig = require("../package.json");
+
+const COMMON_JS_PATH = "./dist/common.js";
+
+if (!existsSync(COMMON_JS_PATH) || statSync(COMMON_JS_PATH).mtimeMs < statSync("./src/common.ts").mtimeMs) {
+    console.error(COMMON_JS_PATH + " settings file not found or is older than source version, please run 'npm run tsc' first or 'npm run gen-entry'");
+    process.exit(1);
+}
+
+const { PluginSettings } = require("../" + COMMON_JS_PATH);
 
 // Defaults
 var VERSION = pkgConfig.version;
@@ -57,10 +66,8 @@ const entry_base =
     "settings": [
         {
             "name": "Default Icon Size",
-            "type": "number",
-            "default": "256",
-            "minValue": 8,
-            "maxValue": 1920, // arbitrary
+            "type": "text",
+            "default": `${PluginSettings.defaultIconSize.width} x ${PluginSettings.defaultIconSize.height}`,
             "readOnly": false,
             "description": "Image size produced when using standalone 'Draw' actions for producing icons, without any layering."
         },
@@ -74,7 +81,7 @@ const entry_base =
         {
             "name": "Enable GPU Rendering by Default",
             "type": "text",
-            "default": "Yes",
+            "default": PluginSettings.defaultGpuRendering ? "Yes" : "No",
             "readOnly": false,
             "description": "Enables or disables using hardware acceleration (GPU), when available, for generating icon images. One of: \"yes, true, 1, or enable\" to enable, anything else to disable.\n" +
                 "This setting can be also be overridden per icon. Changing this setting does not affect any icons already generated since the plugin was started.\n\n" +
@@ -84,8 +91,10 @@ const entry_base =
         },
         {
             "name": "Default Output Image Compression Level (0-9)",
-            "type": "text",
-            "default": "4",
+            "type": "number",
+            "default": PluginSettings.defaultOutputCompressionLevel.toString(),
+            "minValue": 0,
+            "maxValue": 9,
             "readOnly": false,
             "description": "Sets or disables the default image compression level of generated icons. This can be set to a number between 1 (low compression) and 9 (high compression)," +
                 " or 0 (zero) to disable compression entirely.\n" +
@@ -491,14 +500,16 @@ function addProgressBarAction(id, name) {
 function addStartLayersAction(id, name) {
     const descript = "Dynamic Icons: " + name + "\n" +
         "Start a new Layered Icon. Add elements(s) in following 'Draw' and 'Layer' action(s) and then use the 'Generate' action to produce the icon.";
-    const format = "Icon Name {0} of size {1} (pixels square, each tile), tiled to {2} column(s) wide and {3} row(s) high.";
+    let [format, data] = makeIconLayerCommonData(id);
+    let i = data.length;
+    format += `of size {${i++}} wide by {${i++}} high (pixels), tiled to {${i++}} column(s) wide and {${i++}} row(s) high.`;
     const tileChoices = Array.from({length: 15}, (x, i) => (i+1).toString());  // ["1"..."15"]
-    const data = [
-        makeIconNameData(id),
-        makeActionData("icon_size", "text", "Icon Size", "256"),
+    data.push(
+        makeTextData("icon_size", "Icon Width", PluginSettings.defaultIconSize.width),
+        makeTextData("icon_size_h", "Icon Height", PluginSettings.defaultIconSize.height),
         makeChoiceData("icon_tile_x", "Tile Columns", tileChoices),
         makeChoiceData("icon_tile_y", "Tile Rows", tileChoices),
-    ];
+    );
     addAction(id, name, descript, format, data);
 }
 

@@ -26,7 +26,7 @@
     "lint:watch": "nodemon --watch .eslintrc.js --exec \"npm run lint\"",
     "start": "ts-node ./src/index.ts",
     "start-dist": "tsc && pkg . && node ./dist/index.js",
-    "gen-entry": "node builders/gen_entry.js"
+    "gen-entry": "tsc && node builders/gen_entry.js"
   },
   "repository": {
     "type": "git",
