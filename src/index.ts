@@ -6,19 +6,53 @@ import { Point, PointType, Size } from './modules/geometry';
 import DynamicIcon from "./modules/DynamicIcon";
 import * as m_el from "./modules/elements";
 import { default as g_globalImageCache, ImageCache } from './modules/ImageCache'
+import { ConsoleEndpoint, Logger, logging /* , LogLevel */ } from './modules/logging';
 import { setTPClient, PluginSettings } from './common'
-import { dirname as pdirname, join as pjoin } from 'path';
+import { dirname as pdirname, resolve as presolve } from 'path';
 const { version: pluginVersion } = require('../package.json');  // 'import' causes lint error in VSCode
 
 // -------------------------------
 // Constants
+
+// Try find the path we're executing from -- if packaged then it's the exec path, otherwise default to CWD which should be the package root.
+const EXEC_BASE_PATH = !!process["pkg"] ? pdirname(process.execPath) : process.cwd();
+
+// Where we'd find the logging config file if there is one.
+const CONFIG_FILEPATH = presolve(EXEC_BASE_PATH, "plugin-config.json");
 
 // Default image base directory to TP's config folder for current user.
 // This is used to resolve relative paths when loading images, via the ImageCache.cacheOptions.baseImagePath setting.
 // User can override this with the "Default Image Files Path" plugin setting in TP.
 // NOTE: this only works when the plugin binary is run from its normal install location in TPs config folder.
 // If there's a better x-platform way to find TPs config path, then fixme.
-const DEFAULT_IMAGE_FILE_BASE_PATH = pjoin(pdirname(process.argv0), '..', '..');
+const DEFAULT_IMAGE_FILE_BASE_PATH = presolve(EXEC_BASE_PATH, '..', '..');
+
+
+// -------------------------------
+// Logging
+
+// Configure logging.
+const logger: Logger =
+    logging()
+    // .configure({ modules: { '' : LogLevel.DEBUG } })  // default config is INFO level for all modules
+    .configureFromFile(CONFIG_FILEPATH)
+    .getLogger('plugin');
+
+if (!logging().haveEndpoints) {
+    // If no logging output has been configured so far then add a fallback console logger unless it has been explicitly disabled in config.
+    if (!logging().configuration.endpoints?.Console)
+        logging().registerEndpoint(ConsoleEndpoint.instance())
+}
+else if (!logging().haveEndpointName('Console')) {
+    // This is a (hopefully temporary) hack to direct all TPClient's stdout logging to our own logger (presumably a file).
+    // We can only do this if we're not logging to the console/stdout ourselves, since that would cause a fun endless loop.
+    // The simplistic `writeTpLog()` assumes each chunk of data will be a full line of text, which basically works because Console doesn't flush the
+    // output until it sees a newline anyway (typically). A more proper way would be to buffer the data as it comes in and take out full line(s)
+    // once we have them, but that currently seems like overkill for the few simple messages TPClient logs.
+    // This also just treats all messages as errors vs. parsing out the actual level (client should only be logging errors anyway).
+    const writeTpLog = (chunk: any): boolean => { logger.error(chunk.trim()); return true; }
+    process.stdout.write = writeTpLog;
+}
 
 
 // -------------------------------
@@ -27,13 +61,14 @@ const DEFAULT_IMAGE_FILE_BASE_PATH = pjoin(pdirname(process.argv0), '..', '..');
 // Struct for tracking requested icons.
 const g_dyanmicIconStates:Map<string, DynamicIcon> = new Map();
 
-const TPClient = new TP.Client();
-// share the TP client and logger with other modules
-setTPClient(TPClient);
-
 // Set default image path here. It should be overwritten anyway when Settings are processed,
 // but this preserves BC with previous 1.1 alpha versions w/out the setting. Could eventually be removed.
 ImageCache.cacheOptions.baseImagePath = DEFAULT_IMAGE_FILE_BASE_PATH;
+
+// Create Touch Portal API client
+const TPClient = new TP.Client();
+// share the TP client with other modules
+setTPClient(TPClient);
 
 
 // -------------------------------
@@ -135,7 +170,7 @@ function removeIcons(iconNames: string[], removeStates = true) {
 // Processes the 'dynamic_icons_control_command' action.
 function handleControlAction(actionId: string, data: TpActionDataArrayType) {
     if (actionId !== 'command') {
-        TPClient.logIt("ERROR", "Unknown type value for Control action:", actionId);
+        logger.error("Unknown type value for Control action: " + actionId);
         return;
     }
     const iconName:string = data.length > 1 ? data[1].value : "All";
@@ -154,7 +189,7 @@ function handleControlAction(actionId: string, data: TpActionDataArrayType) {
         }
 
         default:
-            TPClient.logIt("ERROR", "Unknown data value for Command action:", data[0].value);
+            logger.error("Unknown data value for Command action: " + data[0].value);
             return;
     }
 }
@@ -165,7 +200,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
     // The icon name is always the first data field in all other actions.
     const iconName:string = data[0].value.trim()
     if (!iconName) {
-        TPClient.logIt("WARN", "Icon name missing for action", actionId);
+        logger.warn("Icon name missing for action", actionId);
         return;
     }
 
@@ -188,7 +223,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
     {
         case 'declare': {
             if (data.length < 2) {
-                TPClient.logIt("ERROR", "Missing all data for icon '" + iconName + "' action " + actionId);
+                logger.error("Missing all data for icon '" + iconName + "' action " + actionId);
                 return;
             }
             // Create or modify a "layer stack" type icon. Layer elements need to be added in following action(s).
@@ -224,7 +259,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
         case 'generate':  {
             // Generate an existing layered dynamic icon which should have been created and populated by preceding actions.
             if (!icon.layers.length) {
-                TPClient.logIt("WARN", "Image icon named '" + iconName + "' is empty, nothing to generate.");
+                logger.warn("Image icon named '" + iconName + "' is empty, nothing to generate.");
                 return;
             }
 
@@ -315,7 +350,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
         case 'filter': {
             // Adds a CanvasFilter layer to an existing layered dynamic icon. This is purely CSS style 'filter' shorthand for applying to the canvas. The filter will affect all following layers.
             if (!icon.layers.length && !icon.delayGeneration) {
-                TPClient.logIt("WARN", "Layered icon '" + iconName + "' must first be created before adding a filter.")
+                logger.warn("Layered icon '" + iconName + "' must first be created before adding a filter.")
                 return
             }
             const filter: m_el.CanvasFilter = layerType == "CanvasFilter" ? (layerElement as m_el.CanvasFilter) : (icon.layers[icon.nextIndex] = new m_el.CanvasFilter())
@@ -328,7 +363,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             // Adds a CompositionMode layer to an existing layered dynamic icon. This sets the drawing context's globalCompositeOperation value for various blending effects.
             // The operating mode will affect all following layers until end or a new comp. mode layer.
             if (!icon.layers.length && !icon.delayGeneration) {
-                TPClient.logIt("WARN", "Layered icon '" + iconName + "' must first be created before adding a composition mode.")
+                logger.warn("Layered icon '" + iconName + "' must first be created before adding a composition mode.")
                 return
             }
             const cm: m_el.CompositionMode = layerType == "CompositionMode" ? (layerElement as m_el.CompositionMode) : (icon.layers[icon.nextIndex] = new m_el.CompositionMode())
@@ -341,7 +376,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             // Adds a Transformation layer on an existing layered icon.
             // The tx may affect either a single preceding layer, all the preceding layers so far, or all following layers (until end or reset).
             if (!icon.layers.length && !icon.delayGeneration) {
-                TPClient.logIt("WARN", "Icon '" + iconName + "' must first be created before adding a transformation.")
+                logger.warn("Icon '" + iconName + "' must first be created before adding a transformation.")
                 return
             }
             const tx: m_el.Transformation = layerType == "Transformation" ? (layerElement as m_el.Transformation) : (icon.layers[icon.nextIndex] = new m_el.Transformation())
@@ -357,13 +392,13 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             // as long as that icon has been created already (the layer and compatible element exist).
             const layersLen = icon.layers.length
             if (!layersLen) {
-                TPClient.logIt("WARN", "Icon '" + iconName + "' must first be created before updating a value.")
+                logger.warn("Icon '" + iconName + "' must first be created before updating a value.")
                 return
             }
             // Get index of layer to update
             const findLayerIdx = getLayerIndexFromActionData(data, layersLen)
             if (!findLayerIdx.dataValid) {
-                TPClient.logIt("WARN", `Layer data update Position out of bounds for icon named '${iconName}': Max. range 1-${layersLen}, got ${findLayerIdx.index+1}.`)
+                logger.warn(`Layer data update Position out of bounds for icon named '${iconName}': Max. range 1-${layersLen}, got ${findLayerIdx.index+1}.`)
                 return
             }
             // Get layer item we'll be updating
@@ -388,7 +423,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
                     icon.layers.push(new m_el.Transformation().loadFromActionData(parseState))
                 // Otherwise we'd have to replace the current layer with the Tx, which is probably not what the user intended.
                 else {
-                    TPClient.logIt("WARN", `Could not set transform at Position ${findLayerIdx.index + 1} for icon named '${iconName}': Element is of type ${elem.type}.`)
+                    logger.warn(`Could not set transform at Position ${findLayerIdx.index + 1} for icon named '${iconName}': Element is of type ${elem.type}.`)
                     return
                 }
             }
@@ -400,7 +435,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
                     (elem as IValuedElement).setValue(data[2].value)
                 }
                 else {
-                    TPClient.logIt("WARN", `Could not update data at Position ${findLayerIdx.index + 1} for icon named '${iconName}': Element ${elem.type} does not support data updates.`)
+                    logger.warn(`Could not update data at Position ${findLayerIdx.index + 1} for icon named '${iconName}': Element ${elem.type} does not support data updates.`)
                     return
                 }
             }
@@ -413,7 +448,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 
         default:
             // unknown message ID... shouldn't get here
-            TPClient.logIt("ERROR", "Unknown action for Icon handler:", actionId)
+            logger.error("Unknown action for Icon handler: " + actionId)
             return
     }
 
@@ -438,7 +473,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 // Event handlers
 
 function onAction(message:any /*,  hold?:boolean */) {
-    // TPClient.logIt("INFO",`Action ${message.actionId}`);  console.dir(message);
+    // logger.debug("Action: %o", message);
     if (!message.data.length)
         return;  // we have no actions w/out data members
 
@@ -462,7 +497,7 @@ function onAction(message:any /*,  hold?:boolean */) {
 
         default:
             // unknown message ID... shouldn't get here
-            TPClient.logIt("ERROR", "Unknown action for this plugin:", message.actionId);
+            logger.error("Unknown action for this plugin: %s", message.actionId);
             return;
     }
 }
@@ -497,23 +532,25 @@ function onSettings(settings:{ [key:string]:string }[]) {
 TPClient.on("Settings", onSettings)
 
 TPClient.on("Info", function (message?:any) {
-    TPClient.logIt("INFO", `Connected to Touch Portal v${message.tpVersionString} with running plugin v${pluginVersion} (entry.tp v${message.pluginVersion})`)
+    logger.info("Connected to Touch Portal v%s with running plugin v%s (entry.tp v%d)", message.tpVersionString, pluginVersion, message.pluginVersion)
+    // logger.debug("%o", message);
     sendIconLists()
 })
 
 process.on('uncaughtException', function(e) {
-    TPClient.logIt("ERROR", "Exception:", e.message, "\n", e.stack)
-    // process.exit(1);
+    logger.error("Exception: %s\n%s", e.message, e.stack)
+    // quit("Uncaught Exception", 1);
 });
 
 // This is a workaround hack for skia-canvas v1.0.0 hanging the plugin on exit (in some cases). Yet it has the best imaging composition performance by far.
 process.on('exit', function() {
-    TPClient.logIt("WARN","Force terminating the plugin!")
     process.kill(process.pid, 'SIGTERM');
 })
 
 
 // -------------------------------
 // Run
+
+logger.info("=============== %s started, connecting to Touch Portal... ===============", pluginId)
 
 TPClient.connect({pluginId})
