@@ -3,7 +3,8 @@ import { ILayerElement } from './interfaces';
 import { Rectangle, Size, SizeType, PointType } from './geometry';
 import { Canvas } from 'skia-canvas';
 import { Transformation, TransformScope } from './elements';
-import { PluginSettings, TPClient, logIt } from './../common'
+import { PluginSettings, TPClient } from './../common'
+import { Logger, logging } from './logging';
 
 // Stores a collection of ILayerElement types as layers and produces a composite image from all the layers when rendered.
 export default class DynamicIcon
@@ -33,7 +34,12 @@ export default class DynamicIcon
         palette: true     // MP: Again the docs suggest enabling this would be slower but my tests show a significant speed improvement.
     };
 
-    constructor(init?: Partial<DynamicIcon>) { Object.assign(this, init); }
+    private log: Logger;
+
+    constructor(init?: Partial<DynamicIcon>) {
+        Object.assign(this, init);
+        this.log = logging().getLogger('icon');
+    }
 
     /** true if the image should be split into parts before delivery, false otherwise. Checks if either of `tile.x` or `tile.y` are `> 1`. */
     get isTiled() { return this.tile.x > 1 || this.tile.y > 1; }
@@ -59,7 +65,7 @@ export default class DynamicIcon
     // Send TP State update with an icon's image data. The data Buffer is encoded to base64 before transmission.
     private sendStateData(stateId: string, data: Buffer | null) {
         if (data?.length) {
-            // logIt("DEBUG", `Sending data for icon state '${stateId}' with length ${data.length}`);
+            // this.logger.debug(`Sending data for icon state '${stateId}' with length ${data.length}`);
             TPClient.stateUpdate(stateId, data.toString("base64"));
         }
     }
@@ -70,7 +76,7 @@ export default class DynamicIcon
             this.sendStateData(stateId, await canvas.toBuffer('png'));
         }
         catch (e) {
-            logIt("ERROR", `Exception while reading canvas buffer for icon '${self.name}': ${e}`);
+            this.log.error(`Exception while reading canvas buffer for icon '${self.name}': ${e}`);
         }
     }
 
@@ -85,15 +91,15 @@ export default class DynamicIcon
                 .toBuffer()
                 .then((data: Buffer) => this.sendStateData(this.name, data) )
                 .catch((e: any) => {
-                    logIt("ERROR", `Exception while compressing image for icon '${this.name}': ${e}`);
+                    this.log.error(`Exception while compressing image for icon '${this.name}': ${e}`);
                 });
             }
             catch (e) {
-                logIt("ERROR", `Skia exception while loading buffer for icon '${this.name}': ${e}`);
+                this.log.error(`Skia exception while loading buffer for icon '${this.name}': ${e}`);
             }
         }
         catch(e) {
-            logIt("ERROR", `Exception while reading canvas buffer for icon '${this.name}': ${e}`);
+            this.log.error(`Exception while reading canvas buffer for icon '${this.name}': ${e}`);
         };
     }
 
@@ -117,7 +123,7 @@ export default class DynamicIcon
                     this.sendCanvasImage(this.getTileStateId({x: x, y: y}), tileCtx.canvas);
                 }
                 catch (e) {
-                    logIt("ERROR", `Exception for icon '${this.name}' while extracting tile ${x + y} at ${tl},${tt} of size ${tw}x${th} from icon ${Size.toString(size)}: ${e}`);
+                    this.log.error(`Exception for icon '${this.name}' while extracting tile ${x + y} at ${tl},${tt} of size ${tw}x${th} from icon ${Size.toString(size)}: ${e}`);
                 }
             }
         }
@@ -146,17 +152,17 @@ export default class DynamicIcon
                         .toBuffer()
                         .then((data: Buffer) => this.sendStateData(this.getTileStateId({x: x, y: y}), data) )
                         .catch((e: any) => {
-                            logIt("ERROR", `Exception for icon '${this.name}' while extracting/compressing tile ${x + y} at ${tl},${tt} of size ${tw}x${th} from icon ${Size.toString(size)}: ${e}`);
+                            this.log.error(`Exception for icon '${this.name}' while extracting/compressing tile ${x + y} at ${tl},${tt} of size ${tw}x${th} from icon ${Size.toString(size)}: ${e}`);
                         });
                     }
                 }
             }
             catch (e) {
-                logIt("ERROR", `Skia exception while loading buffer for icon '${this.name}': ${e}`);
+                this.log.error(`Skia exception while loading buffer for icon '${this.name}': ${e}`);
             }
         }
         catch(e) {
-            logIt("ERROR", `Exception while reading canvas buffer for icon '${this.name}': ${e}`);
+            this.log.error(`Exception while reading canvas buffer for icon '${this.name}': ${e}`);
         };
     }
 
@@ -207,7 +213,7 @@ export default class DynamicIcon
 
         }
         catch (e: any) {
-            logIt("ERROR", `Exception while rendering icon '${this.name}': ${e}\n${e.stack}`);
+            this.log.error("ERROR", `Exception while rendering icon '${this.name}': ${e}\n${e.stack}`);
         }
 
     };
