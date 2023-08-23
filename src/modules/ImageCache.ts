@@ -3,7 +3,7 @@ import sharp from 'sharp';
 import { loadImage } from 'skia-canvas';
 import { Mutex } from 'async-mutex';
 import { SizeType } from './geometry';
-import { logIt } from '../common'
+import { Logger, logging } from './logging';
 import { isAbsolute as isAbsPath, join as pjoin } from 'path';
 
 /** Central storage for various image processing options; Set via ImageCache.cacheOptions
@@ -47,6 +47,8 @@ type ImageRecord = {
 }
 class ImageStorage extends Map<string, ImageRecord> {}  // just an alias
 
+let instance: ImageCache;
+
 /**
 Provides a cache for image data originally read from files or other sources, which may possibly be scaled or otherwise transformed before storage.
 The cache key is based on a combination of the requested source file plus the desired size and resize options (as passed to the various methods).
@@ -59,14 +61,16 @@ export class ImageCache
     public static cacheOptions: ImageCacheOptions = new ImageCacheOptions();
 
     // private:
-
-    private static instance: ImageCache;
     private static cacheHighTide = 25;  // cache can exceed maximum size by this many records before trimming
-    private trimTimerId: ReturnType<typeof setTimeout> | null = null;
+    private trimTimerId: NodeJS.Timeout | null = null;
     private cache: ImageStorage = new ImageStorage();
     private mutex: Mutex = new Mutex();
+    private log: Logger;
 
-    private constructor() {}  // singleton pattern, use ImageCache.Instance or globalImageCache
+    // singleton pattern, use ImageCache.Instance or globalImageCache
+    private constructor() {
+        this.log = logging().getLogger('imgcache');
+    }
 
     private makeKey(src: string, size: SizeType, resizeOptions:any = {}): string {
         // this could be more flexible by serializing resizeOptions object but that would be slower... this method will be hit often.
@@ -88,7 +92,7 @@ export class ImageCache
                 key = it.next();
             }
         });
-        logIt("DEBUG", "Trimmed cache to", this.count(), "records");
+        this.log.info("Trimmed cache to", this.count(), "records");
     }
 
     // The private methods provide actual implementation but w/out mutex locking.
@@ -110,7 +114,7 @@ export class ImageCache
                 rec = { image: image, iconNames: [] }
                 this.cache.set(key, rec);
             }
-            if (typeof(meta.iconName) !== "undefined" && meta.iconName && !rec.iconNames.includes(meta.iconName))
+            if (meta && meta.iconName && !rec.iconNames.includes(meta.iconName))
                 rec.iconNames.push(meta.iconName);
 
             // Check for cache overflow; schedule trim if needed.
@@ -118,15 +122,15 @@ export class ImageCache
                 this.trimTimerId = setTimeout(() => { this.trimCache(); this.trimTimerId = null; }, 1000);
         }
         catch (e) {
-            logIt("ERROR", e);
+            this.log.error(e);
         }
     }
 
     // public:
 
     /** Get the static global instance of the cache object. See also `globalImageCache` export. */
-    public static get Instance() {
-        return this.instance || (this.instance = new ImageCache());
+    public static Instance() {
+        return instance || (instance = new ImageCache());
     }
 
     /** Returns an image from cache if it exists, otherwise loads the image, potentially scales it
@@ -149,7 +153,7 @@ export class ImageCache
                 img = await this.loadImage(src, size, resizeOptions);
                 if (img)
                     this.saveImage_impl(key, img, meta);
-                logIt("DEBUG", "Image cache miss for", src, "Returned:", img);
+                this.log.debug("Image cache miss for %s; Returned: %O", src, img);
             }
         });
         return img;
@@ -164,7 +168,7 @@ export class ImageCache
                 image = this.getImage_impl(this.makeKey(src, size, resizeOptions));
             });
         }
-        catch (e) { logIt("ERROR", e); }
+        catch (e) { this.log.error(e); }
         return image;
     }
 
@@ -176,7 +180,7 @@ export class ImageCache
                 this.saveImage_impl(this.makeKey(src, size, resizeOptions), image, meta);
             });
         }
-        catch (e) { logIt("ERROR", e); }
+        catch (e) { this.log.error(e); }
     }
 
     /** Loads an image from source file and potentially scales it to fit the given size with optional resize options.
@@ -200,7 +204,7 @@ export class ImageCache
             }
         }
         catch (e) {
-            logIt("ERROR", e);
+            this.log.error(e);
         }
         return imgBuffer ? loadImage(imgBuffer) : null;
     }
@@ -214,7 +218,7 @@ export class ImageCache
     public async clear() {
         await this.mutex.runExclusive(async() => {
             this.cache.clear();
-            logIt("INFO", "Image cache cleared.")
+            this.log.info("Image cache cleared.")
         });
     }
 
@@ -224,7 +228,7 @@ export class ImageCache
             for (const [k, v] of this.cache.entries()) {
                 if (v.iconNames.includes(name)) {
                     this.cache.delete(k);
-                    logIt("INFO", `Removed cached image ${k.split(',')[0]} for icon '${name}'.`);
+                    this.log.info(`Removed cached image ${k.split(',')[0]} for icon '${name}'.`);
                 }
             }
         });

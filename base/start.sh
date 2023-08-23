@@ -23,6 +23,5 @@ then
 	sleep 1
 fi
 
-# this will output all Plugin log data to the TouchPortal/plugins/<prog> directory
-# in a file called <prog>log.txt instead of being captured inside the Touch Portal Logs
-./$prog > ${prog}_log.txt 2>&1 &
+# start the plugin
+./$prog

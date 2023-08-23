@@ -26,6 +26,7 @@ const build = async(platform, options ) => {
     }
     fs.mkdirSync(`./base/${platform}`)
     fs.copyFileSync("./base/plugin_icon.png", `./base/${platform}/${packageJson.name}.png`)
+    fs.copyFileSync("./base/plugin-config.json", `./base/${platform}/plugin-config.json`)
 
     let osTarget = platform.toLowerCase()
     let sharpPlatform = osTarget
@@ -66,7 +67,7 @@ const build = async(platform, options ) => {
     copyFileSync(`${SHARP_BUILD}/sharp-${sharpPlatform}-x64.node`, `./base/${platform}/${SHARP_BUILD}/`)
 
     console.log("Generating entry.tp")
-    execSync(`node ./builders/gen_entry.js -v ${packageJson.version} -o ./base/${platform}`)
+    execSync(`node ./builders/gen_entry.js -o ./base/${platform}`)
 
     console.log("Running pkg")
     await pkg.exec([

@@ -1,0 +1,20 @@
+{
+    "logging": {
+        "modules": {
+            ""         : "INFO",
+            "plugin"   : "INFO",
+            "icon"     : "INFO",
+            "imgcache" : "INFO",
+            "logging"  : "WARNING"
+        },
+        "endpoints": {
+            "Console": { "minLevel": "NONE" },
+            "File": {
+                "minLevel": "ANY",
+                "file": "./dynamic-icons-log.txt",
+                "maxSize": 20,
+                "keep": 10
+            }
+        }
+    }
+}
