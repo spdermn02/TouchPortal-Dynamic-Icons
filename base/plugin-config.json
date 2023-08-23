@@ -12,8 +12,8 @@
             "File": {
                 "minLevel": "ANY",
                 "file": "./dynamic-icons-log.txt",
-                "maxSize": 20,
-                "keep": 10
+                "maxSize": 5,
+                "keep": 4
             }
         }
     }
