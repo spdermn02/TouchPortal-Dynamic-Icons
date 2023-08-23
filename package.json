@@ -1,8 +1,8 @@
 {
   "name": "touchportal-dynamic-icons",
-  "version": "1.2.0-alpha2",
+  "version": "1.2.0-alpha3",
   "config": {
-    "build" : 2,
+    "build" : 3,
     "nodeTarget": "node18"
   },
   "description": "Generate Dynamic Icons for Touch Portal on Actions and 0-100% values",
@@ -39,7 +39,7 @@
   ],
   "author": "Jameson Allen aka Spdermn02",
   "contributors": [
-    "Max Paperno aka mpaperno https://github.com/mpaperno"
+    "Max Paperno (https://github.com/mpaperno)"
   ],
   "license": "MIT",
   "bugs": {
@@ -50,7 +50,7 @@
     "async-mutex": "^0.4.0",
     "sharp": "0.30.7",
     "skia-canvas": "mpaperno/skia-canvas#1.0.3",
-    "touchportal-api": "^3.2.1"
+    "touchportal-api": "spdermn02/touchportal-node-api#mp\/pkg_install"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^4.30.0",
