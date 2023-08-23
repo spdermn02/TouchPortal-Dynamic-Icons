@@ -115,6 +115,19 @@ function createOrRemoveIconStates(icon: DynamicIcon, newTiles: PointType) {
     }
 }
 
+// Deletes icon(s) specified in `iconNames` array.
+function removeIcons(iconNames: string[], removeStates = true) {
+    iconNames.forEach((n) => {
+        const icon: DynamicIcon | undefined = g_dyanmicIconStates.get(n);
+        if (icon) {
+            if (removeStates)
+                createOrRemoveIconStates(icon, Point.new());
+            g_globalImageCache().clearIconName(icon.name);
+            g_dyanmicIconStates.delete(n);
+        }
+    });
+}
+
 
 // -------------------------------
 // Action handlers
@@ -129,21 +142,13 @@ function handleControlAction(actionId: string, data: TpActionDataArrayType) {
     switch (data[0].value) {
         case 'Clear the Source Image Cache':
             if (iconName == "All")
-                g_globalImageCache.clear();
+                g_globalImageCache().clear();
             else
-                g_globalImageCache.clearIconName(iconName);
+                g_globalImageCache().clearIconName(iconName);
             return
 
         case 'Delete Icon State': {
-            const iList = (iconName == "All" ? [...g_dyanmicIconStates.keys()] : [iconName]);
-            iList.forEach((n) => {
-                const icon: DynamicIcon | undefined = g_dyanmicIconStates.get(n);
-                if (icon) {
-                    createOrRemoveIconStates(icon, Point.new());
-                    g_globalImageCache.clearIconName(icon.name);
-                    g_dyanmicIconStates.delete(n);
-                }
-            });
+            removeIcons(iconName == "All" ? [...g_dyanmicIconStates.keys()] : [iconName]);
             sendIconLists();
             return;
         }
