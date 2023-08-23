@@ -75,7 +75,7 @@ export default class Logger
                 const sla = error.stack.split("\n", 4);
                 // The first line is "Error:" and the 2nd is the log method that was actually called, so we want the 3rd array member.
                 if (sla.length > 2)
-                    logEntry.location = sla[2].replace("at " + sourceRootPath, '').trim();
+                    logEntry.location = sla[2].slice(sla[2].indexOf("at ") + 3).replace(sourceRootPath, '');
             }
         }
 
