@@ -353,7 +353,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 
         case 'image': {
             // Adds an image source with possible embedded transformation element.
-            const image: m_el.DynamicImage = layerType == "StyledText" ? (layerElement as m_el.DynamicImage) : (icon.layers[icon.nextIndex] = new m_el.DynamicImage({iconName: iconName}))
+            const image: m_el.DynamicImage = layerType == "DynamicImage" ? (layerElement as m_el.DynamicImage) : (icon.layers[icon.nextIndex] = new m_el.DynamicImage({iconName: iconName}))
             image.loadFromActionData(parseState)
             ++icon.nextIndex
             break
