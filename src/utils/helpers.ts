@@ -1,6 +1,6 @@
-import { logIt } from '../common'
 import { Alignment } from '../modules/enums';
 import { PointType } from '../modules/geometry';
+import { logging } from '../modules/logging';
 
 // Used to validate if a string is a single numeric value. Accepts leading sign, base prefix (0x/0b/0o), decimals, and exponential notation.
 const NUMBER_VALIDATION_REGEX = new RegExp(/^[+-]?(?:0[xbo])?\d+(?:\.\d*)?(?:e[+-]?\d+)?$/);
@@ -23,7 +23,7 @@ export function evaluateValue(value: string): number {
         return (new Function( `"use strict"; return (${value})`))() || 0;
     }
     catch (e) {
-        logIt("WARN", "Error evaluating the numeric expression '" + value + "':", e)
+        logging().getLogger('plugin').warn("Error evaluating the numeric expression '" + value + "':", e)
         return 0
     }
 }
@@ -38,7 +38,7 @@ export function evaluateStringValue(value: string): string {
         return (new Function('return `' + value + '`')());
     }
     catch (e) {
-        logIt("WARN", "Error evaluating the string expression '" + value + "':", e)
+        logging().getLogger('plugin').warn("Error evaluating the string expression '" + value + "':", e)
         return value
     }
 }
