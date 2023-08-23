@@ -77,7 +77,7 @@ export default class DynamicImage implements ILayerElement, IValuedElement
         if (!ctx || this.isEmpty)
             return;
 
-        const img: ImageDataType = await globalImageCache.getOrLoadImage(this.source, rect.size, this.resizeOptions, { iconName: this.iconName });
+        const img: ImageDataType = await globalImageCache().getOrLoadImage(this.source, rect.size, this.resizeOptions, { iconName: this.iconName });
         if (!img)
             return;
         // check if any transformation steps are needed, otherwise just draw the image directly

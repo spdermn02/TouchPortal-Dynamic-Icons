@@ -3,13 +3,6 @@ import { SizeType } from "./modules/geometry";
 export var TPClient: any = null;
 export function setTPClient(client: Object) {
     TPClient = client;
-    logIt = (...args: any[]) => { TPClient.logIt(...args) };
-}
-
-// hackish way to share the TPClient "logger" with other modules
-export var logIt: Function = console.log;
-export function setCommonLogger(logger: Function) {
-    logIt = logger;
 }
 
 // Runtime options.
