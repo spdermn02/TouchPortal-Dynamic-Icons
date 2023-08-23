@@ -60,6 +60,8 @@ else if (!logging().haveEndpointName('Console')) {
 
 // Struct for tracking requested icons.
 const g_dyanmicIconStates:Map<string, DynamicIcon> = new Map();
+// flag for avoiding running the shutdown routine multple times from different callbacks
+var g_quitting: boolean = false;
 
 // Set default image path here. It should be overwritten anyway when Settings are processed,
 // but this preserves BC with previous 1.1 alpha versions w/out the setting. Could eventually be removed.
@@ -73,6 +75,18 @@ setTPClient(TPClient);
 
 // -------------------------------
 // Helper functions
+
+// Shutdown handler: clean up and exit.
+function quit(reason: string, exitCode: number = 0) {
+    if (g_quitting)
+        return;
+    g_quitting = true;
+    removeIcons([...g_dyanmicIconStates.keys()], false);
+    logger.info("---------------- %s. %s shutting down. ----------------", reason, pluginId)
+    logging().close()
+    // give the logger a chance to flush and close streams. If process is exiting already then this should be a no-op.
+    setTimeout(() => { process.exit(exitCode); }, 50)
+}
 
 // This is used for actions which update existing layers in an icon.
 // Checks if action data contains valid "_index" field and returns its value in 'index' if (0 < value < currentLen);
@@ -537,14 +551,26 @@ TPClient.on("Info", function (message?:any) {
     sendIconLists()
 })
 
+TPClient.on("Close", function() {
+    quit("Touch Portal disconnected");
+})
+
 process.on('uncaughtException', function(e) {
     logger.error("Exception: %s\n%s", e.message, e.stack)
     // quit("Uncaught Exception", 1);
 });
 
-// This is a workaround hack for skia-canvas v1.0.0 hanging the plugin on exit (in some cases). Yet it has the best imaging composition performance by far.
+// Trap keyboard interrupts for a clean exit.
+process.on('SIGINT', () => quit("Keyboard interrupt") )
+process.on('SIGQUIT', () => quit("Keyboard quit") )
+// process.on('SIGTERM', () => quit("Process terminated") )
+
+// This is a workaround hack for skia-canvas v1.0.0 hanging the plugin on exit (in some cases).
 process.on('exit', function() {
-    process.kill(process.pid, 'SIGTERM');
+    quit("Process exiting");
+    // if the process is actually going to exit cleanly then the kill shouldn't happen.
+    const to = setTimeout(() => process.kill(process.pid, 'SIGTERM'), 500);
+    to.unref();  // make sure the timer doesn't block
 })
 
 
