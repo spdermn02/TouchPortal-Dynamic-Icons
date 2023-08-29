@@ -111,4 +111,18 @@
 - Individual platform release builds can now be `npm run` with  `build-win`, `build-mac`, `build-linux` or `build -- -p (windows|linux|macos)`
   ([#17](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/17))
 
-**Full log:** [v1.2.0-alpha2...HEAD](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/compare/v1.2.0-alpha2...HEAD)
+**Full log:** [v1.2.0-alpha2...v1.2.0-alpha3](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/compare/v1.2.0-alpha2...v1.2.0-alpha3)
+
+
+---
+## Next version
+### New Features
+- Plugin now logs all messages to its own file on all platforms, independent of Touch Portal's own log. Log file is located in plugin's installation folder. Logging settings can be adjusted using a configuration file. By default log files are rotated at 5MB maximum size and up to 4 old log files are kept. ([#23](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/23))
+
+### Fixes
+- Image layer type was always being replaced with new instance of `DynamicImage()` instead of reusing existing instance. ([e7a467b](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/e7a467b55464e098435ba4cfdaa327c8cc3738d8))
+
+### Changes
+- Updated 'sharp' and underlying 'libvips' libraries to latest versions for improved compression performance. ([#24](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/24))
+
+**Full log:** [v1.2.0-alpha3...HEAD](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/compare/v1.2.0-alpha3...HEAD)
