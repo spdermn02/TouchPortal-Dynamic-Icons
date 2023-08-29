@@ -138,8 +138,6 @@ export default class DynamicIcon
                 const size = this.actualSize(),
                     tileW = Math.ceil(size.width / this.tile.x),
                     tileH = Math.ceil(size.height / this.tile.y);
-                // the sharp() constructor may throw
-                const img = new sharp(data, { premultiplied: true });
                 for (let y=0; y < this.tile.y; ++y) {
                     for (let x=0; x < this.tile.x; ++x) {
                         const tl = tileW * x,
@@ -147,7 +145,8 @@ export default class DynamicIcon
                             tw = Math.min(tileW, size.width - tl),
                             th = Math.min(tileH, size.height - tt);
                         // extract image slice, encode PNG, and send the tile
-                        img.extract({ left: tl, top: tt, width: tw, height: th })
+                        // the sharp() constructor may throw
+                        new sharp(data).extract({ left: tl, top: tt, width: tw, height: th })
                         .png(this.outputCompressionOptions)
                         .toBuffer()
                         .then((data: Buffer) => this.sendStateData(this.getTileStateId({x: x, y: y}), data) )
