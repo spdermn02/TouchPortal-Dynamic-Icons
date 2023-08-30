@@ -284,14 +284,18 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
                 if (strVal.length < 9)
                     action = strVal[0] == 'F' ? 1 : 2
 
-                // GPU rendering setting choices: "default", "Enable", "Disable"; Added in v1.2.0
-                if (data.length > 2 && data[2].id.endsWith("gpu")) {
-                    strVal = data[2].value[0]
+                parseState.pos = 2;
+                // GPU rendering setting choices: "default", "Enable", "Disable"; Added in v1.2.0-a1, Removed after 1.2.0-a3.
+                if (data[parseState.pos]?.id.endsWith("gpu")) {
+                    /* Ignore GPU setting for now, possibly revisit if skia-canvas is fixed.
+                    strVal = data[parseState.pos++].value[0]
                     icon.gpuRendering = (strVal == "d" && PluginSettings.defaultGpuRendering) || strVal == "E"
+                    */
+                    ++parseState.pos;
                 }
-                // Output compression choices: "default", "none", "1"..."9"; Added in v1.2.0
-                if (data.length > 3 && data[3].id.endsWith("cl")) {
-                    strVal = data[3].value[0]
+                // Output compression choices: "default", "none", "1"..."9"; Added in v1.2.0-a3
+                if (data[parseState.pos]?.id.endsWith("cl")) {
+                    strVal = data[parseState.pos++].value[0]
                     icon.outputCompressionOptions.compressionLevel = strVal == "d" ? PluginSettings.defaultOutputCompressionLevel : parseInt(strVal) || 0
                 }
             }
@@ -534,9 +538,10 @@ function onSettings(settings:{ [key:string]:string }[]) {
         else if (key.startsWith('Default Image Files Path')) {
             ImageCache.cacheOptions.baseImagePath = val || DEFAULT_IMAGE_FILE_BASE_PATH;
         }
-        else if (key.startsWith('Enable GPU Rendering')) {
-            PluginSettings.defaultGpuRendering = /(?:[1-9]\d*|yes|true|enabled?)/i.test(val);
-        }
+        // Ignore GPU setting for now, possibly revisit if skia-canvas is fixed.
+        // else if (key.startsWith('Enable GPU Rendering')) {
+        //     PluginSettings.defaultGpuRendering = /(?:[1-9]\d*|yes|true|enabled?)/i.test(val);
+        // }
         else if (key.includes('Output Image Compression')) {
             PluginSettings.defaultOutputCompressionLevel = /^\d$/.test(val) ? parseInt(val) : 0;
         }
@@ -565,12 +570,11 @@ process.on('SIGINT', () => quit("Keyboard interrupt") )
 process.on('SIGQUIT', () => quit("Keyboard quit") )
 // process.on('SIGTERM', () => quit("Process terminated") )
 
-// This is a workaround hack for skia-canvas v1.0.0 hanging the plugin on exit (in some cases).
+// This is a workaround for TPClient calling process.exit() automatically upon a socket error,
+// which usually means TP has crashed or shut down w/out a 'closePlugin' message.
 process.on('exit', function() {
+    // no-op if already quitting
     quit("Process exiting");
-    // if the process is actually going to exit cleanly then the kill shouldn't happen.
-    const to = setTimeout(() => process.kill(process.pid, 'SIGTERM'), 500);
-    to.unref();  // make sure the timer doesn't block
 })
 
 
