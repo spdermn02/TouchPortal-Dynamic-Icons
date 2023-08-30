@@ -80,6 +80,7 @@ const entry_base =
             "readOnly": false,
             "description": "Base directory to use when loading image files specified using a relative path. When left empty, the default is Touch Portal's configuration directory for the current user."
         },
+        /*  Do not use GPU setting for now, possibly revisit if skia-canvas is fixed. **
         {
             "name": "Enable GPU Rendering by Default",
             "type": "text",
@@ -91,6 +92,7 @@ const entry_base =
                 "GPU rendering is only supported on some hardware/OS/drivers, and is disabled on others regardless of this setting.\n\n" +
                 "Note that at least some CPU will be used when generating icons in any case, most notably for image file loading and final output PNG compression."
         },
+        */
         {
             "name": "Default Output Image Compression Level (0-9)",
             "type": "number",
@@ -544,11 +546,13 @@ function addGenerateLayersAction(id, name) {
     const descript = "Dynamic Icons: " +
         "Finalize and/or Render a dynamic image icon which has been created using preceding 'New' and 'Draw/Layer' actions using the same Icon Name.\n" +
         "'Finalize' marks the icon as finished, removing any extra layers which may have been added previously. 'Render' produces the actual icon in its current state and sends it to TP.";
-    const format = "Icon Named {0} {1} | Enable GPU Rendering: {2} Compression Level: {3} (defaults are set in plugin Settings)";
+    const format = "Icon Named {0} {1} with Compression Level {2} (default is set in plugin Settings)";
+    // Do not use GPU setting for now, possibly revisit if skia-canvas is fixed.
+    // const format = "Icon Named {0} {1} | Enable GPU Rendering: {2} Compression Level: {3} (defaults are set in plugin Settings)";
     const data = [
         makeIconNameData(id),
         makeChoiceData("icon_generate_action", "Action", ["Finalize & Render", "Finalize Only", "Render Only"]),
-        makeChoiceData("icon_generate_gpu", "Enable GPU Rendering", ["default", "Enable", "Disable"]),
+        // makeChoiceData("icon_generate_gpu", "Enable GPU Rendering", ["default", "Enable", "Disable"]),
         makeChoiceData("icon_generate_cl", "Image Compression Level", ["default", "None", "1 (low)", "2", "3", "4", "5", "6", "7", "8", "9 (high)"]),
     ];
     addAction(id, name, descript, format, data);
