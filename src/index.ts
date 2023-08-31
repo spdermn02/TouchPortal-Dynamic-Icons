@@ -565,10 +565,11 @@ process.on('uncaughtException', function(e) {
     // quit("Uncaught Exception", 1);
 });
 
-// Trap keyboard interrupts for a clean exit.
-process.on('SIGINT', () => quit("Keyboard interrupt") )
-process.on('SIGQUIT', () => quit("Keyboard quit") )
-// process.on('SIGTERM', () => quit("Process terminated") )
+// Trap keyboard interrupts and other signals for a clean exit.
+process.on('SIGINT', () => quit("Keyboard interrupt") )     // ctrl-c
+process.on('SIGBREAK', () => quit("Keyboard break") )       // ctrl-break (Windows)
+process.on('SIGHUP', () => quit("Console host closed") )
+process.on('SIGTERM', () => quit("Process terminated") )    // not on Windows
 
 // This is a workaround for TPClient calling process.exit() automatically upon a socket error,
 // which usually means TP has crashed or shut down w/out a 'closePlugin' message.
