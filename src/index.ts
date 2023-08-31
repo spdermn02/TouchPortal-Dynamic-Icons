@@ -246,7 +246,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             // Parse and set the size property(ies).
             const size = Size.new(parseInt(data[parseState.pos++].value) || PluginSettings.defaultIconSize.width);
             // Size height parameter; Added in v1.2-alpha3
-            if (data.length > parseState.pos && data[parseState.pos].id.endsWith("size_h"))
+            if (data[parseState.pos]?.id.endsWith("size_h"))
                 size.height = parseInt(data[parseState.pos++].value) || PluginSettings.defaultIconSize.height
             else
                 icon.sizeIsActual = false;  // set flag indicating tiling style is for < v1.2-alpha3. TODO: Remove
@@ -254,8 +254,8 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 
             // Handle tiling parameters, if any;  Added in v1.2.0
             let tile: PointType = { x: 1, y: 1}
-            if (data.length > parseState.pos + 1 && data[parseState.pos].id.endsWith("tile_x"))
-                tile = { x: parseInt(data[parseState.pos++].value) || 1, y: parseInt(data[parseState.pos].value) || 1 };
+            if (data[parseState.pos]?.id.endsWith("tile_x"))
+                tile = { x: parseInt(data[parseState.pos++].value) || 1, y: parseInt(data[parseState.pos]?.value) || 1 };
             // Create the TP state(s) now if we haven't yet (icon.tile will be 0,0); this way a user can create the new state at any time, separate from the render action.
             // Also check if the tiling settings have changed; we may need to clean up any existing TP states first or create new ones.
             if (!Point.equals(icon.tile, tile)) {
