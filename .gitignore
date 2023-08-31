@@ -107,3 +107,6 @@ dist
 bundle/
 
 Installers/
+.vscode/
+*-log.txt
+/plugin-config.json
