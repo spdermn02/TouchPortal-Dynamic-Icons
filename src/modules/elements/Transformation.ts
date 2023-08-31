@@ -4,11 +4,11 @@ import { ParseState } from '../types';
 import { Point, PointType, Rectangle } from '../geometry'
 import { PI2 } from '../../utils/consts';
 import { Canvas } from 'skia-canvas';
-import { evaluateValue, parsePointFromValue } from '../../utils/helpers';
+import { evaluateValue /* , parsePointFromValue */ } from '../../utils/helpers';
 
 export type TransformOpType = 'O' | 'R' | 'SC' | 'SK';    // offset (translate) | rotate | scale | skew
 
-export enum TransformScope {
+export const enum TransformScope {
     PreviousOne,  // affects only the layer before the transform
     Cumulative,   // affects all previous layers drawn so far
     UntilReset,   // affects all layers until an empty transform (or end)
@@ -26,8 +26,9 @@ export default class Transformation implements ILayerElement
     scope: TransformScope = TransformScope.PreviousOne;
 
     constructor(init?: Partial<Transformation>) { Object.assign(this, init); }
+
     // ILayerElement
-    get type() { return "Transformation"; }
+    readonly type = "Transformation";
 
     get isEmpty(): boolean {
         return !this.rotate && Point.isNull(this.translate) && Point.isNull(this.skew) && !this.isScaling;
@@ -47,17 +48,11 @@ export default class Transformation implements ILayerElement
                 case 'rot':
                     this.rotate = evaluateValue(data.value);
                     break;
-                case 'trs':
-                    Point.set(this.translate, parsePointFromValue(data.value));
-                    break;
                 case 'trsX':
                     this.translate.x = evaluateValue(data.value);
                     break;
                 case 'trsY':
                     this.translate.y = data.value.trim() ? evaluateValue(data.value) : this.translate.x;
-                    break;
-                case 'scl':
-                    Point.set(this.scale, parsePointFromValue(data.value));
                     break;
                 case 'sclX':
                     this.scale.x = evaluateValue(data.value);
@@ -65,25 +60,35 @@ export default class Transformation implements ILayerElement
                 case 'sclY':
                     this.scale.y = data.value.trim() ? evaluateValue(data.value) : this.scale.x;
                     break;
-                case 'skw':
-                    Point.set(this.skew, parsePointFromValue(data.value));
-                    break;
                 case 'skwX':
                     this.skew.x = evaluateValue(data.value);
                     break;
                 case 'skwY':
                     this.skew.y = data.value.trim() ? evaluateValue(data.value) : this.skew.x;
                     break;
+                /* these 3 cases allow for X[,Y] coordinates to be specified in one data field, however they're currently unused by any action
+                case 'trs':
+                    Point.set(this.translate, parsePointFromValue(data.value));
+                    break;
+                case 'scl':
+                    Point.set(this.scale, parsePointFromValue(data.value));
+                    break;
+                case 'skw':
+                    Point.set(this.skew, parsePointFromValue(data.value));
+                    break;
+                */
                 case 'order':
                     if (data.value)
                         this.transformOrder = data.value.split(', ') as typeof this.transformOrder;
                     break;
                 case 'scope':
-                    switch (data.value.toLowerCase()) {
-                        case "all previous":  this.scope = TransformScope.Cumulative;  break;
-                        case "all following": this.scope = TransformScope.UntilReset;  break;
-                        default: break;  // keep default TransformScope.PreviousOne
-                    }
+                    // "previous layer", "all previous", "all following"
+                    if (data.value[0] == 'p')
+                        this.scope = TransformScope.PreviousOne;
+                    else if (data.value[4] == 'p')
+                        this.scope = TransformScope.Cumulative;
+                    else if (data.value[4] == 'f')
+                        this.scope = TransformScope.UntilReset;
                     break;
                 default:
                     i = e;  // end the loop on unknown data id
@@ -96,7 +101,7 @@ export default class Transformation implements ILayerElement
     }
 
     // ILayerElement
-    async render(ctx: RenderContext2D, rect: Rectangle) : Promise<void> {
+    render(ctx: RenderContext2D, rect: Rectangle) : void {
         if (!ctx)
             return;
          if (this.isEmpty) {
@@ -131,12 +136,12 @@ export default class Transformation implements ILayerElement
             // Here we need to copy anything drawn previously onto the new transformed context/canvas.
             // It may be clever to just switch up the context reference that is getting passed around
             // to all the render() methods... but that just seems wrong on several levels.
-            // Anyway it's pretty fast, tens of _micro_seconds on a GPU, uncomment below to check.
+            // Anyway it's pretty fast, tens of _micro_seconds, uncomment below to check.
             // const st = process.hrtime();
-            await tCtx.drawCanvas(ctx.canvas, rect.x, rect.y);
+            tCtx.drawCanvas(ctx.canvas, rect.x, rect.y);
             ctx.resetTransform();
             ctx.clearRect(rect.x, rect.y, rect.width, rect.height);
-            await ctx.drawCanvas(tCtx.canvas, rect.x, rect.y);
+            ctx.drawCanvas(tCtx.canvas, rect.x, rect.y);
             // console.log(process.hrtime(st));
         }
     }
