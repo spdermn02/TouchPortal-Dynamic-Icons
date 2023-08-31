@@ -120,9 +120,11 @@
 - Plugin now logs all messages to its own file on all platforms, independent of Touch Portal's own log. Log file is located in plugin's installation folder. Logging settings can be adjusted using a configuration file. By default log files are rotated at 5MB maximum size and up to 4 old log files are kept. ([#23](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/23))
 
 ### Fixes
-- Image layer type was always being replaced with new instance of `DynamicImage()` instead of reusing existing instance. ([e7a467b](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/e7a467b55464e098435ba4cfdaa327c8cc3738d8))
+- Image layer type was always being replaced with new instance of `DynamicImage()` instead of reusing existing instance. ([e7a467b5](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/e7a467b55464e098435ba4cfdaa327c8cc3738d8))
 
 ### Changes
-- Updated 'sharp' and underlying 'libvips' libraries to latest versions for improved compression performance. ([#24](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/24))
+- **Removed/disabled GPU rendering feature** including the plugin setting and "Generate Icon" action options. This feature proved ineffective and caused peripheral issues. May be re-introduced in a later version. See [#25](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/25) for details.
+- Updated 'sharp' and underlying 'libvips' libraries to latest versions for improved image compression performance. ([#24](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/24))
+- Minor performance optimizations. ([e830d054](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/e830d0543eefdc2deee2678507fb87865f7080ee), [caacff04](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/caacff0492c7f662b4cc28838a4e2c0f3f8e87ef))
 
 **Full log:** [v1.2.0-alpha3...HEAD](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/compare/v1.2.0-alpha3...HEAD)
