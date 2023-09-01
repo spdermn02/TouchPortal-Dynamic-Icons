@@ -103,7 +103,7 @@ export default class StyledText implements ILayerElement, IValuedElement
         ctx.direction = this.direction;
         ctx.textTracking = this.tracking;
         ctx.textWrap = this.wrap;
-        ctx.textRendering = 'optimizeLegibility';
+        // ctx.textRendering = 'optimizeLegibility';  // not supported
 
         // Calculate the stroke width first, if any.
         let penAdjust = 0;

@@ -71,7 +71,7 @@ export default class DynamicIcon
     }
 
     // Sends the canvas contents directly, w/out any compression or tiling.
-    private async sendCanvasImage(stateId: string, canvas: typeof Canvas) {
+    private async sendCanvasImage(stateId: string, canvas: Canvas) {
         try {
             this.sendStateData(stateId, await canvas.toBuffer('png'));
         }
@@ -81,12 +81,12 @@ export default class DynamicIcon
     }
 
     // Sends the canvas contents after re-compressing it with Sharp.
-    private async sendCompressedImage(canvas: typeof Canvas) {
+    private async sendCompressedImage(canvas: Canvas) {
         try {
             const data: Buffer = await canvas.toBuffer('png');
             try {
                 // the sharp() constructor may throw
-                new sharp(data, { premultiplied: true })
+                sharp(data)
                 .png(this.outputCompressionOptions)
                 .toBuffer()
                 .then((data: Buffer) => this.sendStateData(this.name, data) )
@@ -105,7 +105,7 @@ export default class DynamicIcon
 
     // Sends the canvas tiled, w/out compression.
     // While this isn't really any faster than using Skia anyway, it does use less CPU and/or uses GPU instead when that option is enabled.
-    private async sendCanvasTiles(canvas: typeof Canvas) {
+    private async sendCanvasTiles(canvas: Canvas) {
         const size = this.actualSize(),
             tileW = Math.ceil(size.width / this.tile.x),
             tileH = Math.ceil(size.height / this.tile.y);
@@ -131,7 +131,7 @@ export default class DynamicIcon
 
     // Send the canvas contents by breaking up into tiles using Sharp, with added compression.
     // Much more efficient than using the method in sendCanvasTiles() and then compressing each resulting canvas tile.
-    private async sendCompressedTiles(canvas: typeof Canvas) {
+    private async sendCompressedTiles(canvas: Canvas) {
         try {
             const data: Buffer = await canvas.toBuffer('png');
             try {
@@ -146,7 +146,7 @@ export default class DynamicIcon
                             th = Math.min(tileH, size.height - tt);
                         // extract image slice, encode PNG, and send the tile
                         // the sharp() constructor may throw
-                        new sharp(data).extract({ left: tl, top: tt, width: tw, height: th })
+                        sharp(data).extract({ left: tl, top: tt, width: tw, height: th })
                         .png(this.outputCompressionOptions)
                         .toBuffer()
                         .then((data: Buffer) => this.sendStateData(this.getTileStateId({x: x, y: y}), data) )
