@@ -57,11 +57,8 @@
     "adm-zip": "^0.5.9",
     "eslint": "^7.32.0",
     "fs-extra": "^10.1.0",
-    "json-schema": "^0.4.0",
     "pkg": "^5.8.1",
-    "run-script-os": "^1.1.6",
     "ts-node": "^10.9.1",
-    "typescript": "^5.0.4",
-    "uglifyjs-webpack-plugin": "^2.2.0"
+    "typescript": "^5.0.4"
   }
 }
