@@ -27,16 +27,16 @@ class ImageCacheOptions {
         // fastShrinkOnLoad: take greater advantage of the JPEG and WebP shrink-on-load feature, which can lead to a slight moiré pattern on some images. (optional, default true)
     };
     // See also https://sharp.pixelplumbing.com/api-output#png
-    cachedPngOptions: any = {
-        compressionLevel: 0,   // zlib compression level, 0 (fastest, largest) to 9 (slowest, smallest) (optional, default 6)
-        effort: 1,             // CPU effort, between 1 (fastest) and 10 (slowest), sets palette to true (optional, default 7)
-        palette: true,         // quantise to a palette-based image with alpha transparency support (optional, default false)
-        // progressive: use progressive (interlace) scan (optional, default false)
-        // adaptiveFiltering: use adaptive row filtering (optional, default false)
-        // quality: use the lowest number of colours needed to achieve given quality, sets palette to true (optional, default 100)
-        // colours: maximum number of palette entries, sets palette to true (optional, default 256)
-        // dither:level of Floyd-Steinberg error diffusion, sets palette to true (optional, default 1.0)
-    };  // low compression, high speed, quantise with transparency
+//     cachedPngOptions: any = {
+//         compressionLevel: 0,   // zlib compression level, 0 (fastest, largest) to 9 (slowest, smallest) (optional, default 6)
+//         effort: 1,             // CPU effort, between 1 (fastest) and 10 (slowest), sets palette to true (optional, default 7)
+//         palette: true,         // quantise to a palette-based image with alpha transparency support (optional, default false)
+//         // progressive: use progressive (interlace) scan (optional, default false)
+//         // adaptiveFiltering: use adaptive row filtering (optional, default false)
+//         // quality: use the lowest number of colours needed to achieve given quality, sets palette to true (optional, default 100)
+//         // colours: maximum number of palette entries, sets palette to true (optional, default 256)
+//         // dither:level of Floyd-Steinberg error diffusion, sets palette to true (optional, default 1.0)
+//     };  // low compression, high speed, quantise with transparency
 }
 
 export type ImageDataType = CanvasImageSource | null;
@@ -188,7 +188,6 @@ export class ImageCache
     Returns null if image loading fails.
     */
     public async loadImage(src: string, size: SizeType, resizeOptions:any = {}): Promise<ImageDataType> {
-        let imgBuffer: Buffer | null = null;
         try {
             const image = sharp(src, ImageCache.cacheOptions.sourceLoadOptions);
             if (image) {
@@ -200,13 +199,18 @@ export class ImageCache
                     }
                     image.resize(size.width || null, size.height || null, resizeOptions);
                 }
-                imgBuffer = await image.png(ImageCache.cacheOptions.cachedPngOptions).toBuffer();
+                const {data, info} = await image.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+                // const meta = await image.metadata();
+                if (data)
+                    return await loadImage(data, { raw:
+                        { width: info.width, height: info.height, /* colorType: (meta.channels == 3 ? 'rgb' : 'rgba'), premultiplied: false */ }
+                    });
             }
         }
         catch (e) {
             this.log.error(e);
         }
-        return imgBuffer ? loadImage(imgBuffer) : null;
+        return null;
     }
 
     /** Returns number of records currently in cache. */
