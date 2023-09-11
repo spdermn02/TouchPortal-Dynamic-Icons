@@ -17,8 +17,8 @@ export default class DynamicIcon
     tile: PointType = { x: 0, y: 0 };
     /** `true` if icon was explicitly created with a "New" action, will require a corresponding "Render" action to actually draw it. */
     delayGeneration: boolean = false;
-    /** Whether to use GPU for rendering (on supported hardware). Passed to skia-canvas's Canvas::gpu property. */
-    gpuRendering: boolean = PluginSettings.defaultGpuRendering;
+    /** Whether to use GPU for rendering (on supported hardware). Passed to skia-canvas's Canvas::gpu property. ** Unused for now. ** */
+    //gpuRendering: boolean = PluginSettings.defaultGpuRendering;
     /** Used while building a icon from TP layer actions to keep track of current layer being affected. */
     nextIndex: number = 0;
     /** Flag to indicate early v1.2-alpha style tiling where the specified icon size was per tile instead of overall size. TODO: Remove  */
@@ -65,7 +65,7 @@ export default class DynamicIcon
     // Send TP State update with an icon's image data. The data Buffer is encoded to base64 before transmission.
     private sendStateData(stateId: string, data: Buffer | null) {
         if (data?.length) {
-            // this.logger.debug(`Sending data for icon state '${stateId}' with length ${data.length}`);
+            // this.log.debug(`Sending data for icon state '${stateId}' with length ${data.length}`);
             TPClient.stateUpdate(stateId, data.toString("base64"));
         }
     }
@@ -118,7 +118,7 @@ export default class DynamicIcon
                 try {
                     // Extract tile-sized part of the current canvas onto a new canvas which is the size of a tile.
                     const tileCtx = new Canvas(tw, th).getContext("2d");
-                    tileCtx.canvas.gpu = this.gpuRendering;
+                    // tileCtx.canvas.gpu = this.gpuRendering;
                     tileCtx.drawCanvas(canvas, tl, tt, tw, th, 0, 0, tw, th);
                     this.sendCanvasImage(this.getTileStateId({x: x, y: y}), tileCtx.canvas);
                 }
@@ -168,10 +168,11 @@ export default class DynamicIcon
     async render() {
         try {
             const rect = Rectangle.fromSize(this.actualSize());
-            const ctx = new Canvas(rect.width, rect.height).getContext("2d");
+            const canvas = new Canvas(rect.width, rect.height);
+            const ctx = canvas.getContext("2d");
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
-            ctx.canvas.gpu = this.gpuRendering;
+            //canvas.gpu = this.gpuRendering;
 
             for (let i = 0, e = this.layers.length; i < e; ++i) {
                 const layer = this.layers[i];
@@ -197,18 +198,18 @@ export default class DynamicIcon
 
             if (this.isTiled) {
                 if (this.outputCompressionOptions.compressionLevel > 0)
-                    this.sendCompressedTiles(ctx.canvas);
+                    this.sendCompressedTiles(canvas);
                 else
-                    this.sendCanvasTiles(ctx.canvas);
+                    this.sendCanvasTiles(canvas);
                 return;
             }
 
             // Not tiled, send whole rendered canvas at once.
 
             if (this.outputCompressionOptions.compressionLevel > 0)
-                this.sendCompressedImage(ctx.canvas);
+                this.sendCompressedImage(canvas);
             else
-                this.sendCanvasImage(this.name, ctx.canvas);
+                this.sendCanvasImage(this.name, canvas);
 
         }
         catch (e: any) {
