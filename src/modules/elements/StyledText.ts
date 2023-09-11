@@ -91,7 +91,7 @@ export default class StyledText implements ILayerElement, IValuedElement
     }
 
     // ILayerElement
-    async render(ctx: RenderContext2D, rect: Rectangle): Promise<void> {
+    render(ctx: RenderContext2D, rect: Rectangle): void {
         // console.dir(this);
         if (!ctx || this.isEmpty)
             return;
