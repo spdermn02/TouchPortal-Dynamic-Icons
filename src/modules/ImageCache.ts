@@ -1,6 +1,6 @@
 
 import sharp from 'sharp';
-import { loadImage } from 'skia-canvas';
+import { loadImage, CanvasImageSource } from 'skia-canvas';
 import { Mutex } from 'async-mutex';
 import { SizeType } from './geometry';
 import { Logger, logging } from './logging';
@@ -39,7 +39,7 @@ class ImageCacheOptions {
     };  // low compression, high speed, quantise with transparency
 }
 
-export type ImageDataType = HTMLImageElement | null;
+export type ImageDataType = CanvasImageSource | null;
 
 type ImageRecord = {
     image: ImageDataType

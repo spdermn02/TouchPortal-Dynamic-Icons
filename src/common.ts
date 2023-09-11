@@ -9,6 +9,6 @@ export function setTPClient(client: Object) {
 export const PluginSettings = {
     // these can be changed in TP Settings
     defaultIconSize: <SizeType> { width: 128, height: 128 },
-    defaultGpuRendering: <boolean> true,
+    defaultGpuRendering: <boolean> false,
     defaultOutputCompressionLevel: <number> 4,  // MP: 4 seems to give the highest effective compression in my tests, no gains with higher levels but does slow down.
 };

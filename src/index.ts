@@ -111,7 +111,7 @@ function getLayerIndexFromActionData(actionData: any[], currentLen: number) {
 // Updates state of current icons list and command action selector.
 function sendIconLists() {
     const nameArry = [...g_dyanmicIconStates.keys()].sort();
-    TPClient.stateUpdate("dynamic_icons_createdIconsList", nameArry.join(','));
+    TPClient.stateUpdate("dynamic_icons_createdIconsList", nameArry.length ? nameArry.join(',') + ',' : "");
     TPClient.choiceUpdate("dynamic_icons_control_command_icon", nameArry.length ? ["All", ...nameArry] : ["[ no icons created ]"]);
 }
 
@@ -246,7 +246,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             // Parse and set the size property(ies).
             const size = Size.new(parseInt(data[parseState.pos++].value) || PluginSettings.defaultIconSize.width);
             // Size height parameter; Added in v1.2-alpha3
-            if (data.length > parseState.pos && data[parseState.pos].id.endsWith("size_h"))
+            if (data[parseState.pos]?.id.endsWith("size_h"))
                 size.height = parseInt(data[parseState.pos++].value) || PluginSettings.defaultIconSize.height
             else
                 icon.sizeIsActual = false;  // set flag indicating tiling style is for < v1.2-alpha3. TODO: Remove
@@ -254,8 +254,8 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 
             // Handle tiling parameters, if any;  Added in v1.2.0
             let tile: PointType = { x: 1, y: 1}
-            if (data.length > parseState.pos + 1 && data[parseState.pos].id.endsWith("tile_x"))
-                tile = { x: parseInt(data[parseState.pos++].value) || 1, y: parseInt(data[parseState.pos].value) || 1 };
+            if (data[parseState.pos]?.id.endsWith("tile_x"))
+                tile = { x: parseInt(data[parseState.pos++].value) || 1, y: parseInt(data[parseState.pos]?.value) || 1 };
             // Create the TP state(s) now if we haven't yet (icon.tile will be 0,0); this way a user can create the new state at any time, separate from the render action.
             // Also check if the tiling settings have changed; we may need to clean up any existing TP states first or create new ones.
             if (!Point.equals(icon.tile, tile)) {
@@ -284,14 +284,18 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
                 if (strVal.length < 9)
                     action = strVal[0] == 'F' ? 1 : 2
 
-                // GPU rendering setting choices: "default", "Enable", "Disable"; Added in v1.2.0
-                if (data.length > 2 && data[2].id.endsWith("gpu")) {
-                    strVal = data[2].value[0]
+                parseState.pos = 2;
+                // GPU rendering setting choices: "default", "Enable", "Disable"; Added in v1.2.0-a1, Removed after 1.2.0-a3.
+                if (data[parseState.pos]?.id.endsWith("gpu")) {
+                    /* Ignore GPU setting for now, possibly revisit if skia-canvas is fixed.
+                    strVal = data[parseState.pos++].value[0]
                     icon.gpuRendering = (strVal == "d" && PluginSettings.defaultGpuRendering) || strVal == "E"
+                    */
+                    ++parseState.pos;
                 }
-                // Output compression choices: "default", "none", "1"..."9"; Added in v1.2.0
-                if (data.length > 3 && data[3].id.endsWith("cl")) {
-                    strVal = data[3].value[0]
+                // Output compression choices: "default", "none", "1"..."9"; Added in v1.2.0-a3
+                if (data[parseState.pos]?.id.endsWith("cl")) {
+                    strVal = data[parseState.pos++].value[0]
                     icon.outputCompressionOptions.compressionLevel = strVal == "d" ? PluginSettings.defaultOutputCompressionLevel : parseInt(strVal) || 0
                 }
             }
@@ -353,7 +357,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 
         case 'image': {
             // Adds an image source with possible embedded transformation element.
-            const image: m_el.DynamicImage = layerType == "StyledText" ? (layerElement as m_el.DynamicImage) : (icon.layers[icon.nextIndex] = new m_el.DynamicImage({iconName: iconName}))
+            const image: m_el.DynamicImage = layerType == "DynamicImage" ? (layerElement as m_el.DynamicImage) : (icon.layers[icon.nextIndex] = new m_el.DynamicImage({iconName: iconName}))
             image.loadFromActionData(parseState)
             ++icon.nextIndex
             break
@@ -534,9 +538,10 @@ function onSettings(settings:{ [key:string]:string }[]) {
         else if (key.startsWith('Default Image Files Path')) {
             ImageCache.cacheOptions.baseImagePath = val || DEFAULT_IMAGE_FILE_BASE_PATH;
         }
-        else if (key.startsWith('Enable GPU Rendering')) {
-            PluginSettings.defaultGpuRendering = /(?:[1-9]\d*|yes|true|enabled?)/i.test(val);
-        }
+        // Ignore GPU setting for now, possibly revisit if skia-canvas is fixed.
+        // else if (key.startsWith('Enable GPU Rendering')) {
+        //     PluginSettings.defaultGpuRendering = /(?:[1-9]\d*|yes|true|enabled?)/i.test(val);
+        // }
         else if (key.includes('Output Image Compression')) {
             PluginSettings.defaultOutputCompressionLevel = /^\d$/.test(val) ? parseInt(val) : 0;
         }
@@ -560,17 +565,17 @@ process.on('uncaughtException', function(e) {
     // quit("Uncaught Exception", 1);
 });
 
-// Trap keyboard interrupts for a clean exit.
-process.on('SIGINT', () => quit("Keyboard interrupt") )
-process.on('SIGQUIT', () => quit("Keyboard quit") )
-// process.on('SIGTERM', () => quit("Process terminated") )
+// Trap keyboard interrupts and other signals for a clean exit.
+process.on('SIGINT', () => quit("Keyboard interrupt") )     // ctrl-c
+process.on('SIGBREAK', () => quit("Keyboard break") )       // ctrl-break (Windows)
+process.on('SIGHUP', () => quit("Console host closed") )
+process.on('SIGTERM', () => quit("Process terminated") )    // not on Windows
 
-// This is a workaround hack for skia-canvas v1.0.0 hanging the plugin on exit (in some cases).
+// This is a workaround for TPClient calling process.exit() automatically upon a socket error,
+// which usually means TP has crashed or shut down w/out a 'closePlugin' message.
 process.on('exit', function() {
+    // no-op if already quitting
     quit("Process exiting");
-    // if the process is actually going to exit cleanly then the kill shouldn't happen.
-    const to = setTimeout(() => process.kill(process.pid, 'SIGTERM'), 500);
-    to.unref();  // make sure the timer doesn't block
 })
 
 
