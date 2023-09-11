@@ -5,7 +5,8 @@
             "plugin"   : "INFO",
             "icon"     : "INFO",
             "imgcache" : "INFO",
-            "logging"  : "WARNING"
+            "logging"  : "WARNING",
+            "tpclient" : "ERROR"
         },
         "endpoints": {
             "Console": { "minLevel": "NONE" },

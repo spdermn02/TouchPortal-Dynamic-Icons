@@ -6,7 +6,7 @@ import { Point, PointType, Size } from './modules/geometry';
 import DynamicIcon from "./modules/DynamicIcon";
 import * as m_el from "./modules/elements";
 import { default as g_globalImageCache, ImageCache } from './modules/ImageCache'
-import { ConsoleEndpoint, Logger, logging /* , LogLevel */ } from './modules/logging';
+import { ConsoleEndpoint, Logger, logging , LogLevel } from './modules/logging';
 import { setTPClient, PluginSettings } from './common'
 import { dirname as pdirname, resolve as presolve } from 'path';
 const { version: pluginVersion } = require('../package.json');  // 'import' causes lint error in VSCode
@@ -27,6 +27,14 @@ const CONFIG_FILEPATH = presolve(EXEC_BASE_PATH, "plugin-config.json");
 // If there's a better x-platform way to find TPs config path, then fixme.
 const DEFAULT_IMAGE_FILE_BASE_PATH = presolve(EXEC_BASE_PATH, '..', '..');
 
+// Translate TPClient log level strings to our LogLevel enum.
+const TPClientLogLevel = {
+    "ERROR": LogLevel.ERROR,
+    "WARN" : LogLevel.WARNING,
+    "INFO" : LogLevel.INFO,
+    "DEBUG": LogLevel.DEBUG,
+}
+
 
 // -------------------------------
 // Logging
@@ -43,16 +51,9 @@ if (!logging().haveEndpoints) {
     if (!logging().configuration.endpoints?.Console)
         logging().registerEndpoint(ConsoleEndpoint.instance())
 }
-else if (!logging().haveEndpointName('Console')) {
-    // This is a (hopefully temporary) hack to direct all TPClient's stdout logging to our own logger (presumably a file).
-    // We can only do this if we're not logging to the console/stdout ourselves, since that would cause a fun endless loop.
-    // The simplistic `writeTpLog()` assumes each chunk of data will be a full line of text, which basically works because Console doesn't flush the
-    // output until it sees a newline anyway (typically). A more proper way would be to buffer the data as it comes in and take out full line(s)
-    // once we have them, but that currently seems like overkill for the few simple messages TPClient logs.
-    // This also just treats all messages as errors vs. parsing out the actual level (client should only be logging errors anyway).
-    const writeTpLog = (chunk: any): boolean => { logger.error(chunk.trim()); return true; }
-    process.stdout.write = writeTpLog;
-}
+
+// Init a logger specifically for TPClient messages so they can be filtered by level.
+const tpLogger: Logger = logging().getLogger('tpclient');
 
 
 // -------------------------------
@@ -68,7 +69,9 @@ var g_quitting: boolean = false;
 ImageCache.cacheOptions.baseImagePath = DEFAULT_IMAGE_FILE_BASE_PATH;
 
 // Create Touch Portal API client
-const TPClient = new TP.Client();
+const TPClient = new TP.Client({
+    logCallback: tpClientLogCallback
+});
 // share the TP client with other modules
 setTPClient(TPClient);
 
@@ -86,6 +89,12 @@ function quit(reason: string, exitCode: number = 0) {
     logging().close()
     // give the logger a chance to flush and close streams. If process is exiting already then this should be a no-op.
     setTimeout(() => { process.exit(exitCode); }, 50)
+}
+
+// Direct TPClient log messages to our own logger instance.
+function tpClientLogCallback(level: string, message?: any, ...args: any[]) {
+    const lvl: LogLevel = TPClientLogLevel[level] || LogLevel.INFO;
+    tpLogger.log(lvl, message, ...args);
 }
 
 // This is used for actions which update existing layers in an icon.
