@@ -560,6 +560,11 @@ TPClient.on("Close", function() {
     quit("Touch Portal disconnected");
 })
 
+TPClient.on("disconnected", function(/* hasError */) {
+    // no-op if already quitting
+    quit("Touch Portal socket disconnected");
+})
+
 process.on('uncaughtException', function(e) {
     logger.error("Exception: %s\n%s", e.message, e.stack)
     // quit("Uncaught Exception", 1);
@@ -571,17 +576,10 @@ process.on('SIGBREAK', () => quit("Keyboard break") )       // ctrl-break (Windo
 process.on('SIGHUP', () => quit("Console host closed") )
 process.on('SIGTERM', () => quit("Process terminated") )    // not on Windows
 
-// This is a workaround for TPClient calling process.exit() automatically upon a socket error,
-// which usually means TP has crashed or shut down w/out a 'closePlugin' message.
-process.on('exit', function() {
-    // no-op if already quitting
-    quit("Process exiting");
-})
-
 
 // -------------------------------
 // Run
 
 logger.info("=============== %s started, connecting to Touch Portal... ===============", pluginId)
 
-TPClient.connect({pluginId})
+TPClient.connect( { pluginId: pluginId, exitOnClose: false })
