@@ -1,7 +1,7 @@
-import sharp from 'sharp'   // for final result image compression
+import sharp, { CreateRaw } from 'sharp'   // for final result image compression
 import { ILayerElement } from './interfaces';
 import { Rectangle, Size, SizeType, PointType } from './geometry';
-import { Canvas } from 'skia-canvas';
+import { Canvas, RenderOptions } from 'skia-canvas';
 import { Transformation, TransformScope } from './elements';
 import { PluginSettings, TPClient } from './../common'
 import { Logger, logging } from './logging';
@@ -71,41 +71,31 @@ export default class DynamicIcon
     }
 
     // Sends the canvas contents directly, w/out any compression or tiling.
-    private async sendCanvasImage(stateId: string, canvas: Canvas) {
-        try {
-            this.sendStateData(stateId, await canvas.toBuffer('png'));
-        }
-        catch (e) {
-            this.log.error(`Exception while reading canvas buffer for icon '${self.name}': ${e}`);
-        }
+    private sendCanvasImage(stateId: string, canvas: Canvas) {
+        canvas.toBuffer('png')
+        .then((data: Buffer) => this.sendStateData(stateId, data))
+        .catch(e => this.log.error(`Exception while reading canvas buffer for icon '${self.name}': ${e}`) );
     }
 
     // Sends the canvas contents after re-compressing it with Sharp.
-    private async sendCompressedImage(canvas: Canvas) {
-        try {
-            const data: Buffer = await canvas.toBuffer('png');
-            try {
-                // the sharp() constructor may throw
-                sharp(data)
-                .png(this.outputCompressionOptions)
-                .toBuffer()
-                .then((data: Buffer) => this.sendStateData(this.name, data) )
-                .catch((e: any) => {
-                    this.log.error(`Exception while compressing image for icon '${this.name}': ${e}`);
-                });
-            }
-            catch (e) {
-                this.log.error(`Skia exception while loading buffer for icon '${this.name}': ${e}`);
-            }
-        }
-        catch(e) {
-            this.log.error(`Exception while reading canvas buffer for icon '${this.name}': ${e}`);
-        };
+    private sendCompressedImage(canvas: Canvas) {
+        const  size = this.actualSize(),
+            raw: RenderOptions | CreateRaw = { width: size.width, height: size.height, channels: 4, premultiplied: true };
+        canvas
+        .toImageData(raw)
+        .then((data: ImageData) => {
+            sharp(data.data, { raw: raw })
+            .png(this.outputCompressionOptions)
+            .toBuffer()
+            .then((b: Buffer) => this.sendStateData(this.name, b) )
+            .catch(e => this.log.error(`Sharp exception while loading image data for icon '${this.name}': ${e}`) );
+        })
+        .catch(e => this.log.error(`Skia exception while exporting data for icon '${this.name}': ${e}`) );
     }
 
     // Sends the canvas tiled, w/out compression.
     // While this isn't really any faster than using Skia anyway, it does use less CPU and/or uses GPU instead when that option is enabled.
-    private async sendCanvasTiles(canvas: Canvas) {
+    private sendCanvasTiles(canvas: Canvas) {
         const size = this.actualSize(),
             tileW = Math.ceil(size.width / this.tile.x),
             tileH = Math.ceil(size.height / this.tile.y);
@@ -131,38 +121,33 @@ export default class DynamicIcon
 
     // Send the canvas contents by breaking up into tiles using Sharp, with added compression.
     // Much more efficient than using the method in sendCanvasTiles() and then compressing each resulting canvas tile.
-    private async sendCompressedTiles(canvas: Canvas) {
-        try {
-            const data: Buffer = await canvas.toBuffer('png');
-            try {
-                const size = this.actualSize(),
-                    tileW = Math.ceil(size.width / this.tile.x),
-                    tileH = Math.ceil(size.height / this.tile.y);
-                for (let y=0; y < this.tile.y; ++y) {
-                    for (let x=0; x < this.tile.x; ++x) {
-                        const tl = tileW * x,
-                            tt = tileH * y,
-                            tw = Math.min(tileW, size.width - tl),
-                            th = Math.min(tileH, size.height - tt);
-                        // extract image slice, encode PNG, and send the tile
-                        // the sharp() constructor may throw
-                        sharp(data).extract({ left: tl, top: tt, width: tw, height: th })
-                        .png(this.outputCompressionOptions)
-                        .toBuffer()
-                        .then((data: Buffer) => this.sendStateData(this.getTileStateId({x: x, y: y}), data) )
-                        .catch((e: any) => {
-                            this.log.error(`Exception for icon '${this.name}' while extracting/compressing tile ${x + y} at ${tl},${tt} of size ${tw}x${th} from icon ${Size.toString(size)}: ${e}`);
-                        });
-                    }
+    private sendCompressedTiles(canvas: Canvas) {
+        const size = this.actualSize(),
+            tileW = Math.ceil(size.width / this.tile.x),
+            tileH = Math.ceil(size.height / this.tile.y),
+            raw: RenderOptions | CreateRaw = { width: size.width, height: size.height, channels: 4, premultiplied: true };
+        canvas
+        .toImageData(raw)
+        .then((data: ImageData) => {
+            for (let y=0; y < this.tile.y; ++y) {
+                for (let x=0; x < this.tile.x; ++x) {
+                    const tl = tileW * x,
+                        tt = tileH * y,
+                        tw = Math.min(tileW, size.width - tl),
+                        th = Math.min(tileH, size.height - tt);
+                    // extract image slice, encode PNG, and send the tile
+                    sharp(data.data, { raw: raw })
+                    .extract({ left: tl, top: tt, width: tw, height: th })
+                    .png(this.outputCompressionOptions)
+                    .toBuffer()
+                    .then((data: Buffer) => this.sendStateData(this.getTileStateId({x: x, y: y}), data) )
+                    .catch(e => {
+                        this.log.error(`Exception for icon '${this.name}' while extracting/compressing tile ${x + y} at ${tl},${tt} of size ${tw}x${th} from icon ${Size.toString(size)}: ${e}`);
+                    });
                 }
             }
-            catch (e) {
-                this.log.error(`Skia exception while loading buffer for icon '${this.name}': ${e}`);
-            }
-        }
-        catch(e) {
-            this.log.error(`Exception while reading canvas buffer for icon '${this.name}': ${e}`);
-        };
+        })
+        .catch(e => this.log.error(`Sharp exception while loading image data for icon '${this.name}': ${e}`) );
     }
 
     async render() {
