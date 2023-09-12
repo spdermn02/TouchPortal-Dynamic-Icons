@@ -5,7 +5,7 @@ import { ILayerElement, IValuedElement } from './modules/interfaces';
 import { Point, PointType, Size } from './modules/geometry';
 import DynamicIcon from "./modules/DynamicIcon";
 import * as m_el from "./modules/elements";
-import { default as g_globalImageCache, ImageCache } from './modules/ImageCache'
+import { default as g_globalImageCache } from './modules/ImageCache'
 import { ConsoleEndpoint, Logger, logging , LogLevel } from './modules/logging';
 import { setTPClient, PluginSettings } from './common'
 import { dirname as pdirname, resolve as presolve } from 'path';
@@ -66,7 +66,7 @@ var g_quitting: boolean = false;
 
 // Set default image path here. It should be overwritten anyway when Settings are processed,
 // but this preserves BC with previous 1.1 alpha versions w/out the setting. Could eventually be removed.
-ImageCache.cacheOptions.baseImagePath = DEFAULT_IMAGE_FILE_BASE_PATH;
+PluginSettings.imageFilesBasePath = DEFAULT_IMAGE_FILE_BASE_PATH;
 
 // Create Touch Portal API client
 const TPClient = new TP.Client({
@@ -545,7 +545,7 @@ function onSettings(settings:{ [key:string]:string }[]) {
             }
         }
         else if (key.startsWith('Default Image Files Path')) {
-            ImageCache.cacheOptions.baseImagePath = val || DEFAULT_IMAGE_FILE_BASE_PATH;
+            PluginSettings.imageFilesBasePath = val || DEFAULT_IMAGE_FILE_BASE_PATH;
         }
         // Ignore GPU setting for now, possibly revisit if skia-canvas is fixed.
         // else if (key.startsWith('Enable GPU Rendering')) {

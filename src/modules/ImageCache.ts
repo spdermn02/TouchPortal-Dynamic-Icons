@@ -3,6 +3,7 @@ import sharp from 'sharp';
 import { loadImage, CanvasImageSource } from 'skia-canvas';
 import { Mutex } from 'async-mutex';
 import { SizeType } from './geometry';
+import { PluginSettings } from '../common';
 import { Logger, logging } from './logging';
 import { isAbsolute as isAbsPath, join as pjoin } from 'path';
 
@@ -13,7 +14,6 @@ class ImageCacheOptions {
     actual cache size may grow a bit above this level to optimize the buffer trimming operations.
     Reducing this value at runtime will only take effect next time an image is added to the cache. */
     maxCachedImages: number = 250;
-    baseImagePath: string = "";
     // See https://sharp.pixelplumbing.com/api-constructor#sharp
     sourceLoadOptions: any = { density: 72 };  // [dpi] only relevant for loading vector graphics. 72 is default;
     // See also https://sharp.pixelplumbing.com/api-resize#resize
@@ -26,17 +26,6 @@ class ImageCacheOptions {
         // position String: position, gravity or strategy to use when fit is cover or contain. (optional, default 'centre')
         // fastShrinkOnLoad: take greater advantage of the JPEG and WebP shrink-on-load feature, which can lead to a slight moiré pattern on some images. (optional, default true)
     };
-    // See also https://sharp.pixelplumbing.com/api-output#png
-//     cachedPngOptions: any = {
-//         compressionLevel: 0,   // zlib compression level, 0 (fastest, largest) to 9 (slowest, smallest) (optional, default 6)
-//         effort: 1,             // CPU effort, between 1 (fastest) and 10 (slowest), sets palette to true (optional, default 7)
-//         palette: true,         // quantise to a palette-based image with alpha transparency support (optional, default false)
-//         // progressive: use progressive (interlace) scan (optional, default false)
-//         // adaptiveFiltering: use adaptive row filtering (optional, default false)
-//         // quality: use the lowest number of colours needed to achieve given quality, sets palette to true (optional, default 100)
-//         // colours: maximum number of palette entries, sets palette to true (optional, default 256)
-//         // dither:level of Floyd-Steinberg error diffusion, sets palette to true (optional, default 1.0)
-//     };  // low compression, high speed, quantise with transparency
 }
 
 export type ImageDataType = CanvasImageSource | null;
@@ -140,8 +129,8 @@ export class ImageCache
      */
     public async getOrLoadImage(src: string, size: SizeType, resizeOptions:any = {}, meta?: any): Promise<ImageDataType>
     {
-        if (ImageCache.cacheOptions.baseImagePath && !isAbsPath(src))
-            src = pjoin(ImageCache.cacheOptions.baseImagePath, src);
+        if (PluginSettings.imageFilesBasePath && !isAbsPath(src))
+            src = pjoin(PluginSettings.imageFilesBasePath, src);
         if (ImageCache.cacheOptions.maxCachedImages <= 0)
             return this.loadImage(src, size, resizeOptions);  // short-circuit for disabled cache
 
