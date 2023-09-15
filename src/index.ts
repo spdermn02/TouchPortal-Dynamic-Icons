@@ -1,5 +1,5 @@
 import TP from 'touchportal-api'
-import { pluginId } from './utils/consts'
+import * as C from './utils/consts'
 import { ParseState, TpActionDataArrayType } from './modules/types'
 import { ILayerElement, IValuedElement } from './modules/interfaces';
 import { Point, PointType, Size } from './modules/geometry';
@@ -70,6 +70,7 @@ PluginSettings.imageFilesBasePath = DEFAULT_IMAGE_FILE_BASE_PATH;
 
 // Create Touch Portal API client
 const TPClient = new TP.Client({
+    pluginId: C.Str.PluginId,
     logCallback: tpClientLogCallback
 });
 // share the TP client with other modules
@@ -85,7 +86,7 @@ function quit(reason: string, exitCode: number = 0) {
         return;
     g_quitting = true;
     removeIcons([...g_dyanmicIconStates.keys()], false);
-    logger.info("---------------- %s. %s shutting down. ----------------", reason, pluginId)
+    logger.info("---------------- %s. %s shutting down. ----------------", reason, C.Str.PluginName)
     logging().close()
     // give the logger a chance to flush and close streams. If process is exiting already then this should be a no-op.
     setTimeout(() => { process.exit(exitCode); }, 50)
@@ -120,8 +121,8 @@ function getLayerIndexFromActionData(actionData: any[], currentLen: number) {
 // Updates state of current icons list and command action selector.
 function sendIconLists() {
     const nameArry = [...g_dyanmicIconStates.keys()].sort();
-    TPClient.stateUpdate("dynamic_icons_createdIconsList", nameArry.length ? nameArry.join(',') + ',' : "");
-    TPClient.choiceUpdate("dynamic_icons_control_command_icon", nameArry.length ? ["All", ...nameArry] : ["[ no icons created ]"]);
+    TPClient.stateUpdate(C.StateId.IconsList, nameArry.length ? nameArry.join(',') + ',' : "");
+    TPClient.choiceUpdate(C.ChoiceDataId.ControlIconsList, nameArry.length ? ["All", ...nameArry] : ["[ no icons created ]"]);
 }
 
 // Creates or removes TP State(s) for an icon as needed based on current and new tiling properties.
@@ -168,7 +169,7 @@ function createOrRemoveIconStates(icon: DynamicIcon, newTiles: PointType) {
         }
     }
     else if (newTiles.x) {
-        try { TPClient.createState(/* id */ icon.name, /* name */ icon.name, "", /* category */ "Dynamic Icons"); }
+        try { TPClient.createState(/* id */ icon.name, /* name */ icon.name, "", /* category */ C.Str.IconCategoryName); }
         catch { /* ignore, client logs errors */ }
     }
 }
@@ -192,20 +193,20 @@ function removeIcons(iconNames: string[], removeStates = true) {
 
 // Processes the 'dynamic_icons_control_command' action.
 function handleControlAction(actionId: string, data: TpActionDataArrayType) {
-    if (actionId !== 'command') {
+    if (actionId !== C.Act.ControlCommand) {
         logger.error("Unknown type value for Control action: " + actionId);
         return;
     }
     const iconName:string = data.length > 1 ? data[1].value : "All";
     switch (data[0].value) {
-        case 'Clear the Source Image Cache':
+        case C.DataValue.ClearImageCache:
             if (iconName == "All")
                 g_globalImageCache().clear();
             else
                 g_globalImageCache().clearIconName(iconName);
             return
 
-        case 'Delete Icon State': {
+        case C.DataValue.DelIconState: {
             removeIcons(iconName == "All" ? [...g_dyanmicIconStates.keys()] : [iconName]);
             sendIconLists();
             return;
@@ -244,7 +245,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 
     switch (actionId)
     {
-        case 'declare': {
+        case C.Act.IconDeclare: {
             if (data.length < 2) {
                 logger.error("Missing all data for icon '" + iconName + "' action " + actionId);
                 return;
@@ -279,7 +280,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             return;
         }
 
-        case 'generate':  {
+        case C.Act.IconGenerate:  {
             // Generate an existing layered dynamic icon which should have been created and populated by preceding actions.
             if (!icon.layers.length) {
                 logger.warn("Image icon named '" + iconName + "' is empty, nothing to generate.");
@@ -320,7 +321,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
         // Elements which can be either layers or individual icons.
 
         case 'simple_round_gauge':  // keep for BC
-        case 'progGauge': {
+        case C.Act.IconProgGauge: {
             // Adds a round "progress bar" style gauge.
             const gauge: m_el.RoundProgressGauge = layerType == "RoundProgressGauge" ? (layerElement as m_el.RoundProgressGauge) : (icon.layers[icon.nextIndex] = new m_el.RoundProgressGauge())
             gauge.loadFromActionData(parseState);
@@ -328,7 +329,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             break;
         }
 
-        case 'progBar': {
+        case C.Act.IconProgBar: {
             // Adds a linear "progress bar" style widget.
             const gauge: m_el.LinearProgressBar = layerType == "LinearProgressBar" ? (layerElement as m_el.LinearProgressBar) : (icon.layers[icon.nextIndex] = new m_el.LinearProgressBar())
             gauge.loadFromActionData(parseState);
@@ -337,18 +338,16 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
         }
 
         case 'simple_bar_graph':  // keep for BC
-        case 'barGraph': {
+        case C.Act.IconBarGraph: {
             // Bar graph of series data. Data values are stored in the actual graph element.
             const barGraph: m_el.BarGraph = layerType == "BarGraph" ? (layerElement as m_el.BarGraph) : (icon.layers[icon.nextIndex] = new m_el.BarGraph())
             barGraph.loadFromActionData(parseState)
             barGraph.maxExtent = icon.actualSize().width;
             ++icon.nextIndex
-            if (!icon.delayGeneration)
-                icon.outputCompressionOptions.compressionLevel = 0;  // simple bar graphs don't benefit from compression
             break
         }
 
-        case 'rect': {
+        case C.Act.IconRect: {
             // Adds a "styled rectangle" (background, etc).
             const rect: m_el.StyledRectangle = layerType == "StyledRectangle" ? (layerElement as m_el.StyledRectangle) : (icon.layers[icon.nextIndex] = new m_el.StyledRectangle())
             rect.loadFromActionData(parseState)
@@ -356,7 +355,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             break
         }
 
-        case 'text': {
+        case C.Act.IconText: {
             // Adds a "styled text" element.
             const text: m_el.StyledText = layerType == "StyledText" ? (layerElement as m_el.StyledText) : (icon.layers[icon.nextIndex] = new m_el.StyledText())
             text.loadFromActionData(parseState)
@@ -364,7 +363,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             break
         }
 
-        case 'image': {
+        case C.Act.IconImage: {
             // Adds an image source with possible embedded transformation element.
             const image: m_el.DynamicImage = layerType == "DynamicImage" ? (layerElement as m_el.DynamicImage) : (icon.layers[icon.nextIndex] = new m_el.DynamicImage({iconName: iconName}))
             image.loadFromActionData(parseState)
@@ -374,7 +373,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 
         // Elements which affect other layers in some way.
 
-        case 'filter': {
+        case C.Act.IconFilter: {
             // Adds a CanvasFilter layer to an existing layered dynamic icon. This is purely CSS style 'filter' shorthand for applying to the canvas. The filter will affect all following layers.
             if (!icon.layers.length && !icon.delayGeneration) {
                 logger.warn("Layered icon '" + iconName + "' must first be created before adding a filter.")
@@ -386,7 +385,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             break
         }
 
-        case 'compMode': {
+        case C.Act.IconCompMode: {
             // Adds a CompositionMode layer to an existing layered dynamic icon. This sets the drawing context's globalCompositeOperation value for various blending effects.
             // The operating mode will affect all following layers until end or a new comp. mode layer.
             if (!icon.layers.length && !icon.delayGeneration) {
@@ -399,7 +398,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             break
         }
 
-        case 'tx': {
+        case C.Act.IconTx: {
             // Adds a Transformation layer on an existing layered icon.
             // The tx may affect either a single preceding layer, all the preceding layers so far, or all following layers (until end or reset).
             if (!icon.layers.length && !icon.delayGeneration) {
@@ -412,8 +411,8 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             break
         }
 
-        case 'set_tx':
-        case 'set_value': {
+        case C.Act.IconSetTx:
+        case C.Act.IconSetValue: {
             // Updates/sets a single value or a transform on an existing icon layer of a type which supports it.
             // Note that this does support updating a "non-layered" icon with a single layer (!icon.delayGeneration),
             // as long as that icon has been created already (the layer and compatible element exist).
@@ -507,18 +506,18 @@ function onAction(message:any /*,  hold?:boolean */) {
     // Shorten the action ID and split to get the action handler and action parts.
     // eg. in 'dynamic_icons_icon_set_tx', 'dynamic_icons' is ignored, 'icon' becomes the handler, and the rest of the id ('set_tx') is passed to the handler.
     // Note we also need to handle "legacy" action names 'generate_simple_round_gauge' and 'generate_simple_bar_graph'
-    const trimId = message.actionId.replace("dynamic_icons_", "");
+    const trimId = message.actionId.replace(C.Str.IdPrefix, "");
     // benchmarked quickest method to extract first and rest elements from delimited string
-    const uIdx = trimId.indexOf('_');
+    const uIdx = trimId.indexOf(C.Str.IdSep);
     const [handler, actionId] = [trimId.slice(0, uIdx), trimId.slice(uIdx+1)];
 
     switch (handler) {
-        case 'icon':
+        case C.ActHandler.Icon:
         case 'generate':  // keep for BC
             handleIconAction(actionId, message.data);
             break;
 
-        case 'control':
+        case C.ActHandler.Control:
             handleControlAction(actionId, message.data);
             break;
 
@@ -529,34 +528,38 @@ function onAction(message:any /*,  hold?:boolean */) {
     }
 }
 
-TPClient.on("Action", onAction)
 
 function onSettings(settings:{ [key:string]:string }[]) {
     settings.forEach((s) => {
-        const key:string = Object.keys(s)[0];
-        const val:string = Object.values(s)[0].toString().trim();
-        if (key.startsWith('Default Icon Size')) {
-            const sizeArry = val.split(/\s*[x, ]\s*/);
-            const size = Size.new(parseInt(sizeArry[0]) || 0);
-            if (size.width >= 8)  {
-                if (sizeArry.length > 1)
-                    size.height = parseInt(sizeArry[1]) || size.width;
-                PluginSettings.defaultIconSize = size;
+        const [key, val] = Object.entries(s)[0];
+        switch (key) {
+            case C.SettingName.IconSize: {
+                const sizeArry = val.split(/\s*[x, ]\s*/);
+                const size = Size.new(parseInt(sizeArry[0]) || 0);
+                if (size.width >= 8)  {
+                    if (sizeArry.length > 1)
+                        size.height = parseInt(sizeArry[1]) || size.width;
+                    PluginSettings.defaultIconSize = size;
+                }
+                break;
             }
-        }
-        else if (key.startsWith('Default Image Files Path')) {
-            PluginSettings.imageFilesBasePath = val || DEFAULT_IMAGE_FILE_BASE_PATH;
-        }
-        // Ignore GPU setting for now, possibly revisit if skia-canvas is fixed.
-        // else if (key.startsWith('Enable GPU Rendering')) {
-        //     PluginSettings.defaultGpuRendering = /(?:[1-9]\d*|yes|true|enabled?)/i.test(val);
-        // }
-        else if (key.includes('Output Image Compression')) {
-            PluginSettings.defaultOutputCompressionLevel = /^\d$/.test(val) ? parseInt(val) : 0;
+            case C.SettingName.ImageFilesPath:
+                PluginSettings.imageFilesBasePath = val.trim() || DEFAULT_IMAGE_FILE_BASE_PATH;
+                break;
+            case C.SettingName.PngCompressLevel:
+                PluginSettings.defaultOutputCompressionLevel = /^\d$/.test(val) ? parseInt(val) : 0;
+                break;
+            // Ignore GPU setting for now, possibly revisit if skia-canvas is fixed.
+            // case C.SettingName.GPU:
+            //     PluginSettings.defaultGpuRendering = /(?:[1-9]\d*|yes|true|enabled?)/i.test(val);
+            //     break;
         }
     });
+    // logger.debug("settings: %O", settings)
+    // logger.debug('PluginSettings: %O', PluginSettings)
 }
 
+TPClient.on("Action", onAction)
 TPClient.on("Settings", onSettings)
 
 TPClient.on("Info", function (message?:any) {
@@ -589,6 +592,6 @@ process.on('SIGTERM', () => quit("Process terminated") )    // not on Windows
 // -------------------------------
 // Run
 
-logger.info("=============== %s started, connecting to Touch Portal... ===============", pluginId)
+logger.info("=============== %s started, connecting to Touch Portal... ===============", C.Str.PluginName)
 
-TPClient.connect( { pluginId: pluginId, exitOnClose: false })
+TPClient.connect( { exitOnClose: false })

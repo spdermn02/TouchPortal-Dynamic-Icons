@@ -15,17 +15,18 @@
 //
 
 const path = require("path");
-const { writeFileSync, existsSync, statSync } = require("fs");
+const { writeFileSync, statSync } = require("fs");
 const pkgConfig = require("../package.json");
 
-const COMMON_JS_PATH = "./dist/common.js";
-
-if (!existsSync(COMMON_JS_PATH) || statSync(COMMON_JS_PATH).mtimeMs < statSync("./src/common.ts").mtimeMs) {
-    console.error(COMMON_JS_PATH + " settings file not found or is older than source version, please run 'npm run tsc' first or 'npm run gen-entry'");
+if ((statSync("./dist/common.js", {throwIfNoEntry: false})?.mtimeMs || 0) < statSync("./src/common.ts").mtimeMs ||
+    (statSync("./dist/utils/consts.js", {throwIfNoEntry: false})?.mtimeMs || 0) < statSync("./src/utils/consts.ts").mtimeMs)
+{
+    console.error(`'./dist/common.js' and/or './dist/utils/consts.js' files not found or are older than source version, please run 'npm run tsc' first or 'npm run gen-entry'`);
     process.exit(1);
 }
 
-const { PluginSettings } = require("../" + COMMON_JS_PATH);
+const { PluginSettings } = require("../dist/common.js");
+const C = require("../dist/utils/consts.js");
 
 // Defaults
 var VERSION = pkgConfig.version;
@@ -56,8 +57,8 @@ const entry_base =
     "$schema": "https://pjiesco.com/touch-portal/entry.tp/schema",
     "sdk": 6,
     "version": parseInt(iVersion.toString(16)),
-    "name": "Touch Portal Dynamic Icons",
-    "id": "Touch Portal Dynamic Icons",
+    "name": C.Str.PluginName,
+    "id": C.Str.PluginId,
     [pkgConfig.name]: VERSION,
     "plugin_start_cmd":         DEV_MODE ? undefined : `sh %TP_PLUGIN_FOLDER%${pkgConfig.name}/start.sh ${pkgConfig.name}`,
     "plugin_start_cmd_windows": DEV_MODE ? undefined : `"%TP_PLUGIN_FOLDER%${pkgConfig.name}\\${pkgConfig.name}.exe"`,
@@ -67,14 +68,14 @@ const entry_base =
     },
     "settings": [
         {
-            "name": "Default Icon Size",
+            "name": C.SettingName.IconSize,
             "type": "text",
             "default": `${PluginSettings.defaultIconSize.width} x ${PluginSettings.defaultIconSize.height}`,
             "readOnly": false,
             "description": "Image size produced when using standalone 'Draw' actions for producing icons, without any layering."
         },
         {
-            "name": "Default Image Files Path",
+            "name": C.SettingName.ImageFilesPath,
             "type": "text",
             "default": "",
             "readOnly": false,
@@ -82,7 +83,7 @@ const entry_base =
         },
         /*  Do not use GPU setting for now, possibly revisit if skia-canvas is fixed. **
         {
-            "name": "Enable GPU Rendering by Default",
+            "name": C.SettingName.GPU,
             "type": "text",
             "default": PluginSettings.defaultGpuRendering ? "Yes" : "No",
             "readOnly": false,
@@ -94,7 +95,7 @@ const entry_base =
         },
         */
         {
-            "name": "Default Output Image Compression Level (0-9)",
+            "name": C.SettingName.PngCompressLevel,
             "type": "number",
             "default": PluginSettings.defaultOutputCompressionLevel.toString(),
             "minValue": 0,
@@ -112,13 +113,13 @@ const entry_base =
     "categories": [
         {
             "id": "TP Dynamic Icons",
-            "name": "Dynamic Icons",
+            "name": C.Str.IconCategoryName,
             "imagepath": `%TP_PLUGIN_FOLDER%${pkgConfig.name}/${pkgConfig.name}.png`,
             "actions": [],
             "connectors": [],
             "states": [
                 {
-                    "id": "dynamic_icons_createdIconsList",
+                    "id": C.StateId.IconsList,
                     "type": "text",
                     "desc" : "Dynamic Icons: List of created icons",
                     "default" : ""
@@ -130,11 +131,8 @@ const entry_base =
 };
 
 // Other constants
-const ID_PREFIX = "dynamic_icons_";
-const category = entry_base.categories[0];
-
-// should really pull these in from the plugin source code... must match TransformOpType
-const TRANSFORM_OPERATIONS = ['O', 'R', 'SC', 'SK'];
+const ID_PREFIX = C.Str.IdPrefix;
+const TRANSFORM_OPERATIONS = C.DEFAULT_TRANSFORM_OP_ORDER;
 
 // some useful characters for forcing spacing in action texts
 const NBSP = " ";   // non-breaking narrow space U+202F (TP ignores "no-break space" U+00AD)
@@ -159,6 +157,11 @@ String.prototype.wrap = function(width = 280) {
     return this.replace(re, '$1\n').trim();
 }
 
+/** "join ID" - join parts of an action/data/etc ID string using the common separator character. */
+function jid(...args) {
+    return args.join(C.Str.IdSep);
+}
+
 function addAction(id, name, descript, format, data, hold = false) {
     const action = {
         "id": ID_PREFIX + id,
@@ -171,7 +174,7 @@ function addAction(id, name, descript, format, data, hold = false) {
         "hasHoldFunctionality": hold,
         "data": data
     }
-    category.actions.push(action);
+    entry_base.categories[0].actions.push(action);
 }
 
 function makeActionData(id, type, label = "", deflt = "") {
@@ -192,7 +195,8 @@ function makeColorData(id, label = "", dflt = "#00000000") {
 }
 
 function makeChoiceData(id, label, choices, dflt) {
-    const d = makeActionData(id, "choice", label, typeof dflt === "undefined" ? choices[0] : dflt);
+    dflt = dflt || 0;
+    const d = makeActionData(id, "choice", label, typeof dflt === "number" ? choices[dflt] : dflt);
     d.valueChoices = choices;
     return d;
 }
@@ -205,63 +209,63 @@ function makeNumericData(id, label, dflt, min, max, allowDec = true) {
     return d;
 }
 
-function makeIconNameData(idPrefix, label = "Icon Name") {
-    return makeTextData(idPrefix + "_name", label);
+function makeIconNameData(id, label = "Icon Name") {
+    return makeTextData(jid(id, "name"), label);
 }
 
-function makeSizeTypeData(idPrefix, dflt = undefined) {
-    return makeChoiceData(idPrefix + "_unit", "Unit", ["%", "px"], dflt);
+function makeSizeTypeData(id, dflt = undefined) {
+    return makeChoiceData(jid(id, "unit"), "Unit", ["%", "px"], dflt);
 }
 
 // Shared functions which create both a format string and data array.
 // They accept an array (reference) as argument to store the data parameters into, and return the related format string.
 
-function makeIconLayerCommonData(idPrefix, withIndex = false) {
+function makeIconLayerCommonData(id, withIndex = false) {
     let format = "Icon\nName{0}";
-    const data = [ makeIconNameData(idPrefix) ];
+    const data = [ makeIconNameData(id) ];
     if (withIndex) {
         format += "Element\n@ Position{1}";
-        data.push(makeNumericData(idPrefix + "_layer_index", "Layer Position", 1, -99, 99, false));
+        data.push(makeNumericData(jid(id, "layer_index"), "Layer Position", 1, -99, 99, false));
     }
     return [ format, data ];
 }
 
-function makeTransformOpData(type, idPrefix , /* out */ data, splitXY = true) {
+function makeTransformOpData(type, id , /* out */ data, splitXY = true) {
     const i = data.length;
     let f = splitXY ? `{0}\n (%) X{${i}}${NBSP}\nY{${i+1}}` : `{0}\n${SP_EN}X : Y {${i}}`;
     switch (type) {
         case "R":
             f = `Rotate\n${SP_EM}${SP_EN}(%){${i}}`;
-            data.push(makeActionData(idPrefix + "_tx_rot", "text", "Rotation %", "0"));
+            data.push(makeActionData(jid(id, "tx_rot"), "text", "Rotation %", "0"));
             break;
         case "O":
             f = f.format("Offset");
             if (splitXY) {
-                data.push(makeActionData(idPrefix + "_tx_trsX", "text", "Offset X", "0"));
-                data.push(makeActionData(idPrefix + "_tx_trsY", "text", "Offset Y", "0"));
+                data.push(makeActionData(jid(id, "tx_trsX"), "text", "Offset X", "0"));
+                data.push(makeActionData(jid(id, "tx_trsY"), "text", "Offset Y", "0"));
             }
             else {
-                data.push(makeActionData(idPrefix + "_tx_trs", "text", "Offset X : Y", "0 : 0"));
+                data.push(makeActionData(jid(id, "tx_trs"), "text", "Offset X : Y", "0 : 0"));
             }
             break;
         case "SC":
             f = f.format("Scale");
             if (splitXY) {
-                data.push(makeActionData(idPrefix + "_tx_sclX", "text", "Scale X", "100"));
-                data.push(makeActionData(idPrefix + "_tx_sclY", "text", "Scale Y", "100"));
+                data.push(makeActionData(jid(id, "tx_sclX"), "text", "Scale X", "100"));
+                data.push(makeActionData(jid(id, "tx_sclY"), "text", "Scale Y", "100"));
             }
             else {
-                data.push(makeActionData(idPrefix + "_tx_scl", "text", "Scale X : Y", "100 : 100"));
+                data.push(makeActionData(jid(id, "tx_scl"), "text", "Scale X : Y", "100 : 100"));
             }
             break;
         case "SK":
             f = f.format("Skew");
             if (splitXY) {
-                data.push(makeActionData(idPrefix + "_tx_skwX", "text", "Skew X", "0"));
-                data.push(makeActionData(idPrefix + "_tx_skwY", "text", "Skew Y", "0"));
+                data.push(makeActionData(jid(id, "tx_skwX"), "text", "Skew X", "0"));
+                data.push(makeActionData(jid(id, "tx_skwY"), "text", "Skew Y", "0"));
             }
             else {
-                data.push(makeActionData(idPrefix + "_tx_skw", "text", "Skew X : Y", "0 : 0"));
+                data.push(makeActionData(jid(id, "tx_skw"), "text", "Skew X : Y", "0 : 0"));
             }
             break;
         default:
@@ -270,11 +274,11 @@ function makeTransformOpData(type, idPrefix , /* out */ data, splitXY = true) {
     return f;
 }
 
-function makeTransformOrderData(opsList, idPrefix, /* out */ data) {
+function makeTransformOrderData(opsList, id, /* out */ data) {
     if (!opsList.length)
         return;
     const f = opsList.length > 1 ? `Order {${data.length}}` : "";
-    let d = makeActionData(idPrefix + "_tx_order", opsList.length > 1 ? "choice" : "text", `Transform Order`);
+    let d = makeActionData(jid(id, "tx_order"), opsList.length > 1 ? "choice" : "text", `Transform Order`);
     if (opsList.length == 2)
         d.valueChoices = [
             `${opsList[0]}, ${opsList[1]}`,
@@ -321,51 +325,51 @@ function makeTransformOrderData(opsList, idPrefix, /* out */ data) {
     return f;
 }
 
-function makeTransformData(opsList, idPrefix, /* out */ data) {
+function makeTransformData(opsList, id, /* out */ data) {
     let f = "";
     for (const op of opsList)
-        f += makeTransformOpData(op, idPrefix, data, true);
-    f += makeTransformOrderData(opsList, idPrefix, data);
+        f += makeTransformOpData(op, id, data, true);
+    f += makeTransformOrderData(opsList, id, data);
     return f;
 }
 
-function makeDrawStyleData(idPrefix, /* out */ data, withShadow = true) {
+function makeDrawStyleData(id, /* out */ data, withShadow = true) {
     let i = data.length;
     let format = `Fill\nColor{${i++}}Stroke\nWidth{${i++}}{${i++}}Stroke\nColor{${i++}}`;
     data.push(
-        makeColorData(idPrefix +  "_style_fillColor", "Fill"),
-        makeTextData(idPrefix + "_style_line_width", "Stroke Width", "0"),
-        makeSizeTypeData(idPrefix + "_style_line_width"),
-        makeColorData(idPrefix +  "_style_line_color", "Stroke"),
+        makeColorData(jid(id, "style_fillColor"), "Fill"),
+        makeTextData(jid(id, "style_line_width"), "Stroke Width", "0"),
+        makeSizeTypeData(jid(id, "style_line_width")),
+        makeColorData(jid(id, "style_line_color"), "Stroke"),
     );
     if (withShadow) {
         format += `Shadow Size\n(blur, X, Y){${i++}}Shadow\nColor{${i++}}`;
         data.push(
-            makeTextData(idPrefix +  "_style_shadow", "Shadow Coordinates", "0, 0, 0"),
-            makeColorData(idPrefix +  "_style_shadowColor", "Shadow", "#000000FF"),
+            makeTextData(jid(id, "style_shadow"), "Shadow Coordinates", "0, 0, 0"),
+            makeColorData(jid(id, "style_shadowColor"), "Shadow", "#000000FF"),
         );
     }
     return format;
 }
 
-function makeRectSizeData(idPrefix, /* out */ data, w = 100, h = 100, label = "Size", wLabel = "W", hLabel = "H") {
+function makeRectSizeData(id, /* out */ data, w = 100, h = 100, label = "Size", wLabel = "W", hLabel = "H") {
     let i = data.length;
     const format = `${label}\n${SP_EM}${wLabel} {${i++}}{${i++}}${NBSP}\n${hLabel} {${i++}}{${i++}}`;
     data.push(
-        makeTextData(idPrefix + "_size_w", "Width", w.toString()),
-        makeSizeTypeData(idPrefix + "_size_w"),
-        makeTextData(idPrefix + "_size_h", "Height", h.toString()),
-        makeSizeTypeData(idPrefix + "_size_h"),
+        makeTextData(jid(id, "size_w"), "Width", w.toString()),
+        makeSizeTypeData(jid(id, "size_w")),
+        makeTextData(jid(id, "size_h"), "Height", h.toString()),
+        makeSizeTypeData(jid(id, "size_h")),
     );
     return format;
 }
 
-function makeBorderRadiusData(idPrefix, /* out */ data, r = 0) {
+function makeBorderRadiusData(id, /* out */ data, r = 0) {
     let i = data.length;
     const format = `Border\nRadius {${i++}}{${i++}}`;
     data.push(
-        makeTextData(idPrefix + "_radius", "Radius", r.toString()),
-        makeSizeTypeData(idPrefix + "_radius"),
+        makeTextData(jid(id, "radius"), "Radius", r.toString()),
+        makeSizeTypeData(jid(id, "radius")),
     );
     return format;
 }
@@ -606,9 +610,11 @@ function addValueUpdateAction(id, name) {
 // System utility action
 
 function addSystemActions() {
-    addAction("control_command", "Plugin Actions", "", "Perform Action: {0} for Icon(s): {1}", [
-        makeChoiceData("control_command_action", "Action to Perform", ["Clear the Source Image Cache", "Delete Icon State"], ""),
-        makeChoiceData("control_command_icon", "Icon for Action", ["[ no icons created ]"], "")
+    const id = jid(C.ActHandler.Control, C.Act.ControlCommand);
+    addAction(id, "Plugin Actions", "", "Perform Action: {0} for Icon(s): {1}",
+    [
+        makeChoiceData(jid(id, C.ActData.CommandAction), "Action to Perform", C.CTRL_CMD_ACTION_CHOICES, ""),
+        makeChoiceData(jid(id, C.ActData.CommandIcon),   "Icon for Action", [ "[ no icons created ]" ], "")
     ]);
 }
 
@@ -616,21 +622,23 @@ function addSystemActions() {
 // ------------------------
 // Build the full entry.tp object for JSON dump
 
-addProgressGaugeAction(  "icon_progGauge",  "Draw - Simple Round Gauge");
-addBarGraphAction(       "icon_barGraph",   "Draw - Simple Bar Graph");
-addProgressBarAction(    "icon_progBar",    "Draw - Linear Progress Bar");
-addTextAction(           "icon_text",       "Draw - Text");
-addImageAction(          "icon_image",      "Draw - Image");
-addRectangleAction(      "icon_rect",       "Draw - Rounded Shape");
+const iid = C.ActHandler.Icon;
 
-addStartLayersAction(    "icon_declare",    "Layer - New Layered Icon");
-addTransformAction(      "icon_tx",         "Layer - Add Transformation", false);
-addFilterAction(         "icon_filter",     "Layer - Set Effect Filter");
-addCompositeModeAction(  "icon_compMode",   "Layer - Set Composite Mode");
-addGenerateLayersAction( "icon_generate",   "Layer - Generate Layered Icon");
+addProgressGaugeAction(  jid(iid, C.Act.IconProgGauge), "Draw - Simple Round Gauge");
+addBarGraphAction(       jid(iid, C.Act.IconBarGraph),  "Draw - Simple Bar Graph");
+addProgressBarAction(    jid(iid, C.Act.IconProgBar),   "Draw - Linear Progress Bar");
+addTextAction(           jid(iid, C.Act.IconText),      "Draw - Text");
+addImageAction(          jid(iid, C.Act.IconImage),     "Draw - Image");
+addRectangleAction(      jid(iid, C.Act.IconRect),      "Draw - Rounded Shape");
 
-addTransformAction(      "icon_set_tx",     "Animate - Transformation", true);
-addValueUpdateAction(    "icon_set_value",  "Animate - Update a Value");
+addStartLayersAction(    jid(iid, C.Act.IconDeclare),   "Layer - New Layered Icon");
+addTransformAction(      jid(iid, C.Act.IconTx),        "Layer - Add Transformation", false);
+addFilterAction(         jid(iid, C.Act.IconFilter),    "Layer - Set Effect Filter");
+addCompositeModeAction(  jid(iid, C.Act.IconCompMode),  "Layer - Set Composite Mode");
+addGenerateLayersAction( jid(iid, C.Act.IconGenerate),  "Layer - Generate Layered Icon");
+
+addTransformAction(      jid(iid, C.Act.IconSetTx),     "Animate - Transformation", true);
+addValueUpdateAction(    jid(iid, C.Act.IconSetValue),  "Animate - Update a Value");
 
 // Misc actions
 addSystemActions();
