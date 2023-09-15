@@ -2,11 +2,10 @@
 import { ILayerElement, RenderContext2D } from '../interfaces';
 import { ParseState } from '../types';
 import { Point, PointType, Rectangle } from '../geometry'
-import { PI2 } from '../../utils/consts';
+import { TransformOpType } from '../enums';
+import { DEFAULT_TRANSFORM_OP_ORDER, PI2 } from '../../utils/consts';
 import { Canvas } from 'skia-canvas';
 import { evaluateValue /* , parsePointFromValue */ } from '../../utils/helpers';
-
-export type TransformOpType = 'O' | 'R' | 'SC' | 'SK';    // offset (translate) | rotate | scale | skew
 
 export const enum TransformScope {
     PreviousOne,  // affects only the layer before the transform
@@ -16,13 +15,13 @@ export const enum TransformScope {
 
 export default class Transformation implements ILayerElement
 {
-    // all values are percentages coming from TP actions, not actual matrix values
-    rotate: number = 0; // percent of 360 degrees
-    scale: PointType = Point.new(); // percent of requested image size (not the original source image), negative for reduction; eg: 100 is double size, -50 is half size.
+    // Coordinates are stored as decimals as used in canvas transform operations.
+    rotate: number = 0; // percent of 360 degrees, in radians
+    scale: PointType = Point.new(); // percent of requested image size (not the original source image), eg: 2.0 is double size, 0.5 is half size.
     translate: PointType = Point.new(); // percentage of relevant dimension of requested image size
-                                      // eg: x = 100 translates one full image width to the right (completely out of frame for an unscaled source image)
+                                        // eg: x = 1 translates one full image width to the right (completely out of frame for an unscaled source image)
     skew: PointType = Point.new(); // percent of requested image size (not the original source image)
-    transformOrder: TransformOpType[] = ['O', 'R', 'SC', 'SK'];
+    transformOrder: TransformOpType[] = DEFAULT_TRANSFORM_OP_ORDER;  // careful! reference... don't edit, replace entirely.
     scope: TransformScope = TransformScope.PreviousOne;
 
     constructor(init?: Partial<Transformation>) { Object.assign(this, init); }
@@ -34,7 +33,7 @@ export default class Transformation implements ILayerElement
         return !this.rotate && Point.isNull(this.translate) && Point.isNull(this.skew) && !this.isScaling;
     }
     get isScaling(): boolean {
-        return this.scale.x != 100 || this.scale.y != 100;
+        return this.scale.x != 1 || this.scale.y != 1;
     }
 
     loadFromActionData(state: ParseState): Transformation {
@@ -46,35 +45,35 @@ export default class Transformation implements ILayerElement
             const dataType = data.id.split('tx_').at(-1);  // last part of the data ID determines its meaning
             switch (dataType) {
                 case 'rot':
-                    this.rotate = evaluateValue(data.value);
+                    this.rotate = evaluateValue(data.value) * .01 * PI2;
                     break;
                 case 'trsX':
-                    this.translate.x = evaluateValue(data.value);
+                    this.translate.x = evaluateValue(data.value) * .01;
                     break;
                 case 'trsY':
-                    this.translate.y = data.value.trim() ? evaluateValue(data.value) : this.translate.x;
+                    this.translate.y = data.value.trim() ? evaluateValue(data.value) * .01 : this.translate.x;
                     break;
                 case 'sclX':
-                    this.scale.x = evaluateValue(data.value);
+                    this.scale.x = evaluateValue(data.value) * .01;
                     break;
                 case 'sclY':
-                    this.scale.y = data.value.trim() ? evaluateValue(data.value) : this.scale.x;
+                    this.scale.y = data.value.trim() ? evaluateValue(data.value) * .01 : this.scale.x;
                     break;
                 case 'skwX':
-                    this.skew.x = evaluateValue(data.value);
+                    this.skew.x = evaluateValue(data.value) * .01;
                     break;
                 case 'skwY':
-                    this.skew.y = data.value.trim() ? evaluateValue(data.value) : this.skew.x;
+                    this.skew.y = data.value.trim() ? evaluateValue(data.value) * .01 : this.skew.x;
                     break;
                 /* these 3 cases allow for X[,Y] coordinates to be specified in one data field, however they're currently unused by any action
                 case 'trs':
-                    Point.set(this.translate, parsePointFromValue(data.value));
+                    Point.set(this.translate, Point.times_eq(parsePointFromValue(data.value), 0.1));
                     break;
                 case 'scl':
-                    Point.set(this.scale, parsePointFromValue(data.value));
+                    Point.set(this.scale, Point.times_eq(parsePointFromValue(data.value), 0.1));
                     break;
                 case 'skw':
-                    Point.set(this.skew, parsePointFromValue(data.value));
+                    Point.set(this.skew, Point.times_eq(parsePointFromValue(data.value), 0.1));
                     break;
                 */
                 case 'order':
@@ -120,14 +119,14 @@ export default class Transformation implements ILayerElement
         // all operations from center of rect
         tCtx.translate(ctr.x, ctr.y);
         for (const op of this.transformOrder) {
-            if (op === 'R' && this.rotate)
-                tCtx.rotate(this.rotate * .01 * PI2);
-            else if (op === 'O' && !Point.isNull(this.translate))
-                tCtx.translate(this.translate.x * .01 * rect.width, this.translate.y * .01 * rect.height);
-            else if (op === 'SC' && this.isScaling)
-                tCtx.scale(this.scale.x * .01, this.scale.y * .01);
-            else if (op === 'SK' && !Point.isNull(this.skew))
-                tCtx.transform(1, this.skew.y * .01, this.skew.x * .01, 1, 0, 0);
+            if (op === TransformOpType.Rotate && this.rotate)
+                tCtx.rotate(this.rotate);
+            else if (op === TransformOpType.Offset && !Point.isNull(this.translate))
+                tCtx.translate(this.translate.x * rect.width, this.translate.y * rect.height);
+            else if (op === TransformOpType.Scale && this.isScaling)
+                tCtx.scale(this.scale.x, this.scale.y);
+            else if (op === TransformOpType.Skew && !Point.isNull(this.skew))
+                tCtx.transform(1, this.skew.y, this.skew.x, 1, 0, 0);
         }
         // translate back to top left corner before drawing
         tCtx.translate(-ctr.x, -ctr.y);

@@ -15,3 +15,10 @@ export const enum Alignment {
     H_MASK   = LEFT | RIGHT | HCENTER | JUSTIFY,
     V_MASK   = TOP | BOTTOM | VCENTER | BASELINE,
 };
+
+export const enum TransformOpType {
+    Offset = 'O',
+    Rotate = 'R',
+    Scale = 'SC',
+    Skew = 'SK',
+}
