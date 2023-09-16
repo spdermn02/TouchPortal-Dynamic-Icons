@@ -1,6 +1,6 @@
 
 import { ILayerElement, RenderContext2D } from '../interfaces';
-import { ParseState } from '../types';
+import { ParseState } from '../';
 import { Point, PointType, Rectangle } from '../geometry'
 import { TransformOpType } from '../enums';
 import { DEFAULT_TRANSFORM_OP_ORDER, PI2 } from '../../utils/consts';

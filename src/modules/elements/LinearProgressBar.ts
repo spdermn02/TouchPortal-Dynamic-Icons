@@ -1,7 +1,7 @@
 
 import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces';
 import { Orientation } from '../enums';
-import { ParseState } from '../types';
+import { ParseState } from '../';
 import { Rectangle, SizeType, Size, UnitValue } from '../geometry';
 import { evaluateValue } from '../../utils/helpers'
 import { StyledRectangle, DrawingStyle } from './';

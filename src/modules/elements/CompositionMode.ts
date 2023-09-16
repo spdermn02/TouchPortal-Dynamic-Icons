@@ -1,5 +1,5 @@
-import { ILayerElement, RenderContext2D } from "../interfaces";
-import { ParseState } from "../types";
+import { ILayerElement, RenderContext2D } from '../interfaces';
+import { ParseState } from '../';
 
 // Applies a globalCompositeOperation to a canvas context.
 export default class CompositionMode implements ILayerElement

@@ -1,10 +1,10 @@
 
-import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces'
-import { PI, PI2 } from '../../utils/consts'
-import { ParseState } from '../types'
-import { Rectangle } from '../geometry'
-import { BrushStyle } from './'
-import { evaluateValue } from '../../utils/helpers'
+import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces';
+import { PI, PI2 } from '../../utils/consts';
+import { ParseState } from '../';
+import { Rectangle } from '../geometry';
+import { BrushStyle } from './';
+import { evaluateValue } from '../../utils/helpers';
 
 // Draws an arc/circle extending from 0 to 360 degrees based on a given value onto a canvas context.
 export default class RoundProgressGauge implements ILayerElement, IValuedElement

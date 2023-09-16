@@ -1,6 +1,6 @@
-import { evaluateStringValue } from "../../utils/helpers";
-import { ILayerElement, IValuedElement, RenderContext2D } from "../interfaces";
-import { ParseState } from "../types";
+import { evaluateStringValue } from '../../utils/helpers';
+import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces';
+import { ParseState } from '../';
 
 // Applies a filter string to a canvas context.
 export default class CanvasFilter implements ILayerElement, IValuedElement

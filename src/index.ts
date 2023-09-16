@@ -1,11 +1,10 @@
 import TP from 'touchportal-api'
 import * as C from './utils/consts'
-import { ParseState, TpActionDataArrayType } from './modules/types'
+import { TpActionDataArrayType } from './modules/types'
 import { ILayerElement, IValuedElement } from './modules/interfaces';
 import { Point, PointType, Size } from './modules/geometry';
-import DynamicIcon from "./modules/DynamicIcon";
+import { DynamicIcon, ParseState, globalImageCache } from "./modules";
 import * as m_el from "./modules/elements";
-import { default as g_globalImageCache } from './modules/ImageCache'
 import { ConsoleEndpoint, Logger, logging , LogLevel } from './modules/logging';
 import { setTPClient, PluginSettings } from './common'
 import { dirname as pdirname, resolve as presolve } from 'path';
@@ -181,7 +180,7 @@ function removeIcons(iconNames: string[], removeStates = true) {
         if (icon) {
             if (removeStates)
                 createOrRemoveIconStates(icon, Point.new());
-            g_globalImageCache().clearIconName(icon.name);
+            globalImageCache().clearIconName(icon.name);
             g_dyanmicIconStates.delete(n);
         }
     });
@@ -201,9 +200,9 @@ function handleControlAction(actionId: string, data: TpActionDataArrayType) {
     switch (data[0].value) {
         case C.DataValue.ClearImageCache:
             if (iconName == "All")
-                g_globalImageCache().clear();
+                globalImageCache().clear();
             else
-                g_globalImageCache().clearIconName(iconName);
+                globalImageCache().clearIconName(iconName);
             return
 
         case C.DataValue.DelIconState: {
@@ -241,7 +240,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 
     const layerElement: ILayerElement | null = icon.layers[icon.nextIndex]  // element at current position, if any
     const layerType: string = layerElement ? layerElement.type : ""         // checked in most of the actions below
-    const parseState = new ParseState({data: data, pos: 1})                 // passed to the various "loadFromActionData()" methods of layer elements
+    const parseState = new ParseState(data)                                 // passed to the various "loadFromActionData()" methods of layer elements
 
     switch (actionId)
     {

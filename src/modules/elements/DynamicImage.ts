@@ -1,9 +1,8 @@
 
 import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces';
-import { ParseState } from '../types';
 import { Rectangle } from '../geometry'
 import { Transformation } from './';
-import globalImageCache, { ImageDataType } from '../ImageCache'
+import { globalImageCache, ImageDataType, ParseState } from '../'
 import { evaluateStringValue } from '../../utils/helpers';
 
 // This class hold an image source (path) and associated data like processing options or transformation to apply.

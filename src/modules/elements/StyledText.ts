@@ -1,7 +1,7 @@
 
 import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces';
 import { Alignment } from '../enums';
-import { ParseState } from '../types'
+import { ParseState } from '../';
 import { Point, PointType, Rectangle } from '../geometry';
 import { evaluateValue, evaluateStringValue, parseAlignmentFromValue } from '../../utils/helpers'
 import { DrawingStyle } from './';

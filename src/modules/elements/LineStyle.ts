@@ -1,5 +1,5 @@
 import { IRenderable, RenderContext2D } from '../interfaces';
-import { ParseState } from '../types';
+import { ParseState } from '../';
 import { BrushStyle } from './';
 import { UnitValue } from '../geometry';
 import { evaluateValue } from '../../utils/helpers';

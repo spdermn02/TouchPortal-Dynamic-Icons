@@ -1,8 +1,8 @@
-import { evaluateValue } from '../../utils/helpers'
-import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces'
-import { ParseState } from '../types'
-import { Rectangle } from '../geometry'
-import { BrushStyle } from "./"
+import { evaluateValue } from '../../utils/helpers';
+import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces';
+import { ParseState } from '../';
+import { Rectangle } from '../geometry';
+import { BrushStyle } from './';
 
 // Draws a values series as a basic horizontal bar graph onto a canvas context.
 export default class BarGraph implements ILayerElement, IValuedElement

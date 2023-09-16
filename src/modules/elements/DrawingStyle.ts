@@ -1,6 +1,6 @@
 import { parseNumericArrayString } from '../../utils/helpers';
 import { IRenderable, RenderContext2D } from '../interfaces';
-import { ParseState } from '../types';
+import { ParseState } from '../';
 import { BrushStyle, LineStyle, ShadowStyle } from './';
 
 // Applies a drawing style to a canvas context, which includes all fill, stroke, and shadow attributes.
