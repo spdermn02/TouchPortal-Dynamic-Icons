@@ -11,6 +11,8 @@ export const enum Str {
     IconCategoryName = PluginShortName,  // Name of TP Category for dynamically created icon States.
     IdPrefix = "dynamic_icons_",         // prefix used in TP IDs for actions/data/states/etc
     IdSep = "_",          // action/data ID separator character
+    Default = "default",  // used in action fields TP UI to indicate a default value
+    DefaultChar = 'd',    // must match first char of `Default`, used in code for quick value comparisons
 };
 
 // Constant TP state IDs

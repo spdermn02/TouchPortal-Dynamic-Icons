@@ -1,9 +1,19 @@
 import { Alignment } from '../modules/enums';
+import { Str } from './consts'
 import { PointType } from '../modules/geometry';
 import { logging } from '../modules/logging';
 
 // Used to validate if a string is a single numeric value. Accepts leading sign, base prefix (0x/0b/0o), decimals, and exponential notation.
 const NUMBER_VALIDATION_REGEX = new RegExp(/^[+-]?(?:0[xbo])?\d+(?:\.\d*)?(?:e[+-]?\d+)?$/);
+// To test if a text string is "truthy."
+const BOOL_TEST_REGEX = new RegExp(/\b(?:yes|on|true|enabled?|\d*[1-9]\d*)\b/i);
+// Global match anything not a \d(igit): \D
+const RE_NOT_DIGIT_G = new RegExp(/\D/g);
+
+/** Constrain a numeric `value` between `min` and `max`, inclusive. */
+export function clamp(value: number, min: number, max: number) {
+    return Math.max(min, Math.min(max, value));
+}
 
 /** Evaluates a numeric expression within an arbitrary string. Returns zero if evaluation fails or value string was empty.
     Note that the number formats must be "language neutral," meaning always period for decimal separator and no thousands separators. */
@@ -133,4 +143,22 @@ export function parseAlignmentFromValue(value: string, atype: Alignment = Alignm
         }
     }
     return ret;
+}
+
+/** Returns true/false based on if a string value looks "truthy", meaning it contains "yes", "on", "true", "enable[d]", or any digit > 0. */
+export function parseBoolFromValue(value: string) {
+    return BOOL_TEST_REGEX.test(value);
+}
+
+/** Returns an integer value contained in string `value`, or the provded `dflt` default if `value` is blank/NaN or is "default". */
+export function parseIntOrDefault(value: string, dflt: number): number {
+    if (!value || value[0] == Str.DefaultChar)
+        return dflt;
+    const iv = parseInt(value.replace(RE_NOT_DIGIT_G, ''));
+    return iv == Number.NaN ? dflt : iv;
+}
+
+/** Returns `true` if the string `value` is "truthy," or the provded default if `value` is blank or is "default". @see parseBoolFromValue() */
+export function parseBoolOrDefault(value: string, dflt: boolean): boolean {
+    return !value || value[0] == Str.DefaultChar ? dflt : parseBoolFromValue(value);
 }

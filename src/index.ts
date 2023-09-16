@@ -7,6 +7,7 @@ import { DynamicIcon, ParseState, globalImageCache } from "./modules";
 import * as m_el from "./modules/elements";
 import { ConsoleEndpoint, Logger, logging , LogLevel } from './modules/logging';
 import { setTPClient, PluginSettings } from './common'
+import { parseIntOrDefault, /* parseBoolOrDefault, */ clamp } from './utils/helpers'
 import { dirname as pdirname, resolve as presolve } from 'path';
 const { version: pluginVersion } = require('../package.json');  // 'import' causes lint error in VSCode
 
@@ -546,11 +547,11 @@ function onSettings(settings:{ [key:string]:string }[]) {
                 PluginSettings.imageFilesBasePath = val.trim() || DEFAULT_IMAGE_FILE_BASE_PATH;
                 break;
             case C.SettingName.PngCompressLevel:
-                PluginSettings.defaultOutputCompressionLevel = /^\d$/.test(val) ? parseInt(val) : 0;
+                PluginSettings.defaultOutputCompressionLevel = clamp(parseIntOrDefault(val, PluginSettings.defaultOutputCompressionLevel), 0, 9);
                 break;
             // Ignore GPU setting for now, possibly revisit if skia-canvas is fixed.
             // case C.SettingName.GPU:
-            //     PluginSettings.defaultGpuRendering = /(?:[1-9]\d*|yes|true|enabled?)/i.test(val);
+            //     PluginSettings.defaultGpuRendering = parseBoolOrDefault(val, PluginSettings.defaultGpuRendering);
             //     break;
         }
     });
