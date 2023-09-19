@@ -21,6 +21,24 @@ export default class LineStyle implements IRenderable
     get isEmpty(): boolean { return this.scaledWidth <= 0 || this.pen.isNull; }
     get scaledWidth(): number { return this.width.isRelative ? this.width.value * this.widthScale : this.width.value; }
 
+    constructor(init?: Partial<LineStyle> | any ) {
+        if (init?.width != undefined) {
+            this.width.value = Math.abs(init.width);
+            delete init.width;
+        }
+        if (init?.widthUnit) {
+            this.setWidthUnit(init.widthUnit);
+            delete init.widthUnit;
+        }
+        Object.assign(this, init);
+    }
+
+    private setWidthUnit(unit: string) {
+        this.width.setUnit(unit);
+        if (!this.width.isRelative)
+            this.widthScale = 1;
+    }
+
     loadFromActionData(state: ParseState, dataIdPrefix:string = ""): LineStyle {
         let atEnd = false;
         // the incoming data IDs should be structured with a naming convention
@@ -29,14 +47,10 @@ export default class LineStyle implements IRenderable
             const dataType = data.id.split(dataIdPrefix + 'line_').at(-1);  // last part of the data ID determines its meaning
             switch (dataType) {
                 case 'width':
-                    const sz = evaluateValue(data.value);
-                    if (sz > 0)
-                        this.width.value = sz;
+                    this.width.value = Math.abs(evaluateValue(data.value));
                     break;
                 case 'width_unit':
-                    this.width.setUnit(data.value);
-                    if (!this.width.isRelative)
-                        this.widthScale = 1;
+                    this.setWidthUnit(data.value);
                     break;
                 case 'color':
                     this.pen.color = data.value;
