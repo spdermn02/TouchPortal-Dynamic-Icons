@@ -1,6 +1,6 @@
 
 import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces';
-import { PI, PI2 } from '../../utils/consts';
+import { M } from '../../utils/consts';
 import { ParseState } from '../';
 import { Rectangle } from '../geometry';
 import { BrushStyle } from './';
@@ -74,8 +74,8 @@ export default class RoundProgressGauge implements ILayerElement, IValuedElement
             cy = rect.height * .5,
             minSize = Math.min(rect.width, rect.height),
             radius = minSize * .39,  // approximates the original ratio of 100 for 256px icon size
-            startAngle = this.startingDegree * PI / 180,
-            endAngle = startAngle + PI2 * (this.counterClockwise ? -this.value : this.value) * .01,
+            startAngle = this.startingDegree * M.D2R,
+            endAngle = startAngle + M.PI2 * (this.counterClockwise ? -this.value : this.value) * .01,
             currentFilter = ctx.filter,
             addFilter = currentFilter && currentFilter != "none" ? currentFilter + " " : ""
 
@@ -86,7 +86,7 @@ export default class RoundProgressGauge implements ILayerElement, IValuedElement
         if (this.shadowOn && !this.shadowColor.isEmpty) {
             //Shadow
             ctx.beginPath()
-            ctx.arc(cx, cy, radius+5, 0, PI2)
+            ctx.arc(cx, cy, radius+5, 0, M.PI2)
             ctx.fillStyle = this.shadowColor.style
             ctx.filter = addFilter + 'blur(5px)'
             ctx.fill()
@@ -105,7 +105,7 @@ export default class RoundProgressGauge implements ILayerElement, IValuedElement
 
         if (!this.backgroundColor.isEmpty) {
             ctx.beginPath();
-            ctx.arc(cx, cy, radius, 0, PI2)
+            ctx.arc(cx, cy, radius, 0, M.PI2)
             ctx.fillStyle = this.backgroundColor.style
             ctx.fill()
         }

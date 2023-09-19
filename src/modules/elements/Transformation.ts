@@ -3,7 +3,7 @@ import { ILayerElement, RenderContext2D } from '../interfaces';
 import { ParseState } from '../';
 import { Point, PointType, Rectangle } from '../geometry'
 import { TransformOpType } from '../enums';
-import { DEFAULT_TRANSFORM_OP_ORDER, PI2 } from '../../utils/consts';
+import { DEFAULT_TRANSFORM_OP_ORDER, M } from '../../utils/consts';
 import { Canvas } from 'skia-canvas';
 import { evaluateValue /* , parsePointFromValue */ } from '../../utils/helpers';
 
@@ -45,7 +45,7 @@ export default class Transformation implements ILayerElement
             const dataType = data.id.split('tx_').at(-1);  // last part of the data ID determines its meaning
             switch (dataType) {
                 case 'rot':
-                    this.rotate = evaluateValue(data.value) * .01 * PI2;
+                    this.rotate = evaluateValue(data.value) * .01 * M.PI2;
                     break;
                 case 'trsX':
                     this.translate.x = evaluateValue(data.value) * .01;

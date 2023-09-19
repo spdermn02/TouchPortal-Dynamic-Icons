@@ -70,9 +70,15 @@ export const enum SettingName {
     PngCompressLevel = "Default Output Image Compression Level (0-9)",
 };
 
+// Math constants
+export const enum M {
+    PI = 3.141592653589793,
+    PI2 = PI * 2,
+    PI_2 = PI / 2,
+    D2R = PI / 180,
+    R2D = 180 / PI,
+}
 
-export const PI=Math.PI
-export const PI2=PI*2
 
 export const CTRL_CMD_ACTION_CHOICES = [ DataValue.ClearImageCache, DataValue.DelIconState ];
 export const DEFAULT_TRANSFORM_OP_ORDER = [TransformOpType.Offset, TransformOpType.Rotate, TransformOpType.Scale, TransformOpType.Skew];
