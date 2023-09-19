@@ -1,13 +1,13 @@
 import { parseNumericArrayString } from '../../utils/helpers';
 import { IRenderable, RenderContext2D } from '../interfaces';
 import { ParseState } from '../';
-import { BrushStyle, LineStyle, ShadowStyle } from './';
+import { BrushStyle, StrokeStyle, ShadowStyle } from './';
 
 // Applies a drawing style to a canvas context, which includes all fill, stroke, and shadow attributes.
 export default class DrawingStyle implements IRenderable
 {
     fill: BrushStyle = new BrushStyle();
-    line: LineStyle = new LineStyle();
+    line: StrokeStyle = new StrokeStyle();
     shadow: ShadowStyle = new ShadowStyle();
     strokeOver: boolean = true;  // the stroke is to be drawn on top of the fill if `true`, otherwise under the fill
 

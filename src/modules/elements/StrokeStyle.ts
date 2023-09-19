@@ -1,11 +1,11 @@
 import { IRenderable, RenderContext2D } from '../interfaces';
-import { ParseState } from '../';
-import { BrushStyle } from './';
+import { ParseState } from '..';
+import { BrushStyle } from '.';
 import { UnitValue } from '../geometry';
 import { evaluateValue } from '../../utils/helpers';
 
 // Applies a stroke (line) style to a canvas context, which includes stroke style, line width, pen, cap, join, miter, and dash array.
-export default class LineStyle implements IRenderable
+export default class StrokeStyle implements IRenderable
 {
     width: UnitValue = new UnitValue(0, "%");
     widthScale: number = 1;
@@ -21,7 +21,7 @@ export default class LineStyle implements IRenderable
     get isEmpty(): boolean { return this.scaledWidth <= 0 || this.pen.isNull; }
     get scaledWidth(): number { return this.width.isRelative ? this.width.value * this.widthScale : this.width.value; }
 
-    constructor(init?: Partial<LineStyle> | any ) {
+    constructor(init?: Partial<StrokeStyle> | any ) {
         if (init?.width != undefined) {
             this.width.value = Math.abs(init.width);
             delete init.width;
@@ -39,7 +39,7 @@ export default class LineStyle implements IRenderable
             this.widthScale = 1;
     }
 
-    loadFromActionData(state: ParseState, dataIdPrefix:string = ""): LineStyle {
+    loadFromActionData(state: ParseState, dataIdPrefix:string = ""): StrokeStyle {
         let atEnd = false;
         // the incoming data IDs should be structured with a naming convention
         for (let e = state.data.length; state.pos < e && !atEnd; ) {

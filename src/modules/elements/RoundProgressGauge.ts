@@ -3,7 +3,7 @@ import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces';
 import { M } from '../../utils/consts';
 import { ParseState } from '../';
 import { Rectangle } from '../geometry';
-import { LineStyle, BrushStyle } from './';
+import { StrokeStyle, BrushStyle } from './';
 import { evaluateValue, clamp } from '../../utils/helpers';
 
 const enum DrawDirection { CW, CCW, Auto }
@@ -18,7 +18,7 @@ export default class RoundProgressGauge implements ILayerElement, IValuedElement
     direction: DrawDirection = DrawDirection.CW
     backgroundColor = new BrushStyle('#000000FF')
     radius = 0.39  // approximates the original ratio of 100 for 256px icon size
-    lineStyle: LineStyle = new LineStyle({
+    lineStyle: StrokeStyle = new StrokeStyle({
         width: 11.7,   // this line width preserves legacy default size before it was settable
         cap: "round"
     })
