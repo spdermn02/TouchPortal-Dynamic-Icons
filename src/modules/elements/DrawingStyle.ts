@@ -1,4 +1,4 @@
-import { parseNumericArrayString } from '../../utils/helpers';
+import { assignExistingProperties, parseNumericArrayString, } from '../../utils';
 import { IRenderable, RenderContext2D } from '../interfaces';
 import { ParseState } from '../';
 import { BrushStyle, StrokeStyle, ShadowStyle } from './';
@@ -6,14 +6,22 @@ import { BrushStyle, StrokeStyle, ShadowStyle } from './';
 // Applies a drawing style to a canvas context, which includes all fill, stroke, and shadow attributes.
 export default class DrawingStyle implements IRenderable
 {
-    fill: BrushStyle = new BrushStyle();
-    line: StrokeStyle = new StrokeStyle();
-    shadow: ShadowStyle = new ShadowStyle();
+    fill: BrushStyle;
+    fillRule: CanvasFillRule = 'nonzero';
+    line: StrokeStyle;
+    shadow: ShadowStyle;
     strokeOver: boolean = true;  // the stroke is to be drawn on top of the fill if `true`, otherwise under the fill
+
+    constructor(init?: Partial<DrawingStyle> | any ) {
+        assignExistingProperties(this, init, 0);
+        this.fill = new BrushStyle(init?.color);
+        this.line = new StrokeStyle(init?.stroke);
+        this.shadow = new ShadowStyle(init?.shadow);
+    }
 
     // IRenderable
     get type(): string { return "DrawingStyle"; }
-    // returns true if there is nothing at all to draw for this style
+    /** Returns true if there is nothing at all to draw for this style: fill is transparent, stroke is zero size, and there is no shadow.  */
     get isEmpty(): boolean { return this.fill.isEmpty && this.line.isEmpty && this.shadow.isEmpty; }
 
     loadFromActionData(state: ParseState, dataIdPrefix:string = ""): DrawingStyle {
@@ -30,6 +38,9 @@ export default class DrawingStyle implements IRenderable
             switch (dataType) {
                 case 'fillColor':
                     this.fill.color = data.value;
+                    break;
+                case 'fillRule':
+                    this.fillRule = data.value as CanvasFillRule;
                     break;
                 case 'shadowColor':
                     this.shadow.color = data.value;
@@ -88,11 +99,11 @@ export default class DrawingStyle implements IRenderable
             if (haveShadow && this.strokeOver) {
                 this.shadow.saveContext(ctx);
                 this.shadow.render(ctx);
-                ctx.fill(path);
+                ctx.fill(path, this.fillRule);
                 this.shadow.restoreContext(ctx);
             }
             else {
-                ctx.fill(path);
+                ctx.fill(path, this.fillRule);
             }
         }
 
