@@ -2,18 +2,19 @@ import { IRenderable, RenderContext2D } from '../interfaces';
 import { ParseState } from '..';
 import { BrushStyle } from '.';
 import { UnitValue } from '../geometry';
-import { evaluateValue } from '../../utils/helpers';
+import { assignExistingProperties, evaluateValue, parseNumericArrayString } from '../../utils';
 
 // Applies a stroke (line) style to a canvas context, which includes stroke style, line width, pen, cap, join, miter, and dash array.
 export default class StrokeStyle implements IRenderable
 {
     width: UnitValue = new UnitValue(0, "%");
     widthScale: number = 1;
-    pen: BrushStyle = new BrushStyle();
+    pen: BrushStyle;
     cap: CanvasLineCap = 'butt';
     join: CanvasLineJoin = 'miter';
     miterLimit: number = 10;
     lineDash: number[] = [];
+    dashOffset: number = 0;
 
     // IRenderable
     get type(): string { return "LineStyle"; }
@@ -22,15 +23,12 @@ export default class StrokeStyle implements IRenderable
     get scaledWidth(): number { return this.width.isRelative ? this.width.value * this.widthScale : this.width.value; }
 
     constructor(init?: Partial<StrokeStyle> | any ) {
-        if (init?.width != undefined) {
+        if (init?.width != undefined)
             this.width.value = Math.abs(init.width);
-            delete init.width;
-        }
-        if (init?.widthUnit) {
+        if (init?.widthUnit)
             this.setWidthUnit(init.widthUnit);
-            delete init.widthUnit;
-        }
-        Object.assign(this, init);
+        this.pen = new BrushStyle(init?.color);
+        assignExistingProperties(this, init, 0);
     }
 
     private setWidthUnit(unit: string) {
@@ -64,8 +62,11 @@ export default class StrokeStyle implements IRenderable
                 case 'miterLimit':
                     this.miterLimit = parseFloat(data.value) || this.miterLimit;
                     break;
-                case 'lineDash':
-                    this.lineDash = data.value.split(',').map((m:string) => parseFloat(m) || 0);
+                case 'dash':
+                    parseNumericArrayString(data.value, this.lineDash = [], 0, 0);
+                    break;
+                case 'dashOffset':
+                    this.dashOffset = evaluateValue(data.value);
                     break;
                 default:
                     atEnd = true;  // end the loop on unknown data id
@@ -86,7 +87,9 @@ export default class StrokeStyle implements IRenderable
         ctx.lineCap = this.cap;
         ctx.lineJoin = this.join;
         ctx.miterLimit = this.miterLimit;
-        if (this.lineDash.length)
+        if (this.lineDash.length) {
+            ctx.lineDashOffset = this.dashOffset;
             ctx.setLineDash(this.lineDash);
+        }
     }
 }
