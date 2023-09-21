@@ -1,5 +1,6 @@
 import { IRenderable, RenderContext2D } from '../interfaces';
 import { Vect2d } from '../geometry';
+import { assignExistingProperties } from '../../utils';
 
 export default class ShadowStyle implements IRenderable {
     blur: number = 0;
@@ -10,6 +11,12 @@ export default class ShadowStyle implements IRenderable {
         blur: 0,
         offsetX: 0,
         offsetY: 0
+    }
+
+    constructor(init?: Partial<ShadowStyle> | any) {
+        if (typeof init?.offset == 'number' || typeof init?.offset == 'object')
+            this.offset.set(init.offset);
+        assignExistingProperties(this, init, 0);
     }
 
     // IRenderable
