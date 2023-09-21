@@ -61,6 +61,11 @@ export default class Rectangle
     /** Returns true if both the width or height are zero. */
     get isNull() { return this.size.isNull; }
 
+    /** Returns true if this rectangle's origin and size are equal to `other` rectangle's origin and size. */
+    equals(other: Rectangle): boolean {
+        return this.origin.equals(other.origin) && this.size.equals(other);
+    }
+
     /** Clones this Rectangle, adds `origin` to both origin coordinates and `size` to both size coordinates, and returns the new instance.  */
     adjusted(origin: number | PointType, size: number | SizeType): Rectangle;
     /** Clones this Rectangle, adds `origin` to both origin coordinates and `right` and `bottom` to size coordinates, and returns the new instance. */

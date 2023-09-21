@@ -26,6 +26,11 @@ export class Size implements SizeType
 
     toString() { Size.toString(this); }
 
+    /** Returns true if this size equals the `widthOrSize` SizeType or width & height values. */
+    equals(widthOrSize: number | SizeType, height?: number): boolean {
+        return Size.equals(this, widthOrSize, height);
+    }
+
     // Static methods operate only on generic `SizeType` types, not `Size`.
     // This is generally faster for creation and read-only access than an full new instance of `Size`, but slower for writes/updates.
     // Note also that in a few cases it is actually faster to update (eg. `set()`) an instance of `Size` using these static functions
@@ -59,7 +64,7 @@ export class Size implements SizeType
     /** Returns true if both width and height of `sz` are zero. */
     static isNull(sz: SizeType) { return !sz.width && !sz.height; }
 
-    /** Returns true is `sz` SizeType equals the `widthOrSize` SizeType or width & height values. */
+    /** Returns true if `sz` SizeType equals the `widthOrSize` SizeType or width & height values. */
     static equals(sz: SizeType, widthOrSize: number | SizeType, height?: number): boolean {
         if (typeof widthOrSize == "number")
             return sz.width === widthOrSize && sz.height === (height == undefined ? widthOrSize : height);
