@@ -15,6 +15,28 @@ export function clamp(value: number, min: number, max: number) {
     return Math.max(min, Math.min(max, value));
 }
 
+/** Assigns property values in `from` object to values in the `to` object, but _only_ if they already exist in `to` _and_ have a matching `typeof` type.
+    Recurses up to `recurseLevel` nested objects, and skips assigning object-type properties beyond the recursion level.
+*/
+export function assignExistingProperties(to: {}, from: {}, recurseLevel = 0) {
+    if (!to || !from)
+        return;
+    for (const key in from) {
+        if (key in to && typeof to[key] == typeof from[key]) {
+            if (typeof to[key] == 'object') {
+                if (recurseLevel > 0)
+                    assignExistingProperties(to[key], from[key], --recurseLevel);
+            }
+            else {
+                to[key] = from[key];
+            }
+        }
+    }
+}
+
+// ------------------------
+// Action data parsing utilities.
+
 /** Evaluates a numeric expression within an arbitrary string. Returns zero if evaluation fails or value string was empty.
     Note that the number formats must be "language neutral," meaning always period for decimal separator and no thousands separators. */
 export function evaluateValue(value: string): number {
