@@ -5,7 +5,7 @@
 export default class UnitValue {
     value: number;
     isRelative!: boolean;
-    //unit: string;  // future use?
+    unit!: string;
 
     constructor(value?: number);
     constructor(value: number, unit: string);
@@ -14,7 +14,6 @@ export default class UnitValue {
         this.value = value;
         if (unit.length)
             this.setUnit(unit);
-
         else
             this.setRelative(unit);
     }
@@ -25,13 +24,13 @@ export default class UnitValue {
 
     setUnit(unit: string): boolean {
         this.isRelative = UnitValue.isRelativeUnit(unit);
-        //this.unit = unit;
+        this.unit = unit;
         return this.isRelative;
     }
 
     setRelative(relative: boolean) {
         this.isRelative = relative;
-        //this.unit = relative ? "%" : "px";
+        this.unit = relative ? "%" : "px";
     }
 
 }
