@@ -4,7 +4,7 @@ import { TpActionDataArrayType } from './modules/types'
 import { ILayerElement, IValuedElement } from './modules/interfaces';
 import { Point, PointType, Size } from './modules/geometry';
 import { DynamicIcon, ParseState, globalImageCache } from "./modules";
-import * as m_el from "./modules/elements";
+import * as LE from "./modules/elements";
 import { ConsoleEndpoint, Logger, logging , LogLevel } from './modules/logging';
 import { setTPClient, PluginSettings } from './common'
 import { parseIntOrDefault, /* parseBoolOrDefault, */ clamp } from './utils/helpers'
@@ -240,7 +240,6 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
         icon.nextIndex = 0
 
     const layerElement: ILayerElement | null = icon.layers[icon.nextIndex]  // element at current position, if any
-    const layerType: string = layerElement ? layerElement.type : ""         // checked in most of the actions below
     const parseState = new ParseState(data)                                 // passed to the various "loadFromActionData()" methods of layer elements
 
     switch (actionId)
@@ -323,7 +322,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
         case 'simple_round_gauge':  // keep for BC
         case C.Act.IconProgGauge: {
             // Adds a round "progress bar" style gauge.
-            const gauge: m_el.RoundProgressGauge = layerType == "RoundProgressGauge" ? (layerElement as m_el.RoundProgressGauge) : (icon.layers[icon.nextIndex] = new m_el.RoundProgressGauge())
+            const gauge: LE.RoundProgressGauge = layerElement instanceof LE.RoundProgressGauge ? (layerElement as LE.RoundProgressGauge) : (icon.layers[icon.nextIndex] = new LE.RoundProgressGauge())
             gauge.loadFromActionData(parseState);
             ++icon.nextIndex
             break;
@@ -331,7 +330,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 
         case C.Act.IconProgBar: {
             // Adds a linear "progress bar" style widget.
-            const gauge: m_el.LinearProgressBar = layerType == "LinearProgressBar" ? (layerElement as m_el.LinearProgressBar) : (icon.layers[icon.nextIndex] = new m_el.LinearProgressBar())
+            const gauge: LE.LinearProgressBar = layerElement instanceof LE.LinearProgressBar ? (layerElement as LE.LinearProgressBar) : (icon.layers[icon.nextIndex] = new LE.LinearProgressBar())
             gauge.loadFromActionData(parseState);
             ++icon.nextIndex
             break;
@@ -340,7 +339,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
         case 'simple_bar_graph':  // keep for BC
         case C.Act.IconBarGraph: {
             // Bar graph of series data. Data values are stored in the actual graph element.
-            const barGraph: m_el.BarGraph = layerType == "BarGraph" ? (layerElement as m_el.BarGraph) : (icon.layers[icon.nextIndex] = new m_el.BarGraph())
+            const barGraph: LE.BarGraph = layerElement instanceof LE.BarGraph ? (layerElement as LE.BarGraph) : (icon.layers[icon.nextIndex] = new LE.BarGraph())
             barGraph.loadFromActionData(parseState)
             barGraph.maxExtent = icon.actualSize().width;
             ++icon.nextIndex
@@ -349,7 +348,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 
         case C.Act.IconRect: {
             // Adds a "styled rectangle" (background, etc).
-            const rect: m_el.StyledRectangle = layerType == "StyledRectangle" ? (layerElement as m_el.StyledRectangle) : (icon.layers[icon.nextIndex] = new m_el.StyledRectangle())
+            const rect: LE.StyledRectangle = layerElement instanceof LE.StyledRectangle ? (layerElement as LE.StyledRectangle) : (icon.layers[icon.nextIndex] = new LE.StyledRectangle())
             rect.loadFromActionData(parseState)
             ++icon.nextIndex
             break
@@ -357,7 +356,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 
         case C.Act.IconText: {
             // Adds a "styled text" element.
-            const text: m_el.StyledText = layerType == "StyledText" ? (layerElement as m_el.StyledText) : (icon.layers[icon.nextIndex] = new m_el.StyledText())
+            const text: LE.StyledText = layerElement instanceof LE.StyledText ? (layerElement as LE.StyledText) : (icon.layers[icon.nextIndex] = new LE.StyledText())
             text.loadFromActionData(parseState)
             ++icon.nextIndex
             break
@@ -365,7 +364,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 
         case C.Act.IconImage: {
             // Adds an image source with possible embedded transformation element.
-            const image: m_el.DynamicImage = layerType == "DynamicImage" ? (layerElement as m_el.DynamicImage) : (icon.layers[icon.nextIndex] = new m_el.DynamicImage({iconName: iconName}))
+            const image: LE.DynamicImage = layerElement instanceof LE.DynamicImage ? (layerElement as LE.DynamicImage) : (icon.layers[icon.nextIndex] = new LE.DynamicImage({iconName: iconName}))
             image.loadFromActionData(parseState)
             ++icon.nextIndex
             break
@@ -379,7 +378,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
                 logger.warn("Layered icon '" + iconName + "' must first be created before adding a filter.")
                 return
             }
-            const filter: m_el.CanvasFilter = layerType == "CanvasFilter" ? (layerElement as m_el.CanvasFilter) : (icon.layers[icon.nextIndex] = new m_el.CanvasFilter())
+            const filter: LE.CanvasFilter = layerElement instanceof LE.CanvasFilter ? (layerElement as LE.CanvasFilter) : (icon.layers[icon.nextIndex] = new LE.CanvasFilter())
             filter.loadFromActionData(parseState)
             ++icon.nextIndex
             break
@@ -392,7 +391,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
                 logger.warn("Layered icon '" + iconName + "' must first be created before adding a composition mode.")
                 return
             }
-            const cm: m_el.CompositionMode = layerType == "CompositionMode" ? (layerElement as m_el.CompositionMode) : (icon.layers[icon.nextIndex] = new m_el.CompositionMode())
+            const cm: LE.CompositionMode = layerElement instanceof LE.CompositionMode ? (layerElement as LE.CompositionMode) : (icon.layers[icon.nextIndex] = new LE.CompositionMode())
             cm.loadFromActionData(parseState)
             ++icon.nextIndex
             break
@@ -405,7 +404,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
                 logger.warn("Icon '" + iconName + "' must first be created before adding a transformation.")
                 return
             }
-            const tx: m_el.Transformation = layerType == "Transformation" ? (layerElement as m_el.Transformation) : (icon.layers[icon.nextIndex] = new m_el.Transformation())
+            const tx: LE.Transformation = layerElement instanceof LE.Transformation ? (layerElement as LE.Transformation) : (icon.layers[icon.nextIndex] = new LE.Transformation())
             tx.loadFromActionData(parseState)
             ++icon.nextIndex
             break
@@ -436,20 +435,20 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             if (actionId == "set_tx") {
                 parseState.setPos(2)  // set up position for Tx parsing
                 // If layer is a Tx, update it.
-                if (elem.type == "Transformation")
-                    (elem as m_el.Transformation).loadFromActionData(parseState)
+                if (elem instanceof LE.Transformation)
+                    (elem as LE.Transformation).loadFromActionData(parseState)
                 // Image element types have their own transform property which we can update directly.
-                else if (elem.type == "DynamicImage")
-                    (elem as m_el.DynamicImage).loadTransform(parseState)
+                else if (elem instanceof LE.DynamicImage)
+                    (elem as LE.DynamicImage).loadTransform(parseState)
                 // If we already appended a Tx to a single-layer icon (upon last update, see the following condition), then the _next_ layer would be a Tx
-                else if (layersLen == 2 && icon.layers[1].type == "Transformation")
-                    (icon.layers[1] as m_el.Transformation).loadFromActionData(parseState)
+                else if (layersLen == 2 && icon.layers[1] instanceof LE.Transformation)
+                    (icon.layers[1] as LE.Transformation).loadFromActionData(parseState)
                 // If there's only one layer then we actually want to append this Tx (should only happen once per icon, next update will hit the previous condition)
                 else if (layersLen == 1)
-                    icon.layers.push(new m_el.Transformation().loadFromActionData(parseState))
+                    icon.layers.push(new LE.Transformation().loadFromActionData(parseState))
                 // Otherwise we'd have to replace the current layer with the Tx, which is probably not what the user intended.
                 else {
-                    logger.warn(`Could not set transform at Position ${findLayerIdx.index + 1} for icon named '${iconName}': Element is of type ${elem.type}.`)
+                    logger.warn(`Could not set transform at Position ${findLayerIdx.index + 1} for icon named '${iconName}' on element is of type '${elem.constructor.name}'.`)
                     return
                 }
             }
@@ -461,7 +460,7 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
                     (elem as IValuedElement).setValue(data[2].value)
                 }
                 else {
-                    logger.warn(`Could not update data at Position ${findLayerIdx.index + 1} for icon named '${iconName}': Element ${elem.type} does not support data updates.`)
+                    logger.warn(`Could not update data at Position ${findLayerIdx.index + 1} for icon named '${iconName}': Element type '${elem.constructor.name}' does not support data updates.`)
                     return
                 }
             }
