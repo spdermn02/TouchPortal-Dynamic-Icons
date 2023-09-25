@@ -24,10 +24,10 @@ export default class ParseState {
 
     /** Transform data array to a flat object with data IDs as keys, starting at array index `start` (default 0).
      * Key names are only the last part after '_' separator in ID. */
-    asRecord(start: number = 0): TpActionDataRecord {
+    asRecord(start: number = 0, separator: string = Str.IdSep): TpActionDataRecord {
         return Object.assign({}, ...this.data.map(
             (d: TpActionDataType, i: number) => {
-                return i >= start ? { [d.id.split(Str.IdSep).at(-1) as string]: d.value } : {};
+                return i >= start ? { [d.id.split(separator).at(-1) as string]: d.value } : {};
             }
         ));
     }
