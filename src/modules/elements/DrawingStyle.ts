@@ -1,10 +1,10 @@
 import { assignExistingProperties, parseNumericArrayString, } from '../../utils';
-import { IRenderable, RenderContext2D } from '../interfaces';
-import { ParseState } from '../';
+import { ILayerElement } from '../interfaces';
+import { ParseState, RenderContext2D } from '../';
 import { BrushStyle, StrokeStyle, ShadowStyle } from './';
 
 // Applies a drawing style to a canvas context, which includes all fill, stroke, and shadow attributes.
-export default class DrawingStyle implements IRenderable
+export default class DrawingStyle implements ILayerElement
 {
     fill: BrushStyle;
     fillRule: CanvasFillRule = 'nonzero';
@@ -20,7 +20,7 @@ export default class DrawingStyle implements IRenderable
     }
 
     // IRenderable
-    get type(): string { return "DrawingStyle"; }
+    readonly type: string = "DrawingStyle";
     /** Returns true if there is nothing at all to draw for this style: fill is transparent, stroke is zero size, and there is no shadow.  */
     get isEmpty(): boolean { return this.fill.isEmpty && this.line.isEmpty && this.shadow.isEmpty; }
 

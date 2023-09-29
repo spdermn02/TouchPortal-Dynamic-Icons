@@ -1,16 +1,16 @@
-import { evaluateStringValue } from '../../utils/helpers';
-import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces';
-import { ParseState } from '../';
+import { evaluateStringValue } from '../../utils';
+import { ILayerElement, IRenderable, IValuedElement } from '../interfaces';
+import { ParseState, RenderContext2D } from '../';
 
 // Applies a filter string to a canvas context.
-export default class CanvasFilter implements ILayerElement, IValuedElement
+export default class CanvasFilter implements ILayerElement, IRenderable, IValuedElement
 {
     filter: string = "";
 
     constructor(init?: Partial<CanvasFilter>) { Object.assign(this, init); }
 
     // ILayerElement
-    get type(): string { return "CanvasFilter"; }
+    readonly type: string = "CanvasFilter";
     // returns true if filter string is empty
     get isEmpty(): boolean { return !this.filter; }
 

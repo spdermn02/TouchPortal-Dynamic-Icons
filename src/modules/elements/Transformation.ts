@@ -1,11 +1,8 @@
 
-import { ILayerElement, RenderContext2D } from '../interfaces';
-import { ParseState } from '../';
-import { Point, PointType, Rectangle } from '../geometry'
-import { TransformOpType } from '../enums';
+import { ILayerElement, IRenderable } from '../interfaces';
+import { Canvas, ParseState, Point, PointType, Rectangle, RenderContext2D, TransformOpType } from '../';
 import { DEFAULT_TRANSFORM_OP_ORDER, M } from '../../utils/consts';
-import { Canvas } from 'skia-canvas';
-import { evaluateValue /* , parsePointFromValue */ } from '../../utils/helpers';
+import { evaluateValue /* , parsePointFromValue */ } from '../../utils';
 
 export const enum TransformScope {
     PreviousOne,  // affects only the layer before the transform
@@ -13,7 +10,7 @@ export const enum TransformScope {
     UntilReset,   // affects all layers until an empty transform (or end)
 }
 
-export default class Transformation implements ILayerElement
+export default class Transformation implements ILayerElement, IRenderable
 {
     // Coordinates are stored as decimals as used in canvas transform operations.
     rotate: number = 0; // percent of 360 degrees, in radians

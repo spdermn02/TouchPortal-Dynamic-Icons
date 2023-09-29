@@ -1,9 +1,9 @@
-import { IRenderable, RenderContext2D } from '../interfaces';
+import { RenderContext2D } from '../';
 
 // just a convenience string container class for now, maybe extended later for gradients.
 // TODO: Gradients!
 
-export default class BrushStyle implements IRenderable {
+export default class BrushStyle {
     private _color: string = "";
     private _empty: boolean = true;
 
@@ -12,7 +12,7 @@ export default class BrushStyle implements IRenderable {
             this.color = color;
     }
 
-    get type(): string { return "BrushStyle"; }
+    readonly type: string = "BrushStyle";
 
     /** true if color string is empty OR represents a transparent color. */
     get isEmpty(): boolean { return this._empty; }

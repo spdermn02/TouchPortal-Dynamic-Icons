@@ -1,13 +1,11 @@
 
-import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces';
-import { Alignment } from '../enums';
-import { ParseState } from '../';
-import { Point, PointType, Rectangle } from '../geometry';
-import { evaluateValue, evaluateStringValue, parseAlignmentFromValue } from '../../utils/helpers'
+import { ILayerElement, IRenderable, IValuedElement } from '../interfaces';
+import { Alignment, ParseState, Point, PointType, Rectangle, RenderContext2D } from '../';
+import { evaluateValue, evaluateStringValue, parseAlignmentFromValue } from '../../utils'
 import { DrawingStyle } from './';
 
 // Draws text on a canvas context with various options. The text can be fully styled with the embedded DrawingStyle property.
-export default class StyledText implements ILayerElement, IValuedElement
+export default class StyledText implements ILayerElement, IRenderable, IValuedElement
 {
     // These are all private because changing them will affect the cached text metrics.
     // Value string can be accessed with value/setValue(). Other accessors can be added as needed.
@@ -28,7 +26,7 @@ export default class StyledText implements ILayerElement, IValuedElement
 
     // constructor(init?: Partial<StyledText>) { Object.assign(this, init); }
     // ILayerElement
-    get type() { return "StyledText"; }
+    readonly type: string = "StyledText";
 
     /** Returns true if there is nothing to draw: text is empty, colors are blank or transparent, or there is no fill and stroke width is zero */
     get isEmpty(): boolean {

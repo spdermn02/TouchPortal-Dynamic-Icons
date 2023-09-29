@@ -1,12 +1,12 @@
-import { ILayerElement, RenderContext2D } from '../interfaces';
-import { ParseState } from '../';
+import { ILayerElement, IRenderable } from '../interfaces';
+import { ParseState, RenderContext2D } from '../';
 
 // Applies a globalCompositeOperation to a canvas context.
-export default class CompositionMode implements ILayerElement
+export default class CompositionMode implements ILayerElement, IRenderable
 {
     mode: GlobalCompositeOperation = "source-over";
 
-    get type(): string { return "CompositionMode"; }
+    readonly type: string = "CompositionMode";
     // returns true mode string is empty
     get isEmpty(): boolean { return !this.mode; }
 

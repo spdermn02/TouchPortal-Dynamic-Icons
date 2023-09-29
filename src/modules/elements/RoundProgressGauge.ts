@@ -1,15 +1,14 @@
 
-import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces';
-import { M } from '../../utils/consts';
-import { ParseState } from '../';
-import { Rectangle } from '../geometry';
+import { ILayerElement, IRenderable, IValuedElement } from '../interfaces';
+import { ParseState, Rectangle, RenderContext2D } from '../';
 import { StrokeStyle, BrushStyle } from './';
-import { evaluateValue, clamp } from '../../utils/helpers';
+import { evaluateValue, clamp } from '../../utils';
+import { M } from '../../utils/consts';
 
 const enum DrawDirection { CW, CCW, Auto }
 
 // Draws an arc/circle extending from 0 to 360 degrees based on a given value onto a canvas context.
-export default class RoundProgressGauge implements ILayerElement, IValuedElement
+export default class RoundProgressGauge implements ILayerElement, IRenderable, IValuedElement
 {
     value: number = 0    // decimal percent, -1 through 1
     highlightOn = true

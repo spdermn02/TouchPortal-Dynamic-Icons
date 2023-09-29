@@ -1,14 +1,11 @@
 
-import { ILayerElement, RenderContext2D } from '../interfaces';
-import { Alignment } from '../enums';
-import { ParseState } from '../';
-import { Rectangle, UnitValue } from '../geometry';
-import DrawingStyle from './DrawingStyle';
-import { evaluateValue, parseNumericArrayString } from '../../utils/helpers';
-import { Path2D } from 'skia-canvas'
+import { ILayerElement, IRenderable } from '../interfaces';
+import { Alignment, Path2D, ParseState, Rectangle, RenderContext2D, UnitValue } from '../';
+import { DrawingStyle } from './';
+import { evaluateValue, parseNumericArrayString } from '../../utils';
 
 // Draws a rectangle shape on a canvas context with optional radii applied to any/all of the 4 corners (like CSS). The shape can be fully styled with the embedded DrawingStyle property.
-export default class StyledRectangle implements ILayerElement
+export default class StyledRectangle implements ILayerElement, IRenderable
 {
     /** A zero width/height (default) indicates to draw into the full available image area (eg. passed to `render()` in `rect` argument). */
     width: UnitValue = new UnitValue(0, "%");
@@ -28,7 +25,7 @@ export default class StyledRectangle implements ILayerElement
 
     constructor(init?: Partial<StyledRectangle>) { Object.assign(this, init); }
     // ILayerElement
-    get type() { return "StyledRectangle"; }
+    readonly type: string = "StyledRectangle";
 
     /** Returns true if there is nothing to draw: there is no fill and stroke width is zero */
     get isEmpty(): boolean {

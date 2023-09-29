@@ -1,11 +1,8 @@
 
-import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces';
-import { Orientation } from '../enums';
-import { ParseState } from '../';
-import { Rectangle, SizeType, Size, UnitValue } from '../geometry';
-import { evaluateValue } from '../../utils/helpers'
+import { ILayerElement, IValuedElement } from '../interfaces';
+import { Orientation, ParseState, Path2D, Rectangle, RenderContext2D, SizeType, Size, UnitValue } from '../';
+import { evaluateValue } from '../../utils'
 import { StyledRectangle, DrawingStyle } from './';
-import { Path2D } from 'skia-canvas'
 
 const enum DrawDirection { Normal, Reverse, Center };
 
@@ -25,7 +22,7 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
     }
 
     // ILayerElement
-    get type() { return "LinearProgressBar"; }
+    readonly type: string = "LinearProgressBar";
     // IValuedElement
     setValue(value: string) { this.value = Math.min(Math.max(evaluateValue(value), 0), 100); }
 
@@ -34,16 +31,14 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
         return super.isEmpty && this.valueStyle.isEmpty;
     }
 
-    loadFromActionData(state: ParseState): LinearProgressBar {
+    loadFromActionData(state: ParseState): LinearProgressBar
+    {
         let atEnd = false,
             ctrStyleParsed = false,
             valStyleParsed = false;
         for (const e = state.data.length; state.pos < e && !atEnd; ) {
             const data = state.data[state.pos];
             const dataType = data.id.split('pbar_').at(-1);  // last part of the data ID determines its meaning
-            if (!dataType)
-                break;
-            //console.log(state.pos, dataType);
             switch (dataType)
             {
                 case 'dir':
@@ -106,12 +101,11 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
                     break;
 
                 default:
-                    //console.log(state.pos, dataType, ctrStyleParsed, valStyleParsed);
-                    if (!ctrStyleParsed && dataType.startsWith('ctr_')) {
+                    if (!ctrStyleParsed && dataType?.startsWith('ctr_')) {
                         this.style.loadFromActionData(state, 'ctr_');
                         ctrStyleParsed = true;
                     }
-                    else if (!valStyleParsed && dataType.startsWith('val_')) {
+                    else if (!valStyleParsed && dataType?.startsWith('val_')) {
                         this.valueStyle.loadFromActionData(state, 'val_');
                         valStyleParsed = true;
                     }

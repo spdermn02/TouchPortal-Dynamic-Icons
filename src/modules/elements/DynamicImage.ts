@@ -1,13 +1,12 @@
 
-import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces';
-import { Rectangle } from '../geometry'
+import { ILayerElement, IRenderable, IValuedElement } from '../interfaces';
 import { Transformation } from './';
-import { globalImageCache, ImageDataType, ParseState } from '../'
-import { evaluateStringValue } from '../../utils/helpers';
+import { globalImageCache, ImageDataType, ParseState, Rectangle, RenderContext2D } from '../'
+import { evaluateStringValue } from '../../utils';
 
 // This class hold an image source (path) and associated data like processing options or transformation to apply.
 
-export default class DynamicImage implements ILayerElement, IValuedElement
+export default class DynamicImage implements ILayerElement, IRenderable, IValuedElement
 {
     source: string = "";
     transform: Transformation | null = null;
@@ -18,7 +17,7 @@ export default class DynamicImage implements ILayerElement, IValuedElement
 
     constructor(init?: Partial<DynamicImage>) { Object.assign(this, init); }
     // ILayerElement
-    get type() { return "DynamicImage"; }
+    readonly type: string = "DynamicImage";
     // returns true if source string is empty
     get isEmpty(): boolean { return !this.source; }
 

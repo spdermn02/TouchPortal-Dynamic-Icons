@@ -1,5 +1,5 @@
 import sharp, { CreateRaw } from 'sharp'   // for final result image compression
-import { ILayerElement } from './interfaces';
+import { ILayerElement, IRenderable } from './interfaces';
 import { Rectangle, Size, SizeType, PointType } from './geometry';
 import { Canvas, RenderOptions } from 'skia-canvas';
 import { Transformation, TransformScope } from './elements';
@@ -175,7 +175,7 @@ export default class DynamicIcon
                     tx.render(ctx, rect);
                     ++i;
                 }
-                await layer.render(ctx, rect);
+                await (layer as IRenderable).render(ctx, rect);
                 // Reset any transform(s) which applied only to this layer.
                 if (resetTx)
                     ctx.setTransform(resetTx);

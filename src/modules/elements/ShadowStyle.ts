@@ -1,8 +1,7 @@
-import { IRenderable, RenderContext2D } from '../interfaces';
-import { Vect2d } from '../geometry';
+import { RenderContext2D, Vect2d } from '../';
 import { assignExistingProperties } from '../../utils';
 
-export default class ShadowStyle implements IRenderable {
+export default class ShadowStyle {
     blur: number = 0;
     offset: Vect2d = new Vect2d();
     color: string = "#0000";
@@ -20,7 +19,7 @@ export default class ShadowStyle implements IRenderable {
     }
 
     // IRenderable
-    get type(): string { return "ShadowStyle"; }
+    readonly type: string = "ShadowStyle";
     // returns true if blur and offset are are <= 0 or if color is transparent/invalid.
     get isEmpty(): boolean { return (this.blur <= 0 && this.offset.isNull); }
 

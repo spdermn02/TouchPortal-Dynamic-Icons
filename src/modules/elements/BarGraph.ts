@@ -1,11 +1,10 @@
-import { evaluateValue } from '../../utils/helpers';
-import { ILayerElement, IValuedElement, RenderContext2D } from '../interfaces';
-import { ParseState } from '../';
-import { Rectangle } from '../geometry';
+import { ILayerElement, IRenderable, IValuedElement } from '../interfaces';
+import { ParseState, Rectangle, RenderContext2D } from '../';
 import { BrushStyle } from './';
+import { assignExistingProperties, evaluateValue } from '../../utils';
 
 // Draws a values series as a basic horizontal bar graph onto a canvas context.
-export default class BarGraph implements ILayerElement, IValuedElement
+export default class BarGraph implements ILayerElement, IRenderable, IValuedElement
 {
     values: number[] = []
     barColor: BrushStyle = new BrushStyle("#FFA500FF")
@@ -14,9 +13,10 @@ export default class BarGraph implements ILayerElement, IValuedElement
     backgroundColor: BrushStyle = new BrushStyle("#FFFFFFFF")
     maxExtent: number = 256   // maximum width into which the bars need to fit (or height if an orientation option is added)
 
-    constructor(init?: Partial<BarGraph>) { Object.assign(this, init); }
+    constructor(init?: Partial<BarGraph> | any) { assignExistingProperties(this, init, 0); }
+
     // ILayerElement
-    get type() { return "BarGraph"; }
+    readonly type: string = "BarGraph";
 
     // IValuedElement
     // Adds value to current array and shifts values if necessary based on available size and bar width.
