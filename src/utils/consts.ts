@@ -1,4 +1,4 @@
-import { TransformOpType } from "../modules/enums";
+import { PathBoolOperation, TransformOpType } from "../modules/enums";
 
 // Note: Const enums get replaced with actual values in the final "compiled" JS code.
 // They are _also_ exported for use in entry.tp generator (due to 'preserveConstEnums' setting in tsconfig).
@@ -82,3 +82,8 @@ export const enum M {
 
 export const CTRL_CMD_ACTION_CHOICES = [ DataValue.ClearImageCache, DataValue.DelIconState ];
 export const DEFAULT_TRANSFORM_OP_ORDER = [TransformOpType.Offset, TransformOpType.Rotate, TransformOpType.Scale, TransformOpType.Skew];
+export const STYLE_FILL_RULE_CHOICES = ["nonzero", "evenodd"];
+export const PATH_BOOL_OPERATION_CHOICES = [
+    PathBoolOperation.None, PathBoolOperation.Add, PathBoolOperation.Complement,
+    PathBoolOperation.Difference, PathBoolOperation.Intersect, PathBoolOperation.Union, PathBoolOperation.Xor
+];
