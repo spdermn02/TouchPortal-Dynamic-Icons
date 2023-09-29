@@ -10,13 +10,14 @@ import { ILogEndpoint, ILogEntry, ILogFormatter, IEndpointOptions, LogLevel, log
 export interface StreamEndpointOptions extends IEndpointOptions {
     outStream?: Writable;
     errStream?: Writable;
+    /** Write TRACE level with a stack dump just like `console.trace()` does. Default is false. */
+    traceWithStackDump?: boolean;
 }
 
 /** The StreamEndpoint will output to any `stream.Writable` type.
     Separate streams can be used for <= INFO level and >= WARNING level messages (like stdout and stderr).
-    It is essentially a wrapper for Node's `Console` class which does the actual output. So for example a TRACE level
-    message will produce a stack dump just like `console.trace()` does.  Any arguments in the log entry are passed
-    on to `Console` methods, so formatting works the same way as the various `console.*` methods. If there are no arguments
+    It is essentially a wrapper for Node's `Console` class which does the actual output. Any arguments in the log entry are passed
+    on to `Console` methods, so formatting works the same way as the various `console.*` functions. If there are no arguments
     then no extra formatting will take place (eg. to pre-format a message using some other method first).
 
     This endpoint type is mainly useful for subclassing, though it could be used directly as well.
@@ -31,6 +32,7 @@ export default class StreamEndpoint implements ILogEndpoint
     protected logger: Logger;
     protected outStream: Writable | null = null;
     protected errStream: Writable | null = null;
+    protected traceWithStackDump: boolean = false;
 
     private cnsl: Console | null = null;
 
@@ -68,6 +70,8 @@ export default class StreamEndpoint implements ILogEndpoint
             this.level = options.minLevel;
         if (options.formatter)
             this.formatter = options.formatter;
+        if (typeof options.traceWithStackDump == 'boolean')
+            this.traceWithStackDump = options.traceToLog;
         if (options.outStream) {
             this.close();
             this.outStream = options.outStream;
@@ -91,7 +95,10 @@ export default class StreamEndpoint implements ILogEndpoint
         let fn: Function;
         switch (entry.level) {
             case LogLevel.TRACE:
-                fn = this.cnsl.trace;
+                if (this.traceWithStackDump)
+                    fn = this.cnsl.trace;
+                else
+                    fn = this.cnsl.log;
                 break;
             case LogLevel.DEBUG:
             case LogLevel.INFO:
