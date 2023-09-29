@@ -13,8 +13,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "pkg": "pkg .",
-    "pkg-win": "pkg --targets ${npm_package_config_nodeTarget}-win-x64 .",
-    "pkg-mac": "pkg --targets ${npm_package_config_nodeTarget}-macos-x64 .",
+    "pkg-win": "pkg --targets node18-win-x64 .",
+    "pkg-mac": "pkg --targets node18-macos-x64 .",
+    "pkg-linux": "pkg --targets node18-linux-x64 .",
     "build": "tsc && node builders/build.js",
     "build-win": "tsc && node builders/build.js -p Windows",
     "build-mac": "tsc && node builders/build.js -p MacOS",
@@ -48,16 +49,16 @@
   "homepage": "https://github.com/spdermn02/TouchPortal-Dynamic-Icons#readme",
   "dependencies": {
     "async-mutex": "^0.4.0",
-    "sharp": "^0.32.5",
+    "sharp": "0.32.6",
     "skia-canvas": "github:mpaperno/skia-canvas#master",
-    "touchportal-api": "spdermn02/touchportal-node-api#master"
+    "touchportal-api": "github:spdermn02/touchportal-node-api#master"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^4.30.0",
     "adm-zip": "^0.5.9",
     "eslint": "^7.32.0",
     "fs-extra": "^10.1.0",
-    "pkg": "^5.8.1",
+    "pkg": "github:vercel/pkg#main",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.4"
   }
