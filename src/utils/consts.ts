@@ -60,6 +60,10 @@ export const enum ChoiceDataId {
 export const enum DataValue {
     ClearImageCache = "Clear the Source Image Cache",
     DelIconState = "Delete Icon State",
+    TxScopePreviousOne = "previous layer",
+    TxScopeCumulative  = "all previous",
+    TxScopeUntilReset  = "all following",
+    TxScopeReset       = "reset following",
 }
 
 // Full names of plugin settings used in TP UI and messages.

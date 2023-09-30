@@ -236,36 +236,36 @@ function makeTransformOpData(type, id , /* out */ data, splitXY = true) {
     switch (type) {
         case "R":
             f = `Rotate\n${SP_EM}${SP_EN}(%){${i}}`;
-            data.push(makeActionData(jid(id, "tx_rot"), "text", "Rotation %", "0"));
+            data.push(makeActionData(jid(id, "rot"), "text", "Rotation %", "0"));
             break;
         case "O":
             f = f.format("Offset");
             if (splitXY) {
-                data.push(makeActionData(jid(id, "tx_trsX"), "text", "Offset X", "0"));
-                data.push(makeActionData(jid(id, "tx_trsY"), "text", "Offset Y", "0"));
+                data.push(makeActionData(jid(id, "trsX"), "text", "Offset X", "0"));
+                data.push(makeActionData(jid(id, "trsY"), "text", "Offset Y", "0"));
             }
             else {
-                data.push(makeActionData(jid(id, "tx_trs"), "text", "Offset X : Y", "0 : 0"));
+                data.push(makeActionData(jid(id, "trs"), "text", "Offset X : Y", "0 : 0"));
             }
             break;
         case "SC":
             f = f.format("Scale");
             if (splitXY) {
-                data.push(makeActionData(jid(id, "tx_sclX"), "text", "Scale X", "100"));
-                data.push(makeActionData(jid(id, "tx_sclY"), "text", "Scale Y", "100"));
+                data.push(makeActionData(jid(id, "sclX"), "text", "Scale X", "100"));
+                data.push(makeActionData(jid(id, "sclY"), "text", "Scale Y", "100"));
             }
             else {
-                data.push(makeActionData(jid(id, "tx_scl"), "text", "Scale X : Y", "100 : 100"));
+                data.push(makeActionData(jid(id, "scl"), "text", "Scale X : Y", "100 : 100"));
             }
             break;
         case "SK":
             f = f.format("Skew");
             if (splitXY) {
-                data.push(makeActionData(jid(id, "tx_skwX"), "text", "Skew X", "0"));
-                data.push(makeActionData(jid(id, "tx_skwY"), "text", "Skew Y", "0"));
+                data.push(makeActionData(jid(id, "skwX"), "text", "Skew X", "0"));
+                data.push(makeActionData(jid(id, "skwY"), "text", "Skew Y", "0"));
             }
             else {
-                data.push(makeActionData(jid(id, "tx_skw"), "text", "Skew X : Y", "0 : 0"));
+                data.push(makeActionData(jid(id, "skw"), "text", "Skew X : Y", "0 : 0"));
             }
             break;
         default:
@@ -278,7 +278,7 @@ function makeTransformOrderData(opsList, id, /* out */ data) {
     if (!opsList.length)
         return;
     const f = opsList.length > 1 ? `Order {${data.length}}` : "";
-    let d = makeActionData(jid(id, "tx_order"), opsList.length > 1 ? "choice" : "text", `Transform Order`);
+    let d = makeActionData(jid(id, "order"), opsList.length > 1 ? "choice" : "text", `Transform Order`);
     if (opsList.length == 2)
         d.valueChoices = [
             `${opsList[0]}, ${opsList[1]}`,
@@ -571,27 +571,28 @@ function addGenerateLayersAction(id, name) {
 
 function addTransformAction(id, name, withIndex = false) {
     // Transforms can be inserted as a layer or updated like an "animation"; the former version is more terse.
-    let descript = "";
+    let descript;
     if (withIndex) {
-        descript +=
+        descript =
             "Update transform operation(s) on a dynamic icon." + layerInfoText("", false) +
             "Position indexes start at 1 (non-layered icons have only one position). Specify a negative index to count from the bottom of a layer stack.\n"
             + txInfoText(0);
     }
     else {
-        descript +=
-            "Add transform operation(s) to a dynamic icon." + layerInfoText("", true) + txInfoText(1);
+        descript = "Add transform operation(s) to a dynamic icon." + layerInfoText("", true) + txInfoText(1);
     }
 
     let [format, data] = makeIconLayerCommonData(id, withIndex);
-    format += makeTransformData(TRANSFORM_OPERATIONS, (withIndex ? 'set' : 'layer'), data);
+    format += makeTransformData(TRANSFORM_OPERATIONS, id, data);
     if (withIndex) {
         format += `Render\nIcon?{${data.length}}`;
-        data.push(makeChoiceData("tx_update_render", "Render?", ["No", "Yes"]));
+        data.push(makeChoiceData(jid(id, "render"), "Render?", ["No", "Yes"]));
     }
     else {
         format += `Scope {${data.length}}`
-        data.push(makeChoiceData("layer_tx_scope", "Scope", ["previous layer", "all previous", "all following"]));
+        data.push(
+            makeChoiceData(jid(id, "scope"), "Scope", [C.DataValue.TxScopePreviousOne, C.DataValue.TxScopeCumulative, C.DataValue.TxScopeUntilReset, C.DataValue.TxScopeReset])
+        );
     }
     addAction(id, name, descript, format, data, false);
 }
