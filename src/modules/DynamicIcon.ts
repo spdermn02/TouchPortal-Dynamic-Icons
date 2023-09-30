@@ -1,10 +1,14 @@
-import sharp, { CreateRaw } from 'sharp'   // for final result image compression
-import { ILayerElement, IRenderable } from './interfaces';
-import { Rectangle, Size, SizeType, PointType } from './geometry';
-import { Canvas, RenderOptions } from 'skia-canvas';
-import { Transformation, TransformScope } from './elements';
-import { PluginSettings, TPClient } from './../common'
-import { Logger, logging } from './logging';
+import sharp, { CreateRaw } from 'sharp';   // for final result image compression
+import { RenderOptions } from 'skia-canvas';
+import { PluginSettings, TPClient } from '../common';
+import {
+    Canvas,
+    ILayerElement, IPathHandler, IPathProducer, IRenderable,
+    LayerRole, Logger, logging, Rectangle, Size, SizeType,
+    Path2D, PointType, Transformation, TransformScope
+} from './';
+
+type TxStackRecord = { tx: Transformation, startIdx: number }
 
 // Stores a collection of ILayerElement types as layers and produces a composite image from all the layers when rendered.
 export default class DynamicIcon
@@ -159,26 +163,120 @@ export default class DynamicIcon
             ctx.imageSmoothingQuality = 'high';
             //canvas.gpu = this.gpuRendering;
 
+            const pathStack: Array<Path2D> = [];
+            const activeTxStack: Array<TxStackRecord> = [];
+
+            let layer: ILayerElement;
+            let role: LayerRole;
+            let tx: Transformation | null = null;
+            let layerResetTx: DOMMatrix | null = null;
+
             for (let i = 0, e = this.layers.length; i < e; ++i) {
-                const layer = this.layers[i];
+                layer = this.layers[i];
                 if (!layer)
                     continue;
-                // First we need to examine any following layer item(s) to check for transform(s) which are meant to apply to the layer we're drawing now ('PreviousOne' scope).
+
+                // The layer "role" determines what we're going to do with it.
+                role = layer.layerRole || LayerRole.Drawable;
+
+                // First handle path producer/consumer and transform type layers.
+
+                if (role & LayerRole.PathProducer) {
+                    // producers may mutate the path stack by combining with previous path(s)
+                    const path = (layer as IPathProducer).getPath(rect, pathStack);
+                    pathStack.push(path);
+                    // for (const atx of activeTxStack)
+                    //     if (atx.startIdx == pathStack.length - 1)
+                    //         atx.startIdx == ;
+                }
+
+                if (role & LayerRole.PathConsumer) {
+                    // handlers will mutate the path stack
+                    // apply any currently active "until reset" scope transforms here before the path is drawn or clipped
+                    if (pathStack.length) {
+                        for (const atx of activeTxStack) {
+                            if (atx.startIdx < pathStack.length)
+                                atx.tx.transformPaths(pathStack, ctx, rect, atx.startIdx);
+                            atx.startIdx = 0;  // assumes the stack will be emptied... see below.
+                        }
+                    }
+                    // now feed the handler
+                    (layer as IPathHandler).renderPaths(pathStack, ctx, rect);
+                    // All the consumers we have so far will snarf the whole path stack, so the following lines would be redundant.
+                    // for (const atx of activeTxStack)
+                    //     atx.startIdx = pathStack.length;
+                }
+
+                if (role & LayerRole.Transform) {
+                    tx = (layer as Transformation);
+                    switch (tx.scope) {
+                        case TransformScope.Cumulative:
+                            // transform the canvas before transforming paths
+                            tx.render(ctx, rect);
+                            break;
+
+                        case TransformScope.PreviousOne:
+                            // If we encounter this tx type in the layers here then it can only apply to a Path
+                            // type layer since the canvas transforms would already be removed by the code below.
+                            if (!pathStack.length)
+                                // This would be a "mistake" on the user's part, putting a "previous layer" Tx after something like a style or clip. Which we don't handle gracefully at this time.
+                                this.log.warn("A 'previous layer' scope transformation cannot be applied to layer %d of type '%s' for icon '%s'. ", i+1, this.layers.at(i-1)?.type, this.name);
+                            break;
+
+                        case TransformScope.UntilReset:
+                            // Add to active list
+                            activeTxStack.push({tx, startIdx: pathStack.length});
+                            continue;  // do not transform any current paths
+
+                        case TransformScope.Reset:
+                            // Reset to no transform.
+                            // apply any currently active transforms to paths which may not have been handled yet
+                            const atx = activeTxStack.pop();
+                            if (atx && pathStack.length && atx.startIdx < pathStack.length)
+                                atx.tx.transformPaths(pathStack, ctx, rect, atx.startIdx);
+                            continue;  // do not transform any further
+                    }
+                    if (pathStack.length) {
+                        // this.log.trace('%O', activeTxStack);
+                        for (const atx of activeTxStack) {
+                            if (atx.startIdx < pathStack.length)
+                                atx.tx.transformPaths(pathStack, ctx, rect, atx.startIdx);
+                            atx.startIdx = pathStack.length;
+                        }
+                        tx.transformPaths(pathStack, ctx, rect);
+                    }
+                    continue;
+                }
+
+                // Anything past here will render directly to the canvas.
+                if (!(role & LayerRole.Drawable))
+                    continue;
+
+                layerResetTx = null;
+
+                // apply any "until reset" scope transforms; we do it like this to avoid double-transforming Paths.
+                for (const atx of activeTxStack) {
+                    if (!layerResetTx)
+                        layerResetTx = ctx.getTransform();
+                    atx.tx.render(ctx, rect);
+                }
+
+                // We need to examine any following layer item(s) to check for transform(s) which are meant to apply to the layer we're drawing now ('PreviousOne' scope).
                 // This is because to transform what we're drawing, we need to actually transform the canvas first, before we draw our thing.
                 // But for UI purposes it makes more sense to apply transform(s) after the thing one wants to transform. If we handle this on the action parsing side (index.ts or whatever),
                 // we'd have to resize the layers array to insert transforms in the correct places and also keep track of when to reset the transform.
-                let tx: Transformation | null = null;
-                let resetTx: any = null;
-                while (i+1 < this.layers.length && this.layers[i+1].type === 'Transformation' && (tx = this.layers[i+1] as Transformation)?.scope == TransformScope.PreviousOne) {
-                    if (!resetTx)
-                        resetTx = ctx.getTransform();
+                while (i+1 < this.layers.length && (this.layers[i+1] instanceof Transformation) && (tx = this.layers[i+1] as Transformation).scope == TransformScope.PreviousOne) {
+                    if (!layerResetTx)
+                        layerResetTx = ctx.getTransform();
                     tx.render(ctx, rect);
                     ++i;
                 }
+
                 await (layer as IRenderable).render(ctx, rect);
+
                 // Reset any transform(s) which applied only to this layer.
-                if (resetTx)
-                    ctx.setTransform(resetTx);
+                if (layerResetTx)
+                    ctx.setTransform(layerResetTx);
             }
 
             if (this.isTiled) {
