@@ -36,6 +36,7 @@ export const enum Act {
     IconProgBar = "progBar",
     IconBarGraph = "barGraph",
     IconRect = "rect",
+    IconStyle = "style",
     IconText = "text",
     IconImage = "image",
     IconFilter = "filter",
