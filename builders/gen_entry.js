@@ -221,7 +221,7 @@ function makeSizeTypeData(id, dflt = undefined) {
 // They accept an array (reference) as argument to store the data parameters into, and return the related format string.
 
 function makeIconLayerCommonData(id, withIndex = false) {
-    let format = "Icon\nName{0}";
+    let format = "Icon\nName {0}";
     const data = [ makeIconNameData(id) ];
     if (withIndex) {
         format += "Element\n@ Position{1}";
@@ -382,8 +382,8 @@ function makeBorderRadiusData(id, /* out */ data, r = 0) {
 function layerInfoText(what = "", layerOnly = true) {
     return (what ? `To add this ${what} as a layer, an ` : "") + "Icon with same Name must first have been created" + (layerOnly ? " with a 'New' action" : "") + ". "
 }
-function numericValueInfoText() {
-    return "Values can include math operators and JavaScript functions.";
+function numericValueInfoText(what = "Values") {
+    return what + " can include math operators and JavaScript functions.";
 }
 function txInfoText(wrapLine = 0) {
     return "" +
@@ -446,22 +446,27 @@ function addImageAction(id, name, withTx = true) {
 
 function addProgressGaugeAction(id, name) {
     const descript = "Dynamic Icons: " +
-        "Generate or layer a round progress-bar style gauge reflecting a data value.\n" + layerInfoText('gauge') + " " + numericValueInfoText();
+        "Generate or layer a round progress-bar style gauge reflecting a data value. " + layerInfoText('gauge') + "\n" +
+        "Gauge values are in percent where 100% is one complete circle. 'Automatic' direction draws clockwise for positive number, CCW for negative. " +
+        numericValueInfoText("All numeric fields") + " Note that zero starting degrees points East.";
     let [format, data] = makeIconLayerCommonData(id);
     let i = data.length;
     format +=
-        `with shadow {${i++}} of color {${i++}} using indicator color {${i++}} with highlight {${i++}} starting at degree {${i++}} ` +
-        `at value {${i++}} with cap style {${i++}} on background color {${i++}} in direction {${i++}}`;
+        `draw using\nindicator color {${i++}} with\nhighlight {${i++}} starting\nat degree {${i++}} ` +
+        `to value\n${SP_EM}${SP_EM}(%) {${i++}} with\nline width {${i++}}{${i++}} cap\nstyle {${i++}} diameter\n${SP_EM}${SP_EM}${SP_EN}(%) {${i++}} direction {${i++}}` +
+        `background\n${SP_EM}${SP_EM}${SP_EM}color {${i++}} shadow\n${SP_EM}color {${i++}}`;
     data.push(
-        makeChoiceData("gauge_shadow", "Gauge Shadow", ["On", "Off"]),
-        makeActionData("gauge_shadow_color", "color", "Gauge Shadow Color", "#282828FF"),
         makeActionData("gauge_color", "color", "Gauge Color", "#FFA500FF"),
         makeChoiceData("gauge_highlight", "Gauge Highlight", ["On", "Off"]),
-        makeNumericData("gauge_start_degree", "Gauge Start Degree", 180, 0, 360),
+        makeTextData("gauge_start_degree", "Gauge Start Degree", "180"),
         makeActionData("gauge_value", "text", "Gauge Value", "0"),
-        makeChoiceData("gauge_cap", "Gauge Icon Cap Type", ["round", "butt", "square"]),
+        makeTextData("gauge_line_width", "Line Width", "12"),
+        makeSizeTypeData("gauge_line_width"),
+        makeChoiceData("gauge_line_cap", "Gauge Icon Cap Type", ["round", "butt", "square"]),
+        makeTextData("gauge_radius", "Diameter", "78"),
+        makeChoiceData("gauge_counterclockwise", "Gauge Direction", ["Clockwise", "Counter CW", "Automatic"]),
         makeActionData("gauge_background_color", "color", "Gauge Background Color", "#000000FF"),
-        makeChoiceData("gauge_counterclockwise", "Gauge Direction", ["Clockwise", "Counter Clockwise"]),
+        makeActionData("gauge_shadow_color", "color", "Gauge Shadow Color", "#282828FF"),
     );
     addAction(id, name, descript, format, data, true);
 }
