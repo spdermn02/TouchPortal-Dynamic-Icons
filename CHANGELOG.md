@@ -117,14 +117,47 @@
 ---
 ## Next version
 ### New Features
-- Plugin now logs all messages to its own file on all platforms, independent of Touch Portal's own log. Log file is located in plugin's installation folder. Logging settings can be adjusted using a configuration file. By default log files are rotated at 5MB maximum size and up to 4 old log files are kept. ([#23](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/23))
+- Plugin now logs all messages to its own file on all platforms, independent of Touch Portal's own log. Log file is located in plugin's installation folder. Logging settings can be adjusted using a configuration file. By default log files are rotated at 5MB maximum size and up to 4 old log files are kept. ([#23])
 
 ### Fixes
-- Image layer type was always being replaced with new instance of `DynamicImage()` instead of reusing existing instance. ([e7a467b5](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/e7a467b55464e098435ba4cfdaa327c8cc3738d8))
+- Image layer type was always being replaced with new instance of `DynamicImage()` instead of reusing existing instance. ([e7a467b5])
+- Stroke line thickness could not be reset to zero after being changed to non-zero w/out deleting the whole icon instance. ([14449c23])
 
-### Changes
-- **Removed/disabled GPU rendering feature** including the plugin setting and "Generate Icon" action options. This feature proved ineffective and caused peripheral issues. May be re-introduced in a later version. See [#25](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/25) for details.
-- Updated 'sharp' and underlying 'libvips' libraries to latest versions for improved image compression performance. ([#24](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/24))
-- Minor performance optimizations. ([e830d054](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/e830d0543eefdc2deee2678507fb87865f7080ee), [caacff04](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/caacff0492c7f662b4cc28838a4e2c0f3f8e87ef))
+### Element Changes
+#### Simple Round Gauge ([#26])
+- Added line width and radius settings.
+- Add "auto" direction to toggle CCW drawing with negative values.
+- Removed shadow toggle property (use transparent color to disable shadow, previous versions of the action still work);
+- Fixed that could not set a starting degree of zero.
+- The starting degrees action data field now allows negative values and inline evaluation.
+- Moved shadow color to end of action's properties list.
+
+### Other Changes
+- **Removed/disabled GPU rendering feature** including the plugin setting and "Generate Icon" action options. This feature proved ineffective and caused peripheral issues. May be re-introduced in a later version. See [#25] for details.
+- Optimized data transfer between the drawing canvas ('skia-canvas') and final compression step ('sharp') by ~400% using updated custom version of 'skia-canvas' to export raw pixel data. ([cc4717e2], [skia-canvas@8cbc8910])
+- Slightly optimized image file loading (before cache) by creating canvas images using raw pixel data instead of encoded/decoded PNG format. ([72b907d5], [skia-canvas@1e7e09b7])
+- Fixed upstream issue in 'skia-canvas' which sometimes caused full circles to not be drawn at all. ([skia-canvas@bb99a3ad])
+- Updated 'sharp' and underlying 'libvips' libraries to latest versions for improved image compression performance. ([#24])
+- Updated TP Node API ('touchportal-node-api') to latest version allowing log message redirection to plugin's log (instead of always going to TP's log) and graceful plugin shutdown on exit. ([4b69a8d9], [0a65d4b2], [tp-api#36], [tp-api#38])
+- Minor performance optimizations. ([e830d054], [caacff04], [tp-api#37])
 
 **Full log:** [v1.2.0-alpha3...HEAD](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/compare/v1.2.0-alpha3...HEAD)
+
+[#23]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/23
+[#24]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/24
+[#25]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/25
+[#26]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/26
+[e7a467b5]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/e7a467b55464e098435ba4cfdaa327c8cc3738d8
+[14449c23]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/14449c23a4165dd15c9d26ba11749ccab48e0858
+[cc4717e2]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/cc4717e2de6f0db11c8e4a4acd77b66f0ba173b2
+[72b907d5]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/72b907d5b63c0817c33e76efe5ec5325b893ec8d
+[4b69a8d9]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/4b69a8d9533dae7e3fed012a204da8d270277189
+[0a65d4b2]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/0a65d4b2161832a1e2e79d5c10002fb3cc802d29
+[tp-api#36]: https://github.com/spdermn02/touchportal-node-api/pull/36
+[tp-api#38]: https://github.com/spdermn02/touchportal-node-api/pull/38
+[e830d054]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/e830d0543eefdc2deee2678507fb87865f7080ee
+[caacff04]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/caacff0492c7f662b4cc28838a4e2c0f3f8e87ef
+[skia-canvas@8cbc8910]: https://github.com/mpaperno/skia-canvas/commit/8cbc8910cc94c202c9edf233cfd67ba1deca8997
+[skia-canvas@1e7e09b7]: https://github.com/mpaperno/skia-canvas/commit/1e7e09b7aaa2e2923d107ad2494b8c26329a9b97
+[skia-canvas@bb99a3ad]: https://github.com/mpaperno/skia-canvas/commit/bb99a3adb98648b6d24a4d4488a9577d57586683
+[tp-api#37]: https://github.com/spdermn02/touchportal-node-api/pull/37
