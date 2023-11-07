@@ -503,12 +503,12 @@ function addImageAction(id, name, withTx = true) {
     let i = data.length;
     format += `Image\nFile {${i++}}Resize\nFit {${i++}}`;
     data.push(
-        makeActionData("image_src", "file", "Image Source"),
-        makeChoiceData("image_fit", "Resize Fit", ["contain", "cover", "fill", "scale-down", "none"]),
+        makeActionData(jid(id, "src"), "file", "Image Source"),
+        makeChoiceData(jid(id, "fit"), "Resize Fit", ["contain", "cover", "fill", "scale-down", "none"]),
     );
     if (withTx) {
         descript += txInfoText();
-        format += makeTransformData(TRANSFORM_OPERATIONS.slice(0, 3), "image", data);  // don't include skew op
+        format += makeTransformData(TRANSFORM_OPERATIONS.slice(0, 3), jid(id, C.Act.IconTx), data);  // don't include skew op
     }
     addAction(id, name, descript, format, data, false);
 }
