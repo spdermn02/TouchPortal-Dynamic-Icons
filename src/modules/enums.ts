@@ -40,3 +40,16 @@ export const enum TransformOpType {
     Scale = 'SC',
     Skew = 'SK',
 }
+
+// Flags type for possible future use. No element currently supports setting multple properties at once.
+export const enum ColorUpdateType {
+    None      = 0,
+    Stroke    = 0x01,
+    Fill      = 0x02,
+    Shadow    = 0x04,
+    Primary   = 0x10,
+    Secondary = 0x20,
+    // aliases
+    Foreground = Stroke,
+    Background = Fill,
+}

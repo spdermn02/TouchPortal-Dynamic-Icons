@@ -1,9 +1,10 @@
 import TP from 'touchportal-api'
 import * as C from './utils/consts'
+import { ColorUpdateType } from './modules/enums';
 import { TpActionDataArrayType } from './modules/types'
 import { ILayerElement, IValuedElement } from './modules/interfaces';
 import { Point, PointType, Size } from './modules/geometry';
-import { DynamicIcon, ParseState, globalImageCache } from "./modules";
+import { DynamicIcon, IColorElement, ParseState, globalImageCache } from "./modules";
 import * as LE from "./modules/elements";
 import { ConsoleEndpoint, Logger, logging , LogLevel } from './modules/logging';
 import { setTPClient, PluginSettings } from './common'
@@ -98,26 +99,6 @@ function tpClientLogCallback(level: string, message?: any, ...args: any[]) {
     tpLogger.log(lvl, message, ...args);
 }
 
-// This is used for actions which update existing layers in an icon.
-// Checks if action data contains valid "_index" field and returns its value in 'index' if (0 < value < currentLen);
-// Otherwise returns the currentLen input value. The 'dataValid' member indicates if the index field was present and valid.
-// If "_index" data value is negative, it is treated as counting from the end of the array, meaning it is added to 'currentLen' (and then validated).
-function getLayerIndexFromActionData(actionData: any[], currentLen: number) {
-    let ret = { index: currentLen, dataValid: false }
-    if (actionData.length > 1 && actionData[1].id.endsWith("_index")) {
-        let idxValue = parseInt(actionData[1].value) || 0;
-        if (idxValue < 0)
-            idxValue = currentLen + idxValue;
-        else
-            --idxValue;
-        if (idxValue > -1 && idxValue < currentLen) {
-            ret.index = idxValue;
-            ret.dataValid = true;
-        }
-    }
-    return ret
-}
-
 // Updates state of current icons list and command action selector.
 function sendIconLists() {
     const nameArry = [...g_dyanmicIconStates.keys()].sort();
@@ -185,6 +166,39 @@ function removeIcons(iconNames: string[], removeStates = true) {
             g_dyanmicIconStates.delete(n);
         }
     });
+}
+
+// This is used for actions which update existing layers in an icon.
+// Checks if action data contains valid "_index" field and returns the corresponding layer item and the actual index if (0 <= index < icon.layers.length);
+// If "_index" data value is negative, it is treated as counting from the end of the array, meaning it is added to 'icon.layers.length' (and then validated).
+function getLayerElementForUpdateAction(icon: DynamicIcon, data: TpActionDataArrayType): {element: ILayerElement | undefined, index: number}  | null
+{
+    if (!icon.layers.length) {
+        logger.warn("Icon '%s' must first be created before updating a value.", icon.name)
+        return null
+    }
+    // Get index of layer to update
+    let layerIdx = -1;
+    if (data.length > 1 && data[1].id.endsWith("_index")) {
+        layerIdx= parseInt(data[1].value) || 0;
+        if (layerIdx < 0)
+            layerIdx = icon.layers.length + layerIdx;
+        else
+            --layerIdx;
+    }
+    if (layerIdx < 0 || layerIdx >= icon.layers.length) {
+        logger.warn(`Layer data update Position out of bounds for icon named '${icon.name}': Max. range 1-${icon.layers.length}, got ${layerIdx+1}.`)
+        return null
+    }
+    return { element: icon.layers.at(layerIdx), index: layerIdx }
+}
+
+// Used by update actions to parse/handle the final render option field.
+function finishLayerElementUpdateAction(icon: DynamicIcon, data: TpActionDataArrayType) {
+    // When updating a value/tx, there is an option to generate the icon immediately (w/out an explicit "generate" action)
+    const render = data.at(-1)
+    if (render && render.id.endsWith("render") && render.value === "Yes")
+        icon.render();
 }
 
 
@@ -450,64 +464,75 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             break
         }
 
-        case C.Act.IconSetTx:
-        case C.Act.IconSetValue: {
-            // Updates/sets a single value or a transform on an existing icon layer of a type which supports it.
+        // Actions to update existing layer element properties.
+
+        case C.Act.IconSetTx: {
+            // Updates/sets a transformation on an existing icon layer of a type which supports it.
             // Note that this does support updating a "non-layered" icon with a single layer (!icon.delayGeneration),
             // as long as that icon has been created already (the layer and compatible element exist).
-            const layersLen = icon.layers.length
-            if (!layersLen) {
-                logger.warn("Icon '" + iconName + "' must first be created before updating a value.")
+            const elemInfo = getLayerElementForUpdateAction(icon, data);
+            if (!elemInfo || !elemInfo.element || data.length < 3)
                 return
-            }
-            // Get index of layer to update
-            const findLayerIdx = getLayerIndexFromActionData(data, layersLen)
-            if (!findLayerIdx.dataValid) {
-                logger.warn(`Layer data update Position out of bounds for icon named '${iconName}': Max. range 1-${layersLen}, got ${findLayerIdx.index+1}.`)
-                return
-            }
-            // Get layer item we'll be updating
-            const elem: ILayerElement | undefined = icon.layers.at(findLayerIdx.index)
-            if (!elem || data.length < 3)
-                return  // unlikely
 
-            // Handle transform update
-            if (actionId == "set_tx") {
-                parseState.setPos(2)  // set up position for Tx parsing
-                // If layer is a Tx, update it.
-                if (elem instanceof LE.Transformation)
-                    (elem as LE.Transformation).loadFromActionData(parseState)
-                // Image element types have their own transform property which we can update directly.
-                else if (elem instanceof LE.DynamicImage)
-                    (elem as LE.DynamicImage).loadTransform(parseState)
-                // If we already appended a Tx to a single-layer icon (upon last update, see the following condition), then the _next_ layer would be a Tx
-                else if (layersLen == 2 && icon.layers[1] instanceof LE.Transformation)
-                    (icon.layers[1] as LE.Transformation).loadFromActionData(parseState)
-                // If there's only one layer then we actually want to append this Tx (should only happen once per icon, next update will hit the previous condition)
-                else if (layersLen == 1)
-                    icon.layers.push(new LE.Transformation().loadFromActionData(parseState))
-                // Otherwise we'd have to replace the current layer with the Tx, which is probably not what the user intended.
-                else {
-                    logger.warn(`Could not set transform at Position ${findLayerIdx.index + 1} for icon named '${iconName}' on element is of type '${elem.constructor.name}'.`)
-                    return
-                }
-            }
-            // Handle single data value update
+            parseState.setPos(2)  // set up position for Tx parsing
+            // If layer is a Tx, update it.
+            if (elemInfo.element instanceof LE.Transformation)
+                (elemInfo.element as LE.Transformation).loadFromActionData(parseState)
+            // Image element types have their own transform property which we can update directly.
+            else if (elemInfo.element instanceof LE.DynamicImage)
+                (elemInfo.element as LE.DynamicImage).loadTransform(parseState)
+            // If we already appended a Tx to a single-layer icon (upon last update, see the following condition), then the _next_ layer would be a Tx
+            else if (icon.layers.length == 2 && icon.layers[1] instanceof LE.Transformation)
+                (icon.layers[1] as LE.Transformation).loadFromActionData(parseState)
+            // If there's only one layer then we actually want to append this Tx (should only happen once per icon, next update will hit the previous condition)
+            else if (icon.layers.length == 1)
+                icon.layers.push(new LE.Transformation().loadFromActionData(parseState))
+            // Otherwise we'd have to replace the current layer with the Tx, which is probably not what the user intended.
             else {
-                if (!data[2].id.endsWith('value'))
-                    return  // unlikely
-                if ('setValue' in elem && typeof((elem as IValuedElement).setValue) === 'function') {
-                    (elem as IValuedElement).setValue(data[2].value)
-                }
-                else {
-                    logger.warn(`Could not update data at Position ${findLayerIdx.index + 1} for icon named '${iconName}': Element type '${elem.constructor.name}' does not support data updates.`)
-                    return
-                }
+                logger.warn(`Could not set transform at Position ${elemInfo.index + 1} for icon named '${iconName}' on element is of type '${elemInfo.element.constructor.name}'.`)
+                return
             }
-            // When updating a value/tx, there is an option to generate the icon immediately (w/out an explicit "generate" action)
-            const render = data.at(-1)
-            if (render && render.id.endsWith("render") && render.value === "Yes")
-                icon.render();
+            finishLayerElementUpdateAction(icon, data);
+            return
+        }
+
+        case C.Act.IconSetValue: {
+            // Updates/sets a single value on an existing icon layer of a type which supports it.
+            // Note that this does support updating a "non-layered" icon with a single layer (!icon.delayGeneration),
+            // as long as that icon has been created already (the layer and compatible element exist).
+            const elemInfo = getLayerElementForUpdateAction(icon, data);
+            if (!elemInfo || !elemInfo.element || data.length < 3)
+                return
+
+            if (typeof((elemInfo.element as IValuedElement).setValue) === 'function') {
+                (elemInfo.element as IValuedElement).setValue(data[2].value)
+                finishLayerElementUpdateAction(icon, data)
+            }
+            else {
+                logger.warn(`Could not update data at Position ${elemInfo.index + 1} for icon named '${iconName}': Element type '${elemInfo.element.constructor.name}' does not support data updates.`)
+            }
+            return
+        }
+
+        case C.Act.IconSetColor: {
+            // Updates/sets a single value on an existing icon layer of a type which supports it.
+            // Note that this does support updating a "non-layered" icon with a single layer (!icon.delayGeneration),
+            // as long as that icon has been created already (the layer and compatible element exist).
+            const elemInfo = getLayerElementForUpdateAction(icon, data);
+            if (!elemInfo || !elemInfo.element || data.length < 4)
+                return
+
+            if (typeof((elemInfo.element as IColorElement).setColor) === 'function') {
+                // Color update type = data[2]; Color value = data[3].
+                // Color update type data: "Stroke/Foreground", "Fill/Background", "Shadow"
+                const type: ColorUpdateType = data[2].value[1] == 't' ? ColorUpdateType.Stroke :
+                                              data[2].value[0] == 'F' ? ColorUpdateType.Fill : ColorUpdateType.Shadow;
+                (elemInfo.element as IColorElement).setColor(data[3].value, type)
+                finishLayerElementUpdateAction(icon, data)
+            }
+            else {
+                logger.warn(`Could not update color at Position ${elemInfo.index + 1} for icon named '${iconName}': Element type '${elemInfo.element.constructor.name}' does not support color updates.`)
+            }
             return
         }
 
