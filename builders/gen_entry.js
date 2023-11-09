@@ -32,6 +32,7 @@ const C = require("../dist/utils/consts.js");
 var VERSION = pkgConfig.version;
 var BUILD_NUM = pkgConfig.config.build;
 var OUTPUT_PATH = "base"
+var DOCS_URL_BASE = "https://github.com/spdermn02/TouchPortal-Dynamic-Icons/wiki/Documentation";
 var DEV_MODE = false;
 
 // Handle CLI arguments
@@ -54,78 +55,97 @@ for (const part of [...VERSION.split('-', 1)[0].split('.', 3), BUILD_NUM])
 
 const entry_base =
 {
-    "$schema": "https://pjiesco.com/touch-portal/entry.tp/schema",
-    "sdk": 6,
-    "version": parseInt(iVersion.toString(16)),
-    "name": C.Str.PluginName,
-    "id": C.Str.PluginId,
+    // "$schema": "https://pjiesco.com/touch-portal/entry.tp/schema",  // not supporting API v7 yet.
+    sdk: 6,  // keep for BC with TPv3
+    api: 7,
+    version: parseInt(iVersion.toString(16)),
+    name: C.Str.PluginName,
+    id: C.Str.PluginId,
     [pkgConfig.name]: VERSION,
-    "plugin_start_cmd":         DEV_MODE ? undefined : `sh %TP_PLUGIN_FOLDER%${pkgConfig.name}/start.sh ${pkgConfig.name}`,
-    "plugin_start_cmd_windows": DEV_MODE ? undefined : `"%TP_PLUGIN_FOLDER%${pkgConfig.name}\\${pkgConfig.name}.exe"`,
-    "configuration": {
-        "colorDark": "#23272A",
-        "colorLight": "#7289DA"
+    plugin_start_cmd:         DEV_MODE ? undefined : `sh %TP_PLUGIN_FOLDER%${pkgConfig.name}/start.sh ${pkgConfig.name}`,
+    plugin_start_cmd_windows: DEV_MODE ? undefined : `"%TP_PLUGIN_FOLDER%${pkgConfig.name}\\${pkgConfig.name}.exe"`,
+    configuration: {
+        colorDark:  "#23272A",
+        colorLight: "#7289DA",
+        parentCategory: "misc",
     },
-    "settings": [
+    settings: [
         {
-            "name": C.SettingName.IconSize,
-            "type": "text",
-            "default": `${PluginSettings.defaultIconSize.width} x ${PluginSettings.defaultIconSize.height}`,
-            "readOnly": false,
-            "description": "Image size produced when using standalone 'Draw' actions for producing icons, without any layering."
+            name: C.SettingName.IconSize,
+            type: "text",
+            default: `${PluginSettings.defaultIconSize.width} x ${PluginSettings.defaultIconSize.height}`,
+            readOnly: false,
+            tooltip: {
+                title: cleanSettingTitle(C.SettingName.IconSize),
+                body: "Image size produced when using standalone 'Draw' actions for producing icons, without any layering.\n\n" +
+                    "This can be set to a single value for both width and height (eg. 128) or separate values using <width> x <height> or <width>, <height> format (eg. 128 x 256 or 128, 256).",
+                docUrl: `${DOCS_URL_BASE}#plugin-settings`
+            }
         },
         {
-            "name": C.SettingName.ImageFilesPath,
-            "type": "text",
-            "default": "",
-            "readOnly": false,
-            "description": "Base directory to use when loading image files specified using a relative path. When left empty, the default is Touch Portal's configuration directory for the current user."
+            name: C.SettingName.ImageFilesPath,
+            type: "text",
+            default: "",
+            readOnly: false,
+            tooltip: {
+                title: cleanSettingTitle(C.SettingName.ImageFilesPath),
+                body: "Base directory to use when loading image files specified using a relative path. " +
+                    "When left empty, the default is Touch Portal's configuration directory for the current user (this path is shown in TP's Settings -> Info window).",
+                docUrl: `${DOCS_URL_BASE}#plugin-settings`
+            }
         },
         /*  Do not use GPU setting for now, possibly revisit if skia-canvas is fixed. **
         {
-            "name": C.SettingName.GPU,
-            "type": "text",
-            "default": PluginSettings.defaultGpuRendering ? "Yes" : "No",
-            "readOnly": false,
-            "description": "Enables or disables using hardware acceleration (GPU), when available, for generating icon images. One of: \"yes, true, 1, or enable\" to enable, anything else to disable.\n" +
-                "This setting can be also be overridden per icon. Changing this setting does not affect any icons already generated since the plugin was started.\n\n" +
-                "When disabled, all image processing happens on the CPU, which may be slower and/or produce slightly different results in some cases.\n\n" +
-                "GPU rendering is only supported on some hardware/OS/drivers, and is disabled on others regardless of this setting.\n\n" +
-                "Note that at least some CPU will be used when generating icons in any case, most notably for image file loading and final output PNG compression."
+            name: C.SettingName.GPU,
+            type: "text",
+            default: PluginSettings.defaultGpuRendering ? "Yes" : "No",
+            readOnly: false,
+            tooltip: {
+                title: cleanSettingTitle(C.SettingName.GPU),
+                body: "Enables or disables using hardware acceleration (GPU), when available, for generating icon images. One of: \"yes, true, 1, or enable\" to enable, anything else to disable.\n" +
+                    "This setting can be also be overridden per icon. Changing this setting does not affect any icons already generated since the plugin was started.\n\n" +
+                    "When disabled, all image processing happens on the CPU, which may be slower and/or produce slightly different results in some cases.\n\n" +
+                    "GPU rendering is only supported on some hardware/OS/drivers, and is disabled on others regardless of this setting.\n\n" +
+                    "Note that at least some CPU will be used when generating icons in any case, most notably for image file loading and final output PNG compression.",
+                docUrl: `${DOCS_URL_BASE}#plugin-settings`
+            }
         },
         */
         {
-            "name": C.SettingName.PngCompressLevel,
-            "type": "number",
-            "default": PluginSettings.defaultOutputCompressionLevel.toString(),
-            "minValue": 0,
-            "maxValue": 9,
-            "readOnly": false,
-            "description": "Sets or disables the default image compression level of generated icons. This can be set to a number between 1 (low compression) and 9 (high compression)," +
-                " or 0 (zero) to disable compression entirely.\n" +
-                "This option can be also be overridden per icon. Changing this setting does not affect any icons already generated since the plugin was started.\n\n" +
-                "Compression affects the final image data size which will be sent to the TP device for display. The higher the compression level, the smaller the final size." +
-                " However, compression uses CPU resources, proportional to the compression level (higher level means more CPU use) and may produce lower quality images.\n\n" +
-                "Large image data sizes may impact the performance of the connected TP device to the point that it becomes unusable due to the lag. " +
-                "This setting can be adjusted to fine-tune the impact of dynamic icon generation on your computer vs. efficient delivery of images to the TP device."
+            name: C.SettingName.PngCompressLevel,
+            type: "number",
+            default: PluginSettings.defaultOutputCompressionLevel.toString(),
+            minValue: 0,
+            maxValue: 9,
+            readOnly: false,
+            tooltip: {
+                title: cleanSettingTitle(C.SettingName.PngCompressLevel),
+                body: "Sets or disables the default image compression level of generated icons. This can be set to a number between 1 (low compression) and 9 (high compression), or 0 (zero) to disable compression entirely.\n\n" +
+                    "This option can be also be overridden per icon. Changing this setting does not affect any icons already generated since the plugin was started.\n\n" +
+                    "Compression affects the final image data size which will be sent to the TP device for display. The higher the compression level, the smaller the final size. " +
+                    "However, compression uses CPU resources, proportional to the compression level (higher level means more CPU use) and may produce lower quality images.\n\n" +
+                    "Large image data sizes may impact the performance of the connected TP device to the point that it becomes unusable due to the lag. " +
+                    "This setting can be adjusted to fine-tune the impact of dynamic icon generation on your computer vs. efficient delivery of images to the TP device.",
+                docUrl: `${DOCS_URL_BASE}#plugin-settings`
+            }
         },
     ],
-    "categories": [
+    categories: [
         {
-            "id": "TP Dynamic Icons",
-            "name": C.Str.IconCategoryName,
-            "imagepath": `%TP_PLUGIN_FOLDER%${pkgConfig.name}/${pkgConfig.name}.png`,
-            "actions": [],
-            "connectors": [],
-            "states": [
+            id: "TP Dynamic Icons",
+            name: C.Str.IconCategoryName,
+            imagepath: `%TP_PLUGIN_FOLDER%${pkgConfig.name}/${pkgConfig.name}.png`,
+            actions: [],
+            connectors: [],
+            states: [
                 {
-                    "id": C.StateId.IconsList,
-                    "type": "text",
-                    "desc" : "Dynamic Icons: List of created icons",
-                    "default" : ""
+                    id: C.StateId.IconsList,
+                    type: "text",
+                    desc: "Dynamic Icons: List of created icons",
+                    default: ""
                 }
             ],
-            "events": []
+            events: []
         }
     ]
 };
@@ -155,6 +175,11 @@ String.prototype.format = function (args) {
 String.prototype.wrap = function(width = 280) {
     const re = new RegExp(`(?![^\\n]{1,${width}}$)([^\\n]{1,${width}})\\s`, 'm');  // replace 'm' flag with 'g' for wrap to multiple lines
     return this.replace(re, '$1\n').trim();
+}
+
+// Remove any trailing range info like " (0-9)" from settings name for use in tooltip window.
+function cleanSettingTitle(title) {
+    return title.replace(/ \(.+\)$/, "");
 }
 
 /** "join ID" - join parts of an action/data/etc ID string using the common separator character. */
