@@ -767,6 +767,23 @@ function addValueUpdateAction(id, name) {
     addAction(id, name, descript, format, data);
 }
 
+function addColorUpdateAction(id, name) {
+    const descript = "Dynamic Icons: " +
+        "Update a color on an element in an existing icon. " +
+        "Elements which can be updated: Round Gauge and Bar Graph forground/background, Progress Bar value/container fill, and fill/stroke on Text, Styled Rectangle, and Path Style actions.\n" +
+        "Icon with same Name must already exist and contain a supported element type at the specified position. " +
+        "Position indexes start at 1 (non-layered icons have only one position). Specify a negative index to count from the bottom of a layer stack.";
+    let [format, data] = makeIconLayerCommonData(id, true);
+    let i = data.length;
+    format += ` set {${i++}} color to {${i++}} and render icon? {${i++}}`;
+    data.push(
+        makeChoiceData(jid(id, "type"), "Type", C.COLOR_UPDATE_TYPE_CHOICES),
+        makeColorData(jid(id, "color"), "Color", "#00000000"),
+        makeChoiceData(jid(id, "render"), "Render?", ["No", "Yes"]),
+    );
+    addAction(id, name, descript, format, data);
+}
+
 // System utility action
 
 function addSystemActions() {
@@ -805,6 +822,7 @@ addClipAction(           jid(iid, C.Act.IconClip),      "Paths - Clipping Mask f
 
 addTransformAction(      jid(iid, C.Act.IconSetTx),     "Animate - Transformation", true);
 addValueUpdateAction(    jid(iid, C.Act.IconSetValue),  "Animate - Update a Value");
+addColorUpdateAction(    jid(iid, C.Act.IconSetColor),  "Animate - Update a Color");
 
 // Misc actions
 addSystemActions();
