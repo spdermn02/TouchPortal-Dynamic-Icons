@@ -1,3 +1,4 @@
+import { fuzzyEquals } from "../../utils";
 
 export type SizeType = {
     width: number;
@@ -17,6 +18,8 @@ export class Size implements SizeType
     get isEmpty() { return Size.isEmpty(this); }
     /** Returns true if both width and height values are zero. */
     get isNull(): boolean { return Size.isNull(this); }
+    /** Returns true if both width and height values are equal to zero to within 4 decimal places of precision. */
+    get fuzzyIsNull(): boolean { return Size.fuzzyIsNull(this, 0.0001); }
 
     /** Set the width and height properties.
         The `widthOrSize` parameter can be any object containing 'width' and 'height' properties, or a numeric value for the 'width' value.
@@ -27,9 +30,9 @@ export class Size implements SizeType
     toString() { Size.toString(this); }
 
     /** Returns true if this size equals the `widthOrSize` SizeType or width & height values. */
-    equals(widthOrSize: number | SizeType, height?: number): boolean {
-        return Size.equals(this, widthOrSize, height);
-    }
+    equals(widthOrSize: number | SizeType, height?: number): boolean { return Size.equals(this, widthOrSize, height); }
+    /** Returns true is this size equals the given SizeType to within `epsilon` decimal places of precision. */
+    fuzzyEquals(other: SizeType, epsilon: number = 0.0001): boolean { return Size.fuzzyEquals(this, other, epsilon); }
 
     // Static methods operate only on generic `SizeType` types, not `Size`.
     // This is generally faster for creation and read-only access than an full new instance of `Size`, but slower for writes/updates.
@@ -63,12 +66,18 @@ export class Size implements SizeType
     static isEmpty(sz: SizeType) { return sz.width <= 0 || sz.height <= 0; }
     /** Returns true if both width and height of `sz` are zero. */
     static isNull(sz: SizeType) { return !sz.width && !sz.height; }
+    /** Returns true if both width and height of `sz` are within `epsilon` delta of zero. */
+    static fuzzyIsNull(sz: SizeType, epsilon: number = 0.0001): boolean { return fuzzyEquals(sz.width, 0, epsilon) && fuzzyEquals(sz.height, 0, epsilon); }
 
     /** Returns true if `sz` SizeType equals the `widthOrSize` SizeType or width & height values. */
     static equals(sz: SizeType, widthOrSize: number | SizeType, height?: number): boolean {
         if (typeof widthOrSize == "number")
             return sz.width === widthOrSize && sz.height === (height == undefined ? widthOrSize : height);
         return widthOrSize.width === sz.width && widthOrSize.height === sz.height;
+    }
+    /** Returns true is this SizeType equals the given SizeType to within `epsilon` decimal places of precision. */
+    static fuzzyEquals(sz: SizeType, other: SizeType, epsilon: number = 0.0001): boolean {
+        return fuzzyEquals(other.width, sz.width, epsilon) && fuzzyEquals(other.height, sz.height, epsilon);
     }
 
     static toString(sz: SizeType, name: string = "Size"): string {

@@ -1,7 +1,5 @@
-import { Alignment } from '../modules/enums';
 import { Str } from './consts'
-import { PointType } from '../modules/geometry';
-import { logging } from '../modules/logging';
+import { Alignment, logging, PointType } from '../modules';
 
 // Used to validate if a string is a single numeric value. Accepts leading sign, base prefix (0x/0b/0o), decimals, and exponential notation.
 const NUMBER_VALIDATION_REGEX = new RegExp(/^[+-]?(?:0[xbo])?\d+(?:\.\d*)?(?:e[+-]?\d+)?$/);
@@ -10,10 +8,40 @@ const BOOL_TEST_REGEX = new RegExp(/\b(?:yes|on|true|enabled?|\d*[1-9]\d*)\b/i);
 // Global match anything not a \d(igit): \D
 const RE_NOT_DIGIT_G = new RegExp(/\D/g);
 
+// ------------------------
+// Math utils.
+
 /** Constrain a numeric `value` between `min` and `max`, inclusive. */
 export function clamp(value: number, min: number, max: number) {
     return Math.max(min, Math.min(max, value));
 }
+
+/** Rounds to 2 decimal places. */
+export function round2p(value: number): number { return Math.round(value * 100) * .01; }
+/** Rounds to 3 decimal places. */
+export function round3p(value: number): number { return Math.round(value * 1_000) * .001; }
+/** Rounds to 4 decimal places. */
+export function round4p(value: number): number { return Math.round(value * 10_000) * .000_1; }
+/** Rounds to 5 decimal places. */
+export function round5p(value: number): number { return Math.round(value * 100_000) * .000_01; }
+/** Rounds to 6 decimal places. */
+export function round6p(value: number): number { return Math.round(value * 1_000_000) * .000_001; }
+
+/** Compare 2 floating point values up to a maximum decimal precision represented by `epsilon` (a small decimal, eg. 0.0001 for 4 decimals). */
+export function fuzzyEquals(value1: number, value2: number, epsilon: number): boolean {
+    return Math.abs(value1 - value2) < epsilon;
+}
+/** Returns true if 2 numbers are equal within 3 decimal places of precision. */
+export function fuzzyEquals3p(value1: number, value2: number): boolean { return fuzzyEquals(value1, value2, 0.001); }
+/** Returns true if 2 numbers are equal within 4 decimal places of precision. */
+export function fuzzyEquals4p(value1: number, value2: number): boolean { return fuzzyEquals(value1, value2, 0.000_1); }
+/** Returns true if 2 numbers are equal within 5 decimal places of precision. */
+export function fuzzyEquals5p(value1: number, value2: number): boolean { return fuzzyEquals(value1, value2, 0.000_01); }
+/** Returns true if 2 numbers are equal within 6 decimal places of precision. */
+export function fuzzyEquals6p(value1: number, value2: number): boolean { return fuzzyEquals(value1, value2, 0.000_001); }
+
+// ------------------------
+// Object helpers
 
 /** Assigns property values in `from` object to values in the `to` object, but _only_ if they already exist in `to` _and_ have a matching `typeof` type.
     Recurses up to `recurseLevel` nested objects, and skips assigning object-type properties beyond the recursion level.
@@ -32,6 +60,11 @@ export function assignExistingProperties(to: {}, from: {}, recurseLevel = 0) {
             }
         }
     }
+}
+
+/** Compares two arrays for strict match on length and each member's value at the same index. */
+export function arraysMatchExactly(array1: any[], array2: any[]) {
+    return array1.length == array2.length && array1.every((v, i) => v === array2[i]);
 }
 
 // ------------------------
@@ -72,6 +105,23 @@ export function evaluateStringValue(value: string): string {
     catch (e) {
         logging().getLogger('plugin').warn("Error evaluating the string expression '" + value + "':", e)
         return value
+    }
+}
+
+/** Evaluates a string as an array (of any type). Returns an empty array if evaluation fails.
+    The input string is wrapped in an array before evaluation, so it must be valid JS array content,
+    otherwise evaluation fails. Any expressions within the array content are evaluated as well.
+    For example: "1, 2, 3+2" returns `[1,2,5]`.
+*/
+export function evaluateValueAsArray(value: string): any[] {
+    if (!value)
+        return [];
+    try {
+        return (new Function( `"use strict"; return [${value}]`))();
+    }
+    catch (e) {
+        logging().getLogger('plugin').warn("Error evaluating the array expression '" + value + "':", e)
+        return [];
     }
 }
 

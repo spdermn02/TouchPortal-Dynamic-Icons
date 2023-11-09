@@ -354,6 +354,30 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             break
         }
 
+        case C.Act.IconRectPath: {
+            // Adds a rounded rectangle path.
+            const rect: LE.RectanglePath = layerElement instanceof LE.RectanglePath ? (layerElement as LE.RectanglePath) : (icon.layers[icon.nextIndex] = new LE.RectanglePath())
+            rect.loadFromActionData(parseState)
+            ++icon.nextIndex
+            break
+        }
+
+        case C.Act.IconEllipse: {
+            // Adds an ellipse path.
+            const ell: LE.EllipsePath = layerElement instanceof LE.EllipsePath ? (layerElement as LE.EllipsePath) : (icon.layers[icon.nextIndex] = new LE.EllipsePath())
+            ell.loadFromActionData(parseState)
+            ++icon.nextIndex
+            break
+        }
+
+        case C.Act.IconPath: {
+            // Adds a polyline or polygon path which can be styled or used as clip region.
+            const path: LE.FreeformPath = layerElement instanceof LE.FreeformPath ? (layerElement as LE.FreeformPath) : (icon.layers[icon.nextIndex] = new LE.FreeformPath())
+            path.loadFromActionData(parseState)
+            ++icon.nextIndex
+            break
+        }
+
         case C.Act.IconText: {
             // Adds a "styled text" element.
             const text: LE.StyledText = layerElement instanceof LE.StyledText ? (layerElement as LE.StyledText) : (icon.layers[icon.nextIndex] = new LE.StyledText())
@@ -371,6 +395,22 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
         }
 
         // Elements which affect other layers in some way.
+
+        case C.Act.IconStyle: {
+            // Applies style to any previously unhandled path-producing elements.
+            const style: LE.DrawingStyle = layerElement instanceof LE.DrawingStyle ? (layerElement as LE.DrawingStyle) : (icon.layers[icon.nextIndex] = new LE.DrawingStyle())
+            style.loadFromActionData(parseState)
+            ++icon.nextIndex
+            break
+        }
+
+        case C.Act.IconClip: {
+            // Creates a clipping mask from any previously unhandled path-producing elements.
+            const clip: LE.ClippingMask = layerElement instanceof LE.ClippingMask ? (layerElement as LE.ClippingMask) : (icon.layers[icon.nextIndex] = new LE.ClippingMask())
+            clip.loadFromActionData(parseState)
+            ++icon.nextIndex
+            break
+        }
 
         case C.Act.IconFilter: {
             // Adds a CanvasFilter layer to an existing layered dynamic icon. This is purely CSS style 'filter' shorthand for applying to the canvas. The filter will affect all following layers.

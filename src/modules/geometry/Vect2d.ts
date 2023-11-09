@@ -1,3 +1,4 @@
+import { fuzzyEquals } from "../../utils";
 
 export type PointType = {
     x: number;
@@ -46,6 +47,8 @@ export const Point =
 
     /** Returns true if both x and y values of `pt` are zero. */
     isNull(pt: PointType): boolean { return !pt.x && !pt.y; },
+    /** Returns true if both x and y values of `pt` are within `epsilon` delta of zero. */
+    fuzzyIsNull(pt: PointType, epsilon: number = 0.0001): boolean { return fuzzyEquals(pt.x, 0, epsilon) && fuzzyEquals(pt.y, 0, epsilon); },
     /** Adds value(s) to `pt` and returns it. Modifies input value. */
     plus_eq(pt: PointType, xOrPt: number | PointType, y?: number): PointType {
         if (typeof xOrPt == "number")
@@ -76,6 +79,10 @@ export const Point =
             return pt.x === xOrPt && pt.y === (y == undefined ? xOrPt : y);
         return xOrPt.x === pt.x && xOrPt.y === pt.y;
     },
+    /** Returns true is this PointType equals the given PointType to within `epsilon` decimal places of precision. */
+    fuzzyEquals(pt: PointType, other: PointType, epsilon: number = 0.0001): boolean {
+        return fuzzyEquals(other.x, pt.x, epsilon) && fuzzyEquals(other.y, pt.y, epsilon);
+    },
 
     toString(pt: PointType, name: string = "Point"): string {
         return `${name}{x: ${pt.x}, y:${pt.y}}`;
@@ -105,6 +112,8 @@ export class Vect2d implements PointType
 
     /** Returns true if both x and y values are zero. */
     get isNull(): boolean { return !this.x && !this.y; }
+    /** Returns true if both x and y values are equal to zero to within 4 decimal places of precision. */
+    get fuzzyIsNull(): boolean { return Point.fuzzyIsNull(this, 0.0001); }
     /** Length is the hypotenuse of the x and y values. */
     get length(): number { return Math.sqrt(this.x * this.x + this.y * this.y); }
 
@@ -138,6 +147,8 @@ export class Vect2d implements PointType
 
     /** Returns true is this Vect2d equals the given Vect2d or x & y values. */
     equals(xOrPt: number | PointType, y?: number): boolean { return Point.equals(this, xOrPt, y); }
+    /** Returns true is this Vect2d equals the given PointType to within `epsilon` decimal places of precision. */
+    fuzzyEquals(other: PointType, epsilon: number = 0.0001): boolean { return Point.fuzzyEquals(this, other, epsilon); }
 
     toString(): string { return Point.toString(this, this.constructor.name); }
 

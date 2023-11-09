@@ -1,4 +1,4 @@
-import { TransformOpType } from "../modules/enums";
+import { PathBoolOperation, TransformOpType } from "../modules/enums";
 
 // Note: Const enums get replaced with actual values in the final "compiled" JS code.
 // They are _also_ exported for use in entry.tp generator (due to 'preserveConstEnums' setting in tsconfig).
@@ -41,6 +41,11 @@ export const enum Act {
     IconFilter = "filter",
     IconCompMode = "compMode",
     IconTx = "tx",
+    IconRectPath = "rectpath",
+    IconEllipse = "ellipse",
+    IconPath = "path",
+    IconStyle = "style",
+    IconClip = "clip",
     IconSetTx = "set_tx",
     IconSetValue = "set_value",
 }
@@ -60,6 +65,13 @@ export const enum ChoiceDataId {
 export const enum DataValue {
     ClearImageCache = "Clear the Source Image Cache",
     DelIconState = "Delete Icon State",
+    ClipMaskNormal  = "Create Normal",
+    ClipMaskInverse = "Create Inverse",
+    ClipMaskRelease = "Release",
+    TxScopePreviousOne = "previous layer",
+    TxScopeCumulative  = "all previous",
+    TxScopeUntilReset  = "all following",
+    TxScopeReset       = "reset following",
 }
 
 // Full names of plugin settings used in TP UI and messages.
@@ -82,3 +94,8 @@ export const enum M {
 
 export const CTRL_CMD_ACTION_CHOICES = [ DataValue.ClearImageCache, DataValue.DelIconState ];
 export const DEFAULT_TRANSFORM_OP_ORDER = [TransformOpType.Offset, TransformOpType.Rotate, TransformOpType.Scale, TransformOpType.Skew];
+export const STYLE_FILL_RULE_CHOICES = ["nonzero", "evenodd"];
+export const PATH_BOOL_OPERATION_CHOICES = [
+    PathBoolOperation.None, PathBoolOperation.Add, PathBoolOperation.Complement,
+    PathBoolOperation.Difference, PathBoolOperation.Intersect, PathBoolOperation.Union, PathBoolOperation.Xor
+];

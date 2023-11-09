@@ -1,4 +1,12 @@
 
+export const enum LayerRole {
+    None         = 0,
+    Drawable     = 0x01,
+    Transform    = 0x02,
+    PathProducer = 0x04,
+    PathConsumer = 0x08,
+}
+
 export const enum Orientation { H, V };
 
 export const enum Alignment {
@@ -15,6 +23,16 @@ export const enum Alignment {
     H_MASK   = LEFT | RIGHT | HCENTER | JUSTIFY,
     V_MASK   = TOP | BOTTOM | VCENTER | BASELINE,
 };
+
+export const enum PathBoolOperation {
+    None       = "none",
+    Add        = "add",  // actually `addPath()`
+    Complement = "complement",
+    Difference = "difference",
+    Intersect  = "intersect",
+    Union      = "union",
+    Xor        = "xor"
+}
 
 export const enum TransformOpType {
     Offset = 'O',

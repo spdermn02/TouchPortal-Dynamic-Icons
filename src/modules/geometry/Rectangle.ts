@@ -1,4 +1,5 @@
 import { PointType, Point, Size, SizeType, Vect2d } from './';
+import { round5p } from '../../utils';
 
 export default class Rectangle
 {
@@ -41,29 +42,40 @@ export default class Rectangle
     static fromSize(size: SizeType): Rectangle {
         return new Rectangle(0, 0, size.width, size.height);
     }
+    /** Creates a new instance of Rectangle from a "bounds" type object where origin coordinate properties are left/top instead of x/y. */
+    static fromBounds(bounds: {left: number, top: number, width: number, height: number}): Rectangle {
+        return new Rectangle(Point.new(bounds.left, bounds.top), Size.new(bounds.width, bounds.height));
+    }
 
-    get x() { return this.origin.x; }
+    get x(): number  { return this.origin.x; }
     set x(x: number) { this.origin.x = x; }
-    get y() { return this.origin.y; }
+    get y(): number  { return this.origin.y; }
     set y(y: number) { this.origin.y = y; }
-    get width() { return this.size.width; }
-    set width(w: number) { this.size.width = w; }
-    get height() { return this.size.height; }
+    get width(): number   { return this.size.width; }
+    set width(w: number)  { this.size.width = w; }
+    get height(): number  { return this.size.height; }
     set height(h: number) { this.size.height = h; }
 
-    get top()    { return this.height < 0 ? this.y + this.height : this.y; }
-    get right()  { return this.width  < 0 ? this.x : this.x + this.width; }
-    get bottom() { return this.height < 0 ? this.y : this.y + this.height; }
-    get left()   { return this.width  < 0 ? this.x + this.width : this.x; }
+    get top():    number { return this.height < 0 ? this.y + this.height : this.y; }
+    get right():  number { return this.width  < 0 ? this.x : this.x + this.width; }
+    get bottom(): number { return this.height < 0 ? this.y : this.y + this.height; }
+    get left():   number { return this.width  < 0 ? this.x + this.width : this.x; }
+    get center(): PointType { return Point.plus(this.origin, round5p(this.width * .5), round5p(this.height * .5)) }
 
     /** Returns true if either of the width or height are less than or equal to zero. */
     get isEmpty() { return this.size.isEmpty; }
     /** Returns true if both the width or height are zero. */
     get isNull() { return this.size.isNull; }
+    /** Returns true if both width and height values are equal to zero to within 4 decimal places of precision. */
+    get fuzzyIsNull() { return this.size.fuzzyIsNull; }
 
     /** Returns true if this rectangle's origin and size are equal to `other` rectangle's origin and size. */
     equals(other: Rectangle): boolean {
-        return this.origin.equals(other.origin) && this.size.equals(other);
+        return this.origin.equals(other.origin) && this.size.equals(other.size);
+    }
+    /** Returns true if this rectangle's origin and size are equal to `other` rectangle's origin and size to within `epsilon` decimal places of precision. */
+    fuzzyEquals(other: Rectangle, epsilon: number = 0.0001): boolean {
+        return this.origin.fuzzyEquals(other.origin, epsilon) && this.size.fuzzyEquals(other.size, epsilon);
     }
 
     /** Clones this Rectangle, adds `origin` to both origin coordinates and `size` to both size coordinates, and returns the new instance.  */

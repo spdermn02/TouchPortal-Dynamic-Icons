@@ -1,8 +1,9 @@
 
 import { ILayerElement, IValuedElement } from '../interfaces';
 import { Orientation, ParseState, Path2D, Rectangle, RenderContext2D, SizeType, Size, UnitValue } from '../';
-import { evaluateValue } from '../../utils'
-import { StyledRectangle, DrawingStyle } from './';
+import { arraysMatchExactly, evaluateValue, round3p } from '../../utils'
+import { DrawingStyle } from './';
+import StyledRectangle from './StyledRectangle';
 
 const enum DrawDirection { Normal, Reverse, Center };
 
@@ -23,6 +24,7 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
 
     // ILayerElement
     readonly type: string = "LinearProgressBar";
+
     // IValuedElement
     setValue(value: string) { this.value = Math.min(Math.max(evaluateValue(value), 0), 100); }
 
@@ -35,10 +37,11 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
     {
         let atEnd = false,
             ctrStyleParsed = false,
-            valStyleParsed = false;
+            valStyleParsed = false,
+            dirty = false;
         for (const e = state.data.length; state.pos < e && !atEnd; ) {
             const data = state.data[state.pos];
-            const dataType = data.id.split('pbar_').at(-1);  // last part of the data ID determines its meaning
+            const dataType = data?.id.split('pbar_').at(-1);  // last part of the data ID determines its meaning
             switch (dataType)
             {
                 case 'dir':
@@ -68,6 +71,8 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
                     }
                     break; // 'dir
 
+                // note that these size properties are not used the same way as the parent's size --
+                // here they control padding, and the parent's actual size is set at render time.
                 case 'size_w': {
                     const sz = evaluateValue(data.value);
                     if (sz > 0)
@@ -89,11 +94,13 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
                     break;
 
                 case 'radius':
-                    super.parseRadius(data.value);
+                    dirty = super.parseRadius(data.value) || dirty;
                     break;
-
                 case 'radius_unit':
-                    this.radiusIsRelative = UnitValue.isRelativeUnit(data.value);
+                    if (UnitValue.isRelativeUnit(data.value) != this.radiusIsRelative) {
+                        this.radiusIsRelative = !this.radiusIsRelative;
+                        dirty = true;
+                    }
                     break;
 
                 case 'value':
@@ -102,7 +109,13 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
 
                 default:
                     if (!ctrStyleParsed && dataType?.startsWith('ctr_')) {
+                        // Check for shadow and line style changes which may affect cached path.
+                        const sarry = this.adjustSizeForShadow ? [this.style.shadow.blur, this.style.shadow.offset.x, this.style.shadow.offset.y] : null;
+                        const lw = this.style.line.width;
                         this.style.loadFromActionData(state, 'ctr_');
+                        dirty = dirty || (lw.value != this.style.line.width.value ||
+                                lw.isRelative != this.style.line.width.isRelative ||
+                                (sarry! && !arraysMatchExactly(sarry, [this.style.shadow.blur, this.style.shadow.offset.x, this.style.shadow.offset.y])))
                         ctrStyleParsed = true;
                     }
                     else if (!valStyleParsed && dataType?.startsWith('val_')) {
@@ -116,6 +129,8 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
             }
             ++state.pos;
         }
+        if (dirty)
+            this.cache.clear();
         //console.dir(this);
         return this;
     }
@@ -126,19 +141,25 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
         if (this.isEmpty)
             return;
 
+        const newSize: SizeType = Size.new(this.width.value, this.height.value);
         if (this.orientation == Orientation.H) {
             // rect width needs endpoint padding, which is padding.height
-            this.width.value = this.height.isRelative ? 100 - this.padding.height : rect.width - this.padding.height;
-            this.height.value = this.width.isRelative ? 100 - this.padding.width : rect.height - this.padding.width;
+            newSize.width = this.height.isRelative ? 100 - this.padding.height : rect.width - this.padding.height;
+            newSize.height = this.width.isRelative ? 100 - this.padding.width : rect.height - this.padding.width;
         }
         else {
             // rect width needs side padding, which is padding.width
-            this.width.value = this.width.isRelative ? 100 - this.padding.width : rect.width - this.padding.width;
-            this.height.value = this.height.isRelative ? 100 - this.padding.height : rect.height - this.padding.height;
+            newSize.width = this.width.isRelative ? 100 - this.padding.width : rect.width - this.padding.width;
+            newSize.height = this.height.isRelative ? 100 - this.padding.height : rect.height - this.padding.height;
+        }
+        if (this.width.value != newSize.width || this.height.value != newSize.height) {
+            this.width.value = newSize.width;
+            this.height.value = newSize.height;
+            this.cache.clear();
         }
 
         // Draw the container area using parent class.
-        let window: Rectangle = super.renderImpl(ctx, rect);  // the area to draw into
+        const window: Rectangle = super.renderImpl(ctx, rect);  // the area to draw into
 
         // nothing else to do unless we have a non-zero value
         if (!this.value || window.isEmpty)
@@ -155,30 +176,29 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
             if (this.valueStyle.line.width.isRelative)
                 this.valueStyle.line.widthScale = Math.min(window.width, window.height) * .005 /* penScale */;
             penW = this.valueStyle.line.scaledWidth;
-            //console.log("Before Pen", penW, window.toString(), rect.toString());
-            window.adjust(penW * .5, -penW);
+            window.adjust(round3p(penW * .5), -penW);
         }
         // set value part length (width/height) and offset position for drawing
         // which are both based on orientation and direction.
         if (this.orientation == Orientation.H) {
             // horizontal bar
-            window.width *= this.value * .01;
+            window.width = round3p(window.width * this.value * .01);
             if (window.width < 1)
                 return;
             if (this.direction == DrawDirection.Reverse)  // align right
                 window.x += ctrRect.width - window.width - penW;
             else if (this.direction == DrawDirection.Center)
-                window.x += (ctrRect.width - window.width - penW) * .5;
+                window.x += round3p((ctrRect.width - window.width - penW) * .5);
         }
         else {
             // vertical bar
-            window.height *= this.value * .01;
+            window.height = round3p(window.height * this.value * .01);
             if (window.height < 1)
                 return;
             if (this.direction == DrawDirection.Normal)  // align bottom
                 window.y += ctrRect.height - window.height - penW;
             else if (this.direction == DrawDirection.Center)
-                window.y += (ctrRect.height - window.height - penW) * .5;
+                window.y += round3p((ctrRect.height - window.height - penW) * .5);
         }
         //console.debug("Size", this.size.toString(), "Rect", rect.toString(), "CtrRect", ctrRect.toString(), "Window", window.toString(), "Pen", penW);
 
@@ -186,9 +206,9 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
         if (this.haveRadius) {
             // if the container has a border then expand the value drawing area by a portion of it, or at least one pixel,
             // to slightly overlap the content area... looks better this way because the radii will never quite match up perfectly.
-            if (!this.style.line.isEmpty) {
+            if (penW && !this.valueStyle.line.pen.isEmpty) {
                 const ctrPenW = this.style.line.scaledWidth,
-                    d = Math.max(ctrPenW * .2, 1);
+                    d = Math.max(round3p(ctrPenW * .2), .5);
                 window.adjust(-d, d * 2);
                 penW += ctrPenW;  // we use this below to scale the radius
             }
@@ -203,7 +223,7 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
                 ratio = Math.max((window.height - penW * 4) / ctrRect.height, 0);
             else
                 ratio = Math.max((window.width - penW * 4) / ctrRect.width, 0);
-            const radii = this.radii.map(r => r * ratio);
+            const radii = this.radii.map(r => round3p(r * ratio));
             path.roundRect(window.x, window.y, window.width, window.height, radii);
         }
         // no radius
