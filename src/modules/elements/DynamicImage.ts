@@ -33,7 +33,7 @@ export default class DynamicImage implements ILayerElement, IRenderable, IValued
     setValue(value: string) {
         // Fixup \ in Windows paths to \\, otherwise they're treated as escapes in the following eval.
         // Ignore any value that contains a / to preserve code (eg. regex), since that's not a legal Windows path character anyway.
-        if (process.platform == "win32" && value.indexOf('/') < 0)
+        if (process.platform == "win32" && !value.startsWith("data:") && value.indexOf('/') < 0)
             value = value.replace(/\\/g, "\\\\");
         this.source = evaluateStringValue(value.trim());
     }

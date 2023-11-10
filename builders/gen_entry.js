@@ -498,7 +498,7 @@ function addTextAction(id, name) {
 function addImageAction(id, name, withTx = true) {
     let descript = "Dynamic Icons: " +
         `Generate or layer an image. ${layerInfoText('image')} ` +
-        "File paths are relative to this plugin's \"Default Image Files Path\" setting, or use absolute paths.\n";
+        "File paths are relative to this plugin's \"Default Image Files Path\" setting, or use absolute paths. Base64-encoded images can be loaded by using a \"data:\" prefix before the string data.\n";
     let [format, data] = makeIconLayerCommonData(id);
     let i = data.length;
     format += `Image\nFile {${i++}}Resize\nFit {${i++}}`;

@@ -66,6 +66,15 @@ export class ImageCache
         return src + ',' + size.width + ',' + size.height + ',' + (resizeOptions.fit || ImageCache.cacheOptions.resizeOptions.fit);
     }
 
+    private resolveSource(src: string) {
+        const isData = src.startsWith("data:");
+        if (isData)
+            src = src.substring(5);
+        else if (PluginSettings.imageFilesBasePath && !isAbsPath(src))
+            src = pjoin(PluginSettings.imageFilesBasePath, src);
+        return { src: src, isB64Data: isData };
+    }
+
     private async trimCache()
     {
         await this.mutex.runExclusive(async() =>
@@ -103,7 +112,7 @@ export class ImageCache
                 rec = { image: image, iconNames: [] }
                 this.cache.set(key, rec);
             }
-            if (meta && meta.iconName && !rec.iconNames.includes(meta.iconName))
+            if (meta?.iconName && !rec.iconNames.includes(meta.iconName))
                 rec.iconNames.push(meta.iconName);
 
             // Check for cache overflow; schedule trim if needed.
@@ -129,20 +138,18 @@ export class ImageCache
      */
     public async getOrLoadImage(src: string, size: SizeType, resizeOptions:any = {}, meta?: any): Promise<ImageDataType>
     {
-        if (PluginSettings.imageFilesBasePath && !isAbsPath(src))
-            src = pjoin(PluginSettings.imageFilesBasePath, src);
         if (ImageCache.cacheOptions.maxCachedImages <= 0)
             return this.loadImage(src, size, resizeOptions);  // short-circuit for disabled cache
 
-        let img:ImageDataType = null;
-        const key:string = this.makeKey(src, size, resizeOptions);
+        let img: ImageDataType = null;
+        const key: string = this.makeKey(src, size, resizeOptions);
         await this.mutex.runExclusive(async() => {
             img = this.getImage_impl(key);
             if (!img) {
                 img = await this.loadImage(src, size, resizeOptions);
                 if (img)
                     this.saveImage_impl(key, img, meta);
-                this.log.debug("Image cache miss for %s; Returned: %O", src, img);
+                this.log.debug("[%s] Image cache miss for '%s%s'; Returned: %O", meta?.iconName, (src.length > 50 ? "..." : ""), src.slice(-50), img);
             }
         });
         return img;
@@ -178,7 +185,12 @@ export class ImageCache
     */
     public async loadImage(src: string, size: SizeType, resizeOptions:any = {}): Promise<ImageDataType> {
         try {
-            const image = sharp(src, ImageCache.cacheOptions.sourceLoadOptions);
+            const srcInfo = this.resolveSource(src);
+            let image: sharp.Sharp;
+            if (srcInfo.isB64Data)
+                image = sharp(Buffer.from(srcInfo.src, 'base64'), ImageCache.cacheOptions.sourceLoadOptions);
+            else
+                image = sharp(srcInfo.src, ImageCache.cacheOptions.sourceLoadOptions);
             if (image) {
                 resizeOptions = { ...ImageCache.cacheOptions.resizeOptions, ...resizeOptions };
                 if ((size.width || size.height) && resizeOptions.fit !== "none") {
@@ -221,7 +233,8 @@ export class ImageCache
             for (const [k, v] of this.cache.entries()) {
                 if (v.iconNames.includes(name)) {
                     this.cache.delete(k);
-                    this.log.info(`Removed cached image ${k.split(',')[0]} for icon '${name}'.`);
+                    const src = k.split(',')[0];
+                    this.log.info("Removed cached image '%s%s' for icon '%s'.", (src.length > 60 ? "..." : ""), src.slice(-60), name);
                 }
             }
         });
