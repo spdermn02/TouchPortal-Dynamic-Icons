@@ -1,13 +1,13 @@
 
-import { ILayerElement, IRenderable } from '../interfaces';
-import { LayerRole, ParseState, Rectangle, RenderContext2D } from '../';
+import { IColorElement, ILayerElement, IRenderable } from '../interfaces';
+import { ColorUpdateType, LayerRole, ParseState, Rectangle, RenderContext2D } from '../';
 import { DrawingStyle } from './';
 import { arraysMatchExactly, round3p } from '../../utils';
 import { Act, Str } from '../../utils/consts';
 import RectanglePath from './RectanglePath';  // must be direct import for subclass
 
 // Draws a rectangle shape on a canvas context with optional radii applied to any/all of the 4 corners (like CSS). The shape can be fully styled with the embedded DrawingStyle property.
-export default class StyledRectangle extends RectanglePath implements ILayerElement, IRenderable
+export default class StyledRectangle extends RectanglePath implements ILayerElement, IRenderable, IColorElement
 {
     style: DrawingStyle = new DrawingStyle();
     /** Whether to adjust (reduce) the overall drawing area size to account for shadow offset/blur. */
@@ -23,6 +23,9 @@ export default class StyledRectangle extends RectanglePath implements ILayerElem
     get isEmpty(): boolean {
         return this.style.fill.isEmpty && this.style.line.isEmpty;
     }
+
+    // IColorElement
+    setColor(value: string, type: ColorUpdateType): void { this.style.setColor(value, type); }
 
     loadFromActionData(state: ParseState): StyledRectangle {
         super.loadFromActionData(state, Act.IconRect);

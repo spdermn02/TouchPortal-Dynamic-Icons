@@ -1,11 +1,11 @@
 
-import { ILayerElement, IRenderable, IValuedElement } from '../interfaces';
-import { Alignment, ParseState, Point, PointType, Rectangle, RenderContext2D } from '../';
+import { IColorElement, ILayerElement, IRenderable, IValuedElement } from '../interfaces';
+import { Alignment, ColorUpdateType, ParseState, Point, PointType, Rectangle, RenderContext2D } from '../';
 import { evaluateValue, evaluateStringValue, parseAlignmentFromValue } from '../../utils'
 import { DrawingStyle } from './';
 
 // Draws text on a canvas context with various options. The text can be fully styled with the embedded DrawingStyle property.
-export default class StyledText implements ILayerElement, IRenderable, IValuedElement
+export default class StyledText implements ILayerElement, IRenderable, IValuedElement, IColorElement
 {
     // These are all private because changing them will affect the cached text metrics.
     // Value string can be accessed with value/setValue(). Other accessors can be added as needed.
@@ -39,6 +39,9 @@ export default class StyledText implements ILayerElement, IRenderable, IValuedEl
         this.text = evaluateStringValue(text);
         this.metrics.textMetrics = null;  // reset
     }
+
+    // IColorElement
+    setColor(value: string, type: ColorUpdateType): void { this.style.setColor(value, type); }
 
     loadFromActionData(state: ParseState): StyledText {
         let styleParsed = false;

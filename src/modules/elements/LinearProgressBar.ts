@@ -1,6 +1,6 @@
 
-import { ILayerElement, IValuedElement } from '../interfaces';
-import { Orientation, ParseState, Path2D, Rectangle, RenderContext2D, SizeType, Size, UnitValue } from '../';
+import { IColorElement, ILayerElement, IValuedElement } from '../interfaces';
+import { Orientation, ParseState, Path2D, Rectangle, RenderContext2D, SizeType, Size, UnitValue, ColorUpdateType } from '../';
 import { arraysMatchExactly, evaluateValue, round3p } from '../../utils'
 import { DrawingStyle } from './';
 import StyledRectangle from './StyledRectangle';
@@ -8,7 +8,7 @@ import StyledRectangle from './StyledRectangle';
 const enum DrawDirection { Normal, Reverse, Center };
 
 // Draws a rectangle shape on a canvas context with optional radii applied to any/all of the 4 corners (like CSS). The shape can be fully styled with the embedded DrawingStyle property.
-export default class LinearProgressBar extends StyledRectangle implements ILayerElement, IValuedElement
+export default class LinearProgressBar extends StyledRectangle implements ILayerElement, IValuedElement, IColorElement
 {
     orientation: Orientation = Orientation.H;
     direction: DrawDirection = DrawDirection.Normal;
@@ -27,6 +27,14 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
 
     // IValuedElement
     setValue(value: string) { this.value = Math.min(Math.max(evaluateValue(value), 0), 100); }
+
+    // IColorElement
+    setColor(value: string, type: ColorUpdateType): void {
+        if (type & ColorUpdateType.Foreground)
+            this.valueStyle.setColor(value, ColorUpdateType.Fill);
+        else
+            this.style.setColor(value, type);
+    }
 
     /** Returns true if there is nothing to draw: size is empty, colors are blank or transparent, or there is no fill and stroke width is zero */
     get isEmpty(): boolean {

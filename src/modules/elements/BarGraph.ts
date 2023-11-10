@@ -1,12 +1,12 @@
-import { ILayerElement, IRenderable, IValuedElement } from '../interfaces';
-import { ParseState, Rectangle, RenderContext2D } from '../';
+import { IColorElement, ILayerElement, IRenderable, IValuedElement } from '../interfaces';
+import { ColorUpdateType, ParseState, Rectangle, RenderContext2D } from '../';
 import { BrushStyle } from './';
 import { assignExistingProperties, evaluateValue } from '../../utils';
 
 // Draws a values series as a basic horizontal bar graph onto a canvas context.
-export default class BarGraph implements ILayerElement, IRenderable, IValuedElement
+export default class BarGraph implements ILayerElement, IRenderable, IValuedElement, IColorElement
 {
-    values: number[] = []
+    values: Array<[number,any]> = []
     barColor: BrushStyle = new BrushStyle("#FFA500FF")
     barWidth: number = 10
     backgroundColorOn: boolean = true
@@ -21,9 +21,21 @@ export default class BarGraph implements ILayerElement, IRenderable, IValuedElem
     // IValuedElement
     // Adds value to current array and shifts values if necessary based on available size and bar width.
     setValue(value: string) {
-        this.values.push(evaluateValue(value))
+        this.values.push([evaluateValue(value) / 100, this.barColor.style])
         if (this.values.length > ( this.maxExtent / this.barWidth ) + 1)
             this.values.shift()
+    }
+
+    // IColorElement
+    setColor(value: string, type: ColorUpdateType): void {
+        switch (type) {
+            case ColorUpdateType.Foreground:
+                this.barColor.color = value;
+                break;
+            case ColorUpdateType.Background:
+                this.backgroundColor.color = value;
+                break;
+        }
     }
 
     loadFromActionData(state: ParseState): BarGraph {
@@ -67,12 +79,11 @@ export default class BarGraph implements ILayerElement, IRenderable, IValuedElem
             ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
         }
         if (!this.barColor.isEmpty) {
-            ctx.fillStyle = this.barColor.style
             let x1 = rect.width - (this.values.length * this.barWidth)
             this.values.forEach((value) => {
-                const percentage = value / 100
-                const length = Math.floor(rect.height * percentage)
+                const length = Math.floor(rect.height * value[0])
                 const y1 = rect.height - length
+                ctx.fillStyle = value[1];
                 ctx.fillRect(x1, y1, this.barWidth, length)
                 x1 += this.barWidth
             })

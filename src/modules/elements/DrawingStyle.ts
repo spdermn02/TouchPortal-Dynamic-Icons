@@ -1,11 +1,11 @@
 import { assignExistingProperties, parseNumericArrayString, } from '../../utils';
-import { IPathHandler, ILayerElement } from '../interfaces';
-import { LayerRole, ParseState, Path2D, Rectangle, RenderContext2D } from '../';
+import { IColorElement, ILayerElement, IPathHandler } from '../interfaces';
+import { ColorUpdateType, LayerRole, ParseState, Path2D, Rectangle, RenderContext2D } from '../';
 import { BrushStyle, StrokeStyle, ShadowStyle } from './';
 import { Act, Str } from '../../utils/consts';
 
 // Applies a drawing style to a canvas context, which includes all fill, stroke, and shadow attributes.
-export default class DrawingStyle implements ILayerElement, IPathHandler
+export default class DrawingStyle implements ILayerElement, IPathHandler, IColorElement
 {
     fill: BrushStyle;
     fillRule: CanvasFillRule = 'nonzero';
@@ -26,6 +26,23 @@ export default class DrawingStyle implements ILayerElement, IPathHandler
 
     /** Returns true if there is nothing at all to draw for this style: fill is transparent, stroke is zero size, and there is no shadow.  */
     get isEmpty(): boolean { return this.fill.isEmpty && this.line.isEmpty && this.shadow.isEmpty; }
+
+    // IColorElement
+    setColor(value: string, type: ColorUpdateType): void {
+        // Even though ColorUpdateType is a bitfield flag, currently nothing is going to
+        // update multiple properties at once, so we can shortcut here.
+        switch (type) {
+            case ColorUpdateType.Fill:
+                this.fill.color = value;
+                break;
+            case ColorUpdateType.Stroke:
+                this.line.pen.color = value;
+                break;
+            case ColorUpdateType.Shadow:
+                this.shadow.color = value;
+                break;
+        }
+    }
 
     loadFromActionData(state: ParseState, dataIdPrefix:string = ""): DrawingStyle {
         dataIdPrefix += Act.IconStyle + Str.IdSep;

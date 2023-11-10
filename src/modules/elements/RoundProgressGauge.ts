@@ -1,6 +1,6 @@
 
-import { ILayerElement, IRenderable, IValuedElement } from '../interfaces';
-import { ParseState, Rectangle, RenderContext2D } from '../';
+import { IColorElement, ILayerElement, IRenderable, IValuedElement } from '../interfaces';
+import { ColorUpdateType, ParseState, Rectangle, RenderContext2D } from '../';
 import { StrokeStyle, BrushStyle } from './';
 import { evaluateValue, clamp } from '../../utils';
 import { M } from '../../utils/consts';
@@ -8,7 +8,7 @@ import { M } from '../../utils/consts';
 const enum DrawDirection { CW, CCW, Auto }
 
 // Draws an arc/circle extending from 0 to 360 degrees based on a given value onto a canvas context.
-export default class RoundProgressGauge implements ILayerElement, IRenderable, IValuedElement
+export default class RoundProgressGauge implements ILayerElement, IRenderable, IValuedElement, IColorElement
 {
     value: number = 0    // decimal percent, -1 through 1
     highlightOn = true
@@ -26,6 +26,21 @@ export default class RoundProgressGauge implements ILayerElement, IRenderable, I
     readonly type = "RoundProgressGauge"
     // IValuedElement
     setValue(value: string) { this.value = evaluateValue(value) * .01; }
+
+    // IColorElement
+    setColor(value: string, type: ColorUpdateType): void {
+        switch (type) {
+            case ColorUpdateType.Foreground:
+                this.lineStyle.pen.color = value;
+                break;
+            case ColorUpdateType.Background:
+                this.backgroundColor.color = value;
+                break;
+            case ColorUpdateType.Shadow:
+                this.shadowColor.color = value;
+                break;
+        }
+    }
 
     loadFromActionData(state: ParseState): RoundProgressGauge {
         // the incoming data IDs should be structured with a naming convention

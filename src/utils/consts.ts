@@ -48,6 +48,7 @@ export const enum Act {
     IconClip = "clip",
     IconSetTx = "set_tx",
     IconSetValue = "set_value",
+    IconSetColor = "set_color",
 }
 
 // Individual data IDs for various actions. These are the last, most relevant, part(s) if each ID.
@@ -68,6 +69,9 @@ export const enum DataValue {
     ClipMaskNormal  = "Create Normal",
     ClipMaskInverse = "Create Inverse",
     ClipMaskRelease = "Release",
+    ColorTypeStroke = "Stroke/Foreground",
+    ColorTypeFill   = "Fill/Background",
+    ColorTypeShadow = "Shadow",
     TxScopePreviousOne = "previous layer",
     TxScopeCumulative  = "all previous",
     TxScopeUntilReset  = "all following",
@@ -99,3 +103,5 @@ export const PATH_BOOL_OPERATION_CHOICES = [
     PathBoolOperation.None, PathBoolOperation.Add, PathBoolOperation.Complement,
     PathBoolOperation.Difference, PathBoolOperation.Intersect, PathBoolOperation.Union, PathBoolOperation.Xor
 ];
+export const COLOR_UPDATE_TYPE_CHOICES = [DataValue.ColorTypeStroke, DataValue.ColorTypeFill, DataValue.ColorTypeShadow];
+
