@@ -10,6 +10,7 @@ import { ConsoleEndpoint, Logger, logging , LogLevel } from './modules/logging';
 import { setTPClient, PluginSettings } from './common'
 import { parseIntOrDefault, /* parseBoolOrDefault, */ clamp } from './utils/helpers'
 import { dirname as pdirname, resolve as presolve } from 'path';
+import { concurrency as sharp_concurrency } from 'sharp';
 const { version: pluginVersion } = require('../package.json');  // 'import' causes lint error in VSCode
 
 // -------------------------------
@@ -28,6 +29,14 @@ const CONFIG_FILEPATH = presolve(EXEC_BASE_PATH, "plugin-config.json");
 // If there's a better x-platform way to find TPs config path, then fixme.
 const DEFAULT_IMAGE_FILE_BASE_PATH = presolve(EXEC_BASE_PATH, '..', '..');
 
+{
+    // Get max available system threads, including virtual. `availableParallelism()` is Node v18.14+
+    const os = require('os');
+    var SYS_MAX_THREADS = ('availableParallelism' in os ? os.availableParallelism() : os.cpus.length) || 1;
+}
+// Use half the available threads by default for each of the main procesing tasks we run (see 3rd party libs setup, below).
+const DEFAULT_CONCURRENCY = Math.ceil(SYS_MAX_THREADS / 2);
+
 // Translate TPClient log level strings to our LogLevel enum.
 const TPClientLogLevel = {
     "ERROR": LogLevel.ERROR,
@@ -35,6 +44,23 @@ const TPClientLogLevel = {
     "INFO" : LogLevel.INFO,
     "DEBUG": LogLevel.DEBUG,
 }
+
+
+// ------------------------------
+// 3rd-party Libs Setup
+
+// Expand Node's thread pool if possible since both skia-canvas and sharp use it for async image processing.
+// Need to do this first before any I/O can happen. Sharp also runs multiple threads _per image_ for compression,
+// and tiling so leave some available. And don't override the limit if one is already set. 4 is the default.
+if (!process.env.UV_THREADPOOL_SIZE)
+    process.env.UV_THREADPOOL_SIZE = DEFAULT_CONCURRENCY.toString()
+
+// Curb Sharp's default enthusiasm for using up all the available system threads for compressing each image.
+// This is also set/changed by user's plugin settings after connecting to TP, but set a default here just in case.
+sharp_concurrency(DEFAULT_CONCURRENCY);
+
+// Set custom @mpaperno/skia-canvas option to properly draw ellipse paths as the user directed, including past a full circle.
+process.env.SKIA_CANVAS_DRAW_ELLIPSE_PAST_FULL_CIRCLE = "1";
 
 
 // -------------------------------
@@ -612,6 +638,10 @@ function onSettings(settings:{ [key:string]:string }[]) {
                 break;
             case C.SettingName.PngCompressLevel:
                 PluginSettings.defaultOutputCompressionLevel = clamp(parseIntOrDefault(val, PluginSettings.defaultOutputCompressionLevel), 0, 9);
+                break;
+            case C.SettingName.MaxImageProcThreads:
+                sharp_concurrency(clamp(parseIntOrDefault(val, DEFAULT_CONCURRENCY), 1, SYS_MAX_THREADS));
+                logger.debug("Set output image processing concurrency to %d", sharp_concurrency());
                 break;
             // Ignore GPU setting for now, possibly revisit if skia-canvas is fixed.
             // case C.SettingName.GPU:
