@@ -29,3 +29,18 @@ export function formatDateTimeFileStamp(ts: Date): string
 {
     return `${n2s(ts.getMonth()+1)}${n2s(ts.getDate())}T${n2s(ts.getHours())}${n2s(ts.getMinutes())}${n2s(ts.getSeconds())}`;
 }
+
+// A recursive Object.assign(). Not incredibly safe.
+export function deepAssign(target: any, ...sources: any[]) {
+  for (const source of sources) {
+    for (const k in source) {
+      let vs = source[k], vt = target[k];
+      if (Object(vs) == vs && Object(vt) === vt) {
+        target[k] = deepAssign(vt, vs);
+        continue;
+      }
+      target[k] = source[k];
+    }
+  }
+  return target
+}

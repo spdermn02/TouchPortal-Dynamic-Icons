@@ -3,8 +3,8 @@
     Copyright Maxim Paperno, all rights reserved.
     License: MIT
 */
-import { ConsoleFormatter, IEndpointOptions } from "./";
-import StreamEndpoint from './StreamEndpoint'
+import { ConsoleFormatter } from "./";
+import StreamEndpoint, { StreamEndpointOptions } from './StreamEndpoint'
 
 var instance: ConsoleEndpointImpl | null = null;
 
@@ -13,11 +13,17 @@ var instance: ConsoleEndpointImpl | null = null;
 class ConsoleEndpointImpl extends StreamEndpoint
 {
     readonly name: string = "Console";
-    constructor(options?: IEndpointOptions) {
+    constructor(options?: StreamEndpointOptions) {
         if (!options)
             options = {};
         if (!options.formatter)
             options.formatter = new ConsoleFormatter();
+        options.inspectOptions = Object.assign({
+            colors: true,
+            depth: 6,
+            maxArrayLength: 50,
+            numericSeparator: true
+        }, options.inspectOptions);
         super(process.stdout, process.stderr, options);
     }
 

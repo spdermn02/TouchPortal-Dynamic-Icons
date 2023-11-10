@@ -6,12 +6,15 @@
 import { Console } from 'console';
 import { Writable } from 'stream'
 import { ILogEndpoint, ILogEntry, ILogFormatter, IEndpointOptions, LogLevel, logging, Logger, DefaultFormatter } from './';
+import { deepAssign } from './utils';
 
 export interface StreamEndpointOptions extends IEndpointOptions {
-    outStream?: Writable;
-    errStream?: Writable;
+    outStream?: Writable | null;
+    errStream?: Writable | null;
     /** Write TRACE level with a stack dump just like `console.trace()` does. Default is false. */
     traceWithStackDump?: boolean;
+    /** Passed to util.inspect() */
+    inspectOptions?: any;
 }
 
 /** The StreamEndpoint will output to any `stream.Writable` type.
@@ -38,13 +41,13 @@ export default class StreamEndpoint implements ILogEndpoint
 
     // c'tor overloads
     constructor(streamOptions?: StreamEndpointOptions);
-    constructor(stream: Writable, options?: IEndpointOptions);
-    constructor(outStream: Writable, errStream: Writable, options?: IEndpointOptions);
+    constructor(stream: Writable, options?: StreamEndpointOptions);
+    constructor(outStream: Writable, errStream: Writable, options?: StreamEndpointOptions);
     // implementation
     constructor(
         streamOptionsOrOut?: StreamEndpointOptions | Writable,
-        optionsOrErr?: Writable | IEndpointOptions,
-        options?: IEndpointOptions
+        optionsOrErr?: Writable | StreamEndpointOptions,
+        options?: StreamEndpointOptions
     ) {
         this.logger = logging().getLogger('logging');
         const opts: StreamEndpointOptions = {
@@ -53,32 +56,43 @@ export default class StreamEndpoint implements ILogEndpoint
         }
 
         if (optionsOrErr && !(optionsOrErr instanceof Writable))
-            Object.assign(opts, optionsOrErr);
+            deepAssign(opts, optionsOrErr);
         else if (options)
-            Object.assign(opts, options);
+            deepAssign(opts, options);
 
         this.options = opts;
     }
 
     get uid(): string { return `${this.name}(${this.outStream},${this.errStream})`; }
 
-    get options(): IEndpointOptions {
-        return { minLevel: this.level, formatter: this.formatter };
+    get options(): StreamEndpointOptions {
+        return {
+            minLevel: this.level,
+            formatter: this.formatter,
+            outStream: this.outStream,
+            errStream: this.errStream,
+            traceWithStackDump: this.traceWithStackDump
+        };
     }
-    set options(options: IEndpointOptions | any) {
+
+    set options(options: StreamEndpointOptions) {
         if (typeof options.minLevel == "number")
             this.level = options.minLevel;
         if (options.formatter)
             this.formatter = options.formatter;
         if (typeof options.traceWithStackDump == 'boolean')
-            this.traceWithStackDump = options.traceToLog;
+            this.traceWithStackDump = options.traceWithStackDump;
         if (options.outStream) {
             this.close();
             this.outStream = options.outStream;
-            this.errStream = options.errStream || null;
-            this.cnsl = new Console(options.outStream, !!options.errStream ? options.errStream : options.outStream);
+            this.errStream = options.errStream || options.outStream;
+            this.cnsl = new Console({
+                stdout: this.outStream,
+                stderr: this.errStream,
+                inspectOptions: options.inspectOptions,
+            });
         }
-        else if (options.outStream === null && this.cnsl) {
+        else if (options.outStream === null) {
             this.close();
         }
     }

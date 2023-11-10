@@ -7,6 +7,7 @@
 
 import { EventEmitter } from 'events';
 import { ILogOptions, ILogEndpoint, LogLevel, LogLevelName, LogLevelValue } from './';
+import { deepAssign } from './utils';
 import Logger from './Logger'
 //@ts-ignore
 const endpointTypes = require('./endpoints');  // used in dynamic eval, TSC optimizes this out if it's an import
@@ -32,7 +33,7 @@ class LogManager extends EventEmitter
         this.logger = this.getLogger('logging');
     }
 
-    get configuration(): ILogOptions { return Object.assign({}, this.options); }
+    get configuration(): ILogOptions { return deepAssign({}, this.options); }
     get haveEndpoints(): boolean { return this.endpoints.size > 0; }
 
     static instance(): LogManager {
@@ -116,7 +117,7 @@ class LogManager extends EventEmitter
      * eg. `ConsoleEndpoint` or `FileEndpoint`, and be exported in `./endpoints.ts`.  */
     configure(options: ILogOptions): LogManager
     {
-        this.options = Object.assign({}, this.options, options);
+        this.options = deepAssign({}, this.options, options);
 
         if (this.options.endpoints) {
             for (const [key, value] of Object.entries(this.options.endpoints)) {
