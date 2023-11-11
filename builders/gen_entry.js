@@ -32,6 +32,7 @@ const C = require("../dist/utils/consts.js");
 var VERSION = pkgConfig.version;
 var BUILD_NUM = pkgConfig.config.build;
 var OUTPUT_PATH = "base"
+var DOCS_URL_BASE = "https://github.com/spdermn02/TouchPortal-Dynamic-Icons/wiki/Documentation";
 var DEV_MODE = false;
 
 // Handle CLI arguments
@@ -49,95 +50,127 @@ var iVersion = 0;
 for (const part of [...VERSION.split('-', 1)[0].split('.', 3), BUILD_NUM])
     iVersion = iVersion << 8 | (parseInt(part) & 0xFF);
 
-// --------------------------------------
-// Define the base entry.tp object here
-
-const entry_base =
-{
-    "$schema": "https://pjiesco.com/touch-portal/entry.tp/schema",
-    "sdk": 6,
-    "version": parseInt(iVersion.toString(16)),
-    "name": C.Str.PluginName,
-    "id": C.Str.PluginId,
-    [pkgConfig.name]: VERSION,
-    "plugin_start_cmd":         DEV_MODE ? undefined : `sh %TP_PLUGIN_FOLDER%${pkgConfig.name}/start.sh ${pkgConfig.name}`,
-    "plugin_start_cmd_windows": DEV_MODE ? undefined : `"%TP_PLUGIN_FOLDER%${pkgConfig.name}\\${pkgConfig.name}.exe"`,
-    "configuration": {
-        "colorDark": "#23272A",
-        "colorLight": "#7289DA"
-    },
-    "settings": [
-        {
-            "name": C.SettingName.IconSize,
-            "type": "text",
-            "default": `${PluginSettings.defaultIconSize.width} x ${PluginSettings.defaultIconSize.height}`,
-            "readOnly": false,
-            "description": "Image size produced when using standalone 'Draw' actions for producing icons, without any layering."
-        },
-        {
-            "name": C.SettingName.ImageFilesPath,
-            "type": "text",
-            "default": "",
-            "readOnly": false,
-            "description": "Base directory to use when loading image files specified using a relative path. When left empty, the default is Touch Portal's configuration directory for the current user."
-        },
-        /*  Do not use GPU setting for now, possibly revisit if skia-canvas is fixed. **
-        {
-            "name": C.SettingName.GPU,
-            "type": "text",
-            "default": PluginSettings.defaultGpuRendering ? "Yes" : "No",
-            "readOnly": false,
-            "description": "Enables or disables using hardware acceleration (GPU), when available, for generating icon images. One of: \"yes, true, 1, or enable\" to enable, anything else to disable.\n" +
-                "This setting can be also be overridden per icon. Changing this setting does not affect any icons already generated since the plugin was started.\n\n" +
-                "When disabled, all image processing happens on the CPU, which may be slower and/or produce slightly different results in some cases.\n\n" +
-                "GPU rendering is only supported on some hardware/OS/drivers, and is disabled on others regardless of this setting.\n\n" +
-                "Note that at least some CPU will be used when generating icons in any case, most notably for image file loading and final output PNG compression."
-        },
-        */
-        {
-            "name": C.SettingName.PngCompressLevel,
-            "type": "number",
-            "default": PluginSettings.defaultOutputCompressionLevel.toString(),
-            "minValue": 0,
-            "maxValue": 9,
-            "readOnly": false,
-            "description": "Sets or disables the default image compression level of generated icons. This can be set to a number between 1 (low compression) and 9 (high compression)," +
-                " or 0 (zero) to disable compression entirely.\n" +
-                "This option can be also be overridden per icon. Changing this setting does not affect any icons already generated since the plugin was started.\n\n" +
-                "Compression affects the final image data size which will be sent to the TP device for display. The higher the compression level, the smaller the final size." +
-                " However, compression uses CPU resources, proportional to the compression level (higher level means more CPU use) and may produce lower quality images.\n\n" +
-                "Large image data sizes may impact the performance of the connected TP device to the point that it becomes unusable due to the lag. " +
-                "This setting can be adjusted to fine-tune the impact of dynamic icon generation on your computer vs. efficient delivery of images to the TP device."
-        },
-    ],
-    "categories": [
-        {
-            "id": "TP Dynamic Icons",
-            "name": C.Str.IconCategoryName,
-            "imagepath": `%TP_PLUGIN_FOLDER%${pkgConfig.name}/${pkgConfig.name}.png`,
-            "actions": [],
-            "connectors": [],
-            "states": [
-                {
-                    "id": C.StateId.IconsList,
-                    "type": "text",
-                    "desc" : "Dynamic Icons: List of created icons",
-                    "default" : ""
-                }
-            ],
-            "events": []
-        }
-    ]
-};
-
 // Other constants
 const ID_PREFIX = C.Str.IdPrefix;
-const TRANSFORM_OPERATIONS = C.DEFAULT_TRANSFORM_OP_ORDER;
+const PLUG_PATH = `%TP_PLUGIN_FOLDER%${pkgConfig.name}`;
+const ICON_PATH = `${PLUG_PATH}/icons/`;
 
 // some useful characters for forcing spacing in action texts
 const NBSP = " ";   // non-breaking narrow space U+202F (TP ignores "no-break space" U+00AD)
 const SP_EN = " ";  // en quad space U+2000  (.5em wide)
 const SP_EM = " "; // em quad space U+2001  (1em wide)
+
+
+// --------------------------------------
+// Define the sub-categories to sort actions into (TP v4+)
+const ACTION_CATS = {
+    basic: { name: "Basic Elements",   id: ID_PREFIX + "cat_basic", imagepath: ICON_PATH + "cat_basic.png" },
+    gauge: { name: "Gauges & Graphs",  id: ID_PREFIX + "cat_gauge", imagepath: ICON_PATH + "cat_gauge.png" },
+    layer: { name: "Layer Actions",    id: ID_PREFIX + "cat_layer", imagepath: ICON_PATH + "cat_layer.png" },
+    paths: { name: "Path Operations",  id: ID_PREFIX + "cat_paths", imagepath: ICON_PATH + "cat_paths.png" },
+    anim8: { name: "Animate & Update", id: ID_PREFIX + "cat_anim8", imagepath: ICON_PATH + "cat_anim8.png" },
+};
+
+// --------------------------------------
+// Define the base entry.tp object here
+
+const entry_base =
+{
+    // "$schema": "https://pjiesco.com/touch-portal/entry.tp/schema",  // not supporting API v7 yet.
+    sdk: 6,  // keep for BC with TPv3
+    api: 7,
+    version: parseInt(iVersion.toString(16)),
+    name: C.Str.PluginName,
+    id: C.Str.PluginId,
+    [pkgConfig.name]: VERSION,
+    plugin_start_cmd:         DEV_MODE ? undefined : `sh ${PLUG_PATH}/start.sh ${pkgConfig.name}`,
+    plugin_start_cmd_windows: DEV_MODE ? undefined : `"${PLUG_PATH}\\${pkgConfig.name}.exe"`,
+    configuration: {
+        colorDark:  "#23272A",
+        colorLight: "#7289DA",
+        parentCategory: "misc",
+    },
+    settings: [
+        {
+            name: C.SettingName.IconSize,
+            type: "text",
+            default: `${PluginSettings.defaultIconSize.width} x ${PluginSettings.defaultIconSize.height}`,
+            readOnly: false,
+            tooltip: {
+                title: cleanSettingTitle(C.SettingName.IconSize),
+                body: "Image size produced when using standalone 'Draw' actions for producing icons, without any layering.\n\n" +
+                    "This can be set to a single value for both width and height (eg. 128) or separate values using <width> x <height> or <width>, <height> format (eg. 128 x 256 or 128, 256).",
+                docUrl: `${DOCS_URL_BASE}#plugin-settings`
+            }
+        },
+        {
+            name: C.SettingName.ImageFilesPath,
+            type: "text",
+            default: "",
+            readOnly: false,
+            tooltip: {
+                title: cleanSettingTitle(C.SettingName.ImageFilesPath),
+                body: "Base directory to use when loading image files specified using a relative path. " +
+                    "When left empty, the default is Touch Portal's configuration directory for the current user (this path is shown in TP's Settings -> Info window).",
+                docUrl: `${DOCS_URL_BASE}#plugin-settings`
+            }
+        },
+        /*  Do not use GPU setting for now, possibly revisit if skia-canvas is fixed. **
+        {
+            name: C.SettingName.GPU,
+            type: "text",
+            default: PluginSettings.defaultGpuRendering ? "Yes" : "No",
+            readOnly: false,
+            tooltip: {
+                title: cleanSettingTitle(C.SettingName.GPU),
+                body: "Enables or disables using hardware acceleration (GPU), when available, for generating icon images. One of: \"yes, true, 1, or enable\" to enable, anything else to disable.\n" +
+                    "This setting can be also be overridden per icon. Changing this setting does not affect any icons already generated since the plugin was started.\n\n" +
+                    "When disabled, all image processing happens on the CPU, which may be slower and/or produce slightly different results in some cases.\n\n" +
+                    "GPU rendering is only supported on some hardware/OS/drivers, and is disabled on others regardless of this setting.\n\n" +
+                    "Note that at least some CPU will be used when generating icons in any case, most notably for image file loading and final output PNG compression.",
+                docUrl: `${DOCS_URL_BASE}#plugin-settings`
+            }
+        },
+        */
+        {
+            name: C.SettingName.PngCompressLevel,
+            type: "number",
+            default: PluginSettings.defaultOutputCompressionLevel.toString(),
+            minValue: 0,
+            maxValue: 9,
+            readOnly: false,
+            tooltip: {
+                title: cleanSettingTitle(C.SettingName.PngCompressLevel),
+                body: "Sets or disables the default image compression level of generated icons. This can be set to a number between 1 (low compression) and 9 (high compression), or 0 (zero) to disable compression entirely.\n\n" +
+                    "This option can be also be overridden per icon. Changing this setting does not affect any icons already generated since the plugin was started.\n\n" +
+                    "Compression affects the final image data size which will be sent to the TP device for display. The higher the compression level, the smaller the final size. " +
+                    "However, compression uses CPU resources, proportional to the compression level (higher level means more CPU use) and may produce lower quality images.\n\n" +
+                    "Large image data sizes may impact the performance of the connected TP device to the point that it becomes unusable due to the lag. " +
+                    "This setting can be adjusted to fine-tune the impact of dynamic icon generation on your computer vs. efficient delivery of images to the TP device.",
+                docUrl: `${DOCS_URL_BASE}#plugin-settings`
+            }
+        },
+    ],
+    categories: [
+        {
+            id: "TP Dynamic Icons",
+            name: C.Str.IconCategoryName,
+            imagepath: ICON_PATH + "plugin_icon.png",
+            subCategories: Object.values(ACTION_CATS),
+            states: [
+                {
+                    id: C.StateId.IconsList,
+                    type: "text",
+                    desc: "Dynamic Icons: List of created icons",
+                    default: ""
+                }
+            ],
+            actions: [],
+            connectors: [],
+            events: []
+        }
+    ]
+};
 
 // --------------------------------------
 // Helper functions
@@ -157,32 +190,38 @@ String.prototype.wrap = function(width = 280) {
     return this.replace(re, '$1\n').trim();
 }
 
+// Remove any trailing range info like " (0-9)" from settings name for use in tooltip window.
+function cleanSettingTitle(title) {
+    return title.replace(/ \(.+\)$/, "");
+}
+
 /** "join ID" - join parts of an action/data/etc ID string using the common separator character. */
 function jid(...args) {
     return args.join(C.Str.IdSep);
 }
 
-function addAction(id, name, descript, format, data, hold = false) {
+function addAction(id, name, descript, format, data, subcat = null, hold = false) {
     const action = {
-        "id": ID_PREFIX + id,
-        "prefix": "Dynamic Icons:",
-        "name": name,
-        "type": "communicate",
-        "tryInline": true,
-        "description": descript,
-        "format": String(format).format(data.map(d => `{$${d.id}$}`)),
-        "hasHoldFunctionality": hold,
-        "data": data
+        id: ID_PREFIX + id,
+        prefix: "Dynamic Icons:",
+        name: name,
+        subCategoryId: subcat?.id,
+        type: "communicate",
+        tryInline: true,
+        description: descript,
+        format: String(format).format(data.map(d => `{$${d.id}$}`)),
+        hasHoldFunctionality: hold,
+        data: data
     }
     entry_base.categories[0].actions.push(action);
 }
 
 function makeActionData(id, type, label = "", deflt = "") {
     return {
-        "id": ID_PREFIX + id,
-        "type": type,
-        "label":  label,
-        "default": deflt
+        id: ID_PREFIX + id,
+        type: type,
+        label:  label,
+        default: deflt
     };
 }
 
@@ -464,7 +503,7 @@ function txInfoText(wrapLine = 0) {
 
 // Standalone/layer elements
 
-function addRectangleAction(id, name) {
+function addRectangleAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         `Generate or layer a styled square/rounded shape. ${layerInfoText('shape')}\n` +
         "Size/radius/stroke width can be specified in percent of icon size or fixed pixels. Up to 4 radii can be specified, separated by commas, for each corner starting at top left.";
@@ -472,10 +511,10 @@ function addRectangleAction(id, name) {
     format += makeRectSizeData("rect", data) + " ";
     format += makeBorderRadiusData("rect", data) + " ";
     format += makeDrawStyleData("rect", data);
-    addAction(id, name, descript, format, data);
+    addAction(id, name, descript, format, data, subcat);
 }
 
-function addTextAction(id, name) {
+function addTextAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         `Generate or layer styled text. ${layerInfoText('text')}\n` +
         "Font is specified like the CSS 'font' shorthand property. Offset is percent of icon size, positive for right/down, negative for left/up. Stroke width in % is based on half the font size.";
@@ -492,13 +531,14 @@ function addTextAction(id, name) {
     format += ` Tracking {${data.length}}`;  // Baseline{${i++}}
     data.push(makeNumericData("text_tracking", "Tracking", 0, -999999, 999999, true))
     format += makeDrawStyleData("text", data);
-    addAction(id, name, descript, format, data);
+    addAction(id, name, descript, format, data, subcat);
 }
 
-function addImageAction(id, name, withTx = true) {
-    let descript = "Dynamic Icons: " +
+function addImageAction(id, name, subcat) {
+    const descript = "Dynamic Icons: " +
         `Generate or layer an image. ${layerInfoText('image')} ` +
-        "File paths are relative to this plugin's \"Default Image Files Path\" setting, or use absolute paths. Base64-encoded images can be loaded by using a \"data:\" prefix before the string data.\n";
+        "File paths are relative to this plugin's \"Default Image Files Path\" setting, or use absolute paths. Base64-encoded image data can be loaded using a \"data:\" prefix.\n"
+        + txInfoText();
     let [format, data] = makeIconLayerCommonData(id);
     let i = data.length;
     format += `Image\nFile {${i++}}Resize\nFit {${i++}}`;
@@ -506,14 +546,11 @@ function addImageAction(id, name, withTx = true) {
         makeActionData(jid(id, "src"), "file", "Image Source"),
         makeChoiceData(jid(id, "fit"), "Resize Fit", ["contain", "cover", "fill", "scale-down", "none"]),
     );
-    if (withTx) {
-        descript += txInfoText();
-        format += makeTransformData(TRANSFORM_OPERATIONS.slice(0, 3), jid(id, C.Act.IconTx), data);  // don't include skew op
-    }
-    addAction(id, name, descript, format, data, false);
+    format += makeTransformData(C.DEFAULT_TRANSFORM_OP_ORDER.slice(0, 3), jid(id, C.Act.IconTx), data);  // don't include skew op
+    addAction(id, name, descript, format, data, subcat);
 }
 
-function addProgressGaugeAction(id, name) {
+function addProgressGaugeAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         "Generate or layer a round progress-bar style gauge reflecting a data value. " + layerInfoText('gauge') + "\n" +
         "Gauge values are in percent where 100% is one complete circle. 'Automatic' direction draws clockwise for positive number, CCW for negative. " +
@@ -537,10 +574,10 @@ function addProgressGaugeAction(id, name) {
         makeActionData("gauge_background_color", "color", "Gauge Background Color", "#000000FF"),
         makeActionData("gauge_shadow_color", "color", "Gauge Shadow Color", "#282828FF"),
     );
-    addAction(id, name, descript, format, data, true);
+    addAction(id, name, descript, format, data, subcat, true);
 }
 
-function addBarGraphAction(id, name) {
+function addBarGraphAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         "Generate or layer a simple bar graph reflecting series data.\n" + layerInfoText('graph') + " " + numericValueInfoText();
     let [format, data] = makeIconLayerCommonData(id);
@@ -553,10 +590,10 @@ function addBarGraphAction(id, name) {
         makeActionData("bar_graph_value", "text", "Bar Graph Value", "0"),
         makeNumericData("bar_graph_width", "Bar Graph Width", 10, 1, 256, false),
     );
-    addAction(id, name, descript, format, data, true);
+    addAction(id, name, descript, format, data, subcat, true);
 }
 
-function addProgressBarAction(id, name) {
+function addProgressBarAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         "Generate or layer a linear progress bar reflecting a data value between 0 and 100. " + layerInfoText('bar') + "\n" +
         "Side padding means top & bottom for horizontal bars and left & right for vertical. Padding/radius/stroke width can be specified in percent of icon size or fixed pixels. " +
@@ -574,12 +611,12 @@ function addProgressBarAction(id, name) {
     data.push(
         makeActionData("pbar_value", "text", "Progress Value", "0"),
     )
-    addAction(id, name, descript, format, data);
+    addAction(id, name, descript, format, data, subcat, true);
 }
 
 // Paths and path handlers
 
-function addRectanglePathAction(id, name) {
+function addRectanglePathAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         `Create rectangle and rounded shapes which can then be styled or used as a clip area. An ${layerInfoText('')}\n` +
         "Size and radius can be specified in percent of icon size or fixed pixels. Up to 4 radii can be specified, separated by commas, for each corner starting at top left.";
@@ -589,10 +626,10 @@ function addRectanglePathAction(id, name) {
     format += makeAlignmentData(id, data) + " ";
     format += makeOffsetData(id, data) + " ";
     format += makePathOperation(id, data);
-    addAction(id, name, descript, format, data);
+    addAction(id, name, descript, format, data, subcat);
 }
 
-function addEllipsePathAction(id, name) {
+function addEllipsePathAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         `Create an full or partial elliptical shape which can then be styled or used as a clip area. An ${layerInfoText('')}\n` +
         "Size can be specified in percent of icon size or fixed pixels. Angles are in degrees, with zero being North/up. " +
@@ -611,10 +648,10 @@ function addEllipsePathAction(id, name) {
     format += makeAlignmentData(id, data) + " ";
     format += makeOffsetData(id, data) + " ";
     format += makePathOperation(id, data);
-    addAction(id, name, descript, format, data);
+    addAction(id, name, descript, format, data, subcat);
 }
 
-function addFreeformPathAction(id, name) {
+function addFreeformPathAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         "This action creates one or more drawing paths to define lines or shapes which can then be styled or used as a clip area. An " + layerInfoText('') +
         "Coordinates are \"X, Y\" points with \"0, 0\" at top left and can be absolute (px) or relative (%) to overall icon size.\n" +
@@ -632,20 +669,20 @@ function addFreeformPathAction(id, name) {
     format += makeAlignmentData(id, data) + " ";
     format += makeOffsetData(id, data) + " ";
     format += makePathOperation(id, data);
-    addAction(id, name, descript, format, data);
+    addAction(id, name, descript, format, data, subcat);
 }
 
-function addStyleAction(id, name) {
+function addStyleAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         "Apply a Style to preceeding Path layer(s). An Icon with same Name and at least one unused Path drawing layer must already be defined.\n" +
         "Items which can be styled are the Rectangle, Ellipse, and Freeform Path actions (only non-linear paths can have a fill color applied). " +
         "The style will be applied to any preceeding Path layer(s) which have not already had a style applied or used as a clip mask.";
     let [format, data] = makeIconLayerCommonData(id);
     format += makeDrawStyleData(id, data, {all: true});
-    addAction(id, name, descript, format, data);
+    addAction(id, name, descript, format, data, subcat);
 }
 
-function addClipAction(id, name) {
+function addClipAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         "Use preceeding Path layer(s) to create a clipping mask area on the current drawing. " +
         "The full area will include all preceeding Path layer(s) which have not already had a style applied or been used as another mask. " +
@@ -659,12 +696,12 @@ function addClipAction(id, name) {
         makeChoiceData(jid(id, "action"), "Action", [C.DataValue.ClipMaskNormal, C.DataValue.ClipMaskInverse, C.DataValue.ClipMaskRelease]),
         makeChoiceData(jid(id, "fillRule"), "Fill Rule", C.STYLE_FILL_RULE_CHOICES)
     );
-    addAction(id, name, descript, format, data);
+    addAction(id, name, descript, format, data, subcat);
 }
 
 // Layered icon actions
 
-function addStartLayersAction(id, name) {
+function addStartLayersAction(id, name, subcat) {
     const descript = "Dynamic Icons: " + name + "\n" +
         "Start a new Layered Icon. Add elements(s) in following 'Draw' and 'Layer' action(s) and then use the 'Generate' action to produce the icon.";
     let [format, data] = makeIconLayerCommonData(id);
@@ -677,10 +714,10 @@ function addStartLayersAction(id, name) {
         makeChoiceData("icon_tile_x", "Tile Columns", tileChoices),
         makeChoiceData("icon_tile_y", "Tile Rows", tileChoices),
     );
-    addAction(id, name, descript, format, data);
+    addAction(id, name, descript, format, data, subcat);
 }
 
-function addFilterAction(id, name) {
+function addFilterAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         "Set or clear a CSS-style filter on a layered icon. " + layerInfoText() + "\n" +
         "The filter specification is a string as per CSS 'filter' property, like `blur(5px)' or 'sepia(60%)'. Separate multiple filters with spaces." +
@@ -688,10 +725,10 @@ function addFilterAction(id, name) {
     let [format, data] = makeIconLayerCommonData(id);
     format += `set filter to{${data.length}}`;
     data.push(makeActionData("canvFilter_filter", "text", "Filter", "https://developer.mozilla.org/en-US/docs/Web/CSS/filter"));
-    addAction(id, name, descript, format, data);
+    addAction(id, name, descript, format, data, subcat);
 }
 
-function addCompositeModeAction(id, name) {
+function addCompositeModeAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         "Set the composition/blending operation mode on a layered icon. " + layerInfoText() + "\n" +
         "Composition type determines how the layers are combined color-wise when drawing them on top of each other." +
@@ -702,10 +739,10 @@ function addCompositeModeAction(id, name) {
         "source-over",  "source-in",  "source-out",  "source-atop",  "destination-over",  "destination-in",  "destination-out",  "destination-atop",  "lighter",  "copy",  "xor",
         "multiply",  "screen",  "overlay",  "darken",  "lighten",  "color-dodge",  "color-burn",  "hard-light",  "soft-light",  "difference",  "exclusion",  "hue", "saturation",  "color",  "luminosity",
     ]));
-    addAction(id, name, descript, format, data, false);
+    addAction(id, name, descript, format, data, subcat);
 }
 
-function addGenerateLayersAction(id, name) {
+function addGenerateLayersAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         "Finalize and/or Render a dynamic image icon which has been created using preceding 'New' and 'Draw/Layer' actions using the same Icon Name.\n" +
         "'Finalize' marks the icon as finished, removing any extra layers which may have been added previously. 'Render' produces the actual icon in its current state and sends it to TP.";
@@ -718,12 +755,12 @@ function addGenerateLayersAction(id, name) {
         // makeChoiceData("icon_generate_gpu", "Enable GPU Rendering", ["default", "Enable", "Disable"]),
         makeChoiceData("icon_generate_cl", "Image Compression Level", ["default", "None", "1 (low)", "2", "3", "4", "5", "6", "7", "8", "9 (high)"]),
     ];
-    addAction(id, name, descript, format, data);
+    addAction(id, name, descript, format, data, subcat);
 }
 
 // Shared actions for updating existing icons/layers.
 
-function addTransformAction(id, name, withIndex = false) {
+function addTransformAction(id, name, subcat, withIndex = false) {
     // Transforms can be inserted as a layer or updated like an "animation"; the former version is more terse.
     let descript;
     if (withIndex) {
@@ -737,7 +774,7 @@ function addTransformAction(id, name, withIndex = false) {
     }
 
     let [format, data] = makeIconLayerCommonData(id, withIndex);
-    format += makeTransformData(TRANSFORM_OPERATIONS, id, data);
+    format += makeTransformData(C.DEFAULT_TRANSFORM_OP_ORDER, id, data);
     if (withIndex) {
         format += `Render\nIcon?{${data.length}}`;
         data.push(makeChoiceData(jid(id, "render"), "Render?", ["No", "Yes"]));
@@ -748,10 +785,11 @@ function addTransformAction(id, name, withIndex = false) {
             makeChoiceData(jid(id, "scope"), "Scope", [C.DataValue.TxScopePreviousOne, C.DataValue.TxScopeCumulative, C.DataValue.TxScopeUntilReset, C.DataValue.TxScopeReset])
         );
     }
-    addAction(id, name, descript, format, data, false);
+    addAction(id, name, descript, format, data, subcat);
 }
+function addTransformUpdtAction(id, name, subcat) { addTransformAction(id, name, subcat, true); }
 
-function addValueUpdateAction(id, name) {
+function addValueUpdateAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         "Update a value on an element in an existing icon. " +
         "Elements which can be updated: Gauge, Graph and Bar values, Text content, Image source, and Effect Filter. " +
@@ -764,10 +802,10 @@ function addValueUpdateAction(id, name) {
         makeActionData("value_update_value", "text", "Value", ""),
         makeChoiceData("value_update_render", "Render?", ["No", "Yes"]),
     );
-    addAction(id, name, descript, format, data);
+    addAction(id, name, descript, format, data, subcat);
 }
 
-function addColorUpdateAction(id, name) {
+function addColorUpdateAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         "Update a color on an element in an existing icon. " +
         "Elements which can be updated: Round Gauge and Bar Graph forground/background, Progress Bar value/container fill, and fill/stroke on Text, Styled Rectangle, and Path Style actions.\n" +
@@ -781,7 +819,7 @@ function addColorUpdateAction(id, name) {
         makeColorData(jid(id, "color"), "Color", "#00000000"),
         makeChoiceData(jid(id, "render"), "Render?", ["No", "Yes"]),
     );
-    addAction(id, name, descript, format, data);
+    addAction(id, name, descript, format, data, subcat);
 }
 
 // System utility action
@@ -801,28 +839,25 @@ function addSystemActions() {
 
 const iid = C.ActHandler.Icon;
 
-addProgressGaugeAction(  jid(iid, C.Act.IconProgGauge), "Draw - Simple Round Gauge");
-addBarGraphAction(       jid(iid, C.Act.IconBarGraph),  "Draw - Simple Bar Graph");
-addProgressBarAction(    jid(iid, C.Act.IconProgBar),   "Draw - Linear Progress Bar");
-addTextAction(           jid(iid, C.Act.IconText),      "Draw - Text");
-addImageAction(          jid(iid, C.Act.IconImage),     "Draw - Image");
-addRectangleAction(      jid(iid, C.Act.IconRect),      "Draw - Styled Rectangle");
-
-addStartLayersAction(    jid(iid, C.Act.IconDeclare),   "Layer - New Layered Icon");
-addTransformAction(      jid(iid, C.Act.IconTx),        "Layer - Add Transformation", false);
-addFilterAction(         jid(iid, C.Act.IconFilter),    "Layer - Set Effect Filter");
-addCompositeModeAction(  jid(iid, C.Act.IconCompMode),  "Layer - Set Composite Mode");
-addGenerateLayersAction( jid(iid, C.Act.IconGenerate),  "Layer - Generate Layered Icon");
-
-addRectanglePathAction(  jid(iid, C.Act.IconRectPath),  "Paths - Add Rounded Rectangle");
-addEllipsePathAction(    jid(iid, C.Act.IconEllipse),   "Paths - Add Ellipse / Arc");
-addFreeformPathAction(   jid(iid, C.Act.IconPath),      "Paths - Add Freeform Path");
-addStyleAction(          jid(iid, C.Act.IconStyle),     "Paths - Apply Style to Path(s)");
-addClipAction(           jid(iid, C.Act.IconClip),      "Paths - Clipping Mask from Path(s)");
-
-addTransformAction(      jid(iid, C.Act.IconSetTx),     "Animate - Transformation", true);
-addValueUpdateAction(    jid(iid, C.Act.IconSetValue),  "Animate - Update a Value");
-addColorUpdateAction(    jid(iid, C.Act.IconSetColor),  "Animate - Update a Color");
+addProgressGaugeAction(  jid(iid, C.Act.IconProgGauge), "Draw - Simple Round Gauge",          ACTION_CATS.gauge );
+addBarGraphAction(       jid(iid, C.Act.IconBarGraph),  "Draw - Simple Bar Graph",            ACTION_CATS.gauge );
+addProgressBarAction(    jid(iid, C.Act.IconProgBar),   "Draw - Linear Progress Bar",         ACTION_CATS.gauge );
+addTextAction(           jid(iid, C.Act.IconText),      "Draw - Text",                        ACTION_CATS.basic );
+addImageAction(          jid(iid, C.Act.IconImage),     "Draw - Image",                       ACTION_CATS.basic );
+addRectangleAction(      jid(iid, C.Act.IconRect),      "Draw - Styled Rectangle",            ACTION_CATS.basic );
+addStartLayersAction(    jid(iid, C.Act.IconDeclare),   "Layer - New Layered Icon",           ACTION_CATS.layer );
+addTransformAction(      jid(iid, C.Act.IconTx),        "Layer - Add Transformation",         ACTION_CATS.layer );
+addFilterAction(         jid(iid, C.Act.IconFilter),    "Layer - Set Effect Filter",          ACTION_CATS.layer );
+addCompositeModeAction(  jid(iid, C.Act.IconCompMode),  "Layer - Set Composite Mode",         ACTION_CATS.layer );
+addGenerateLayersAction( jid(iid, C.Act.IconGenerate),  "Layer - Generate Layered Icon",      ACTION_CATS.layer );
+addRectanglePathAction(  jid(iid, C.Act.IconRectPath),  "Paths - Add Rounded Rectangle",      ACTION_CATS.paths );
+addEllipsePathAction(    jid(iid, C.Act.IconEllipse),   "Paths - Add Ellipse / Arc",          ACTION_CATS.paths );
+addFreeformPathAction(   jid(iid, C.Act.IconPath),      "Paths - Add Freeform Path",          ACTION_CATS.paths );
+addStyleAction(          jid(iid, C.Act.IconStyle),     "Paths - Apply Style to Path(s)",     ACTION_CATS.paths );
+addClipAction(           jid(iid, C.Act.IconClip),      "Paths - Clipping Mask from Path(s)", ACTION_CATS.paths );
+addTransformUpdtAction(  jid(iid, C.Act.IconSetTx),     "Animate - Transformation",           ACTION_CATS.anim8 );
+addValueUpdateAction(    jid(iid, C.Act.IconSetValue),  "Animate - Update a Value",           ACTION_CATS.anim8 );
+addColorUpdateAction(    jid(iid, C.Act.IconSetColor),  "Animate - Update a Color",           ACTION_CATS.anim8 );
 
 // Misc actions
 addSystemActions();
