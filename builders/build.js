@@ -7,6 +7,7 @@ const packageJson = JSON.parse(fs.readFileSync("./package.json", "utf8"))
 const { exit } = require("process");
 const { execSync } = require("child_process");
 
+const BASE_SRC = "./base";  // source folder for icons and other meta data
 // sharp/vips library path constants
 const SHARP_ROOT = "./node_modules/sharp"
 const SHARP_BUILD = SHARP_ROOT + "/build/Release"
@@ -20,25 +21,34 @@ for (let i=2; i < process.argv.length; ++i) {
     if (arg == "-p") targetPlatform = process.argv[++i].split(',');
 }
 
-const build = async(platform, options ) => {
-    if( fs.existsSync(`./base/${platform}`) ) {
-      fs.rmSync(`./base/${platform}`, { recursive : true})
-    }
-    fs.mkdirSync(`./base/${platform}`)
-    fs.copyFileSync("./base/plugin_icon.png", `./base/${platform}/${packageJson.name}.png`)
-    fs.copyFileSync("./base/plugin-config.json", `./base/${platform}/plugin-config.json`)
+const build = async(platform, options ) =>
+{
+    const STAGING = `${BASE_SRC}/${platform}`  // temporary package build destination
+
+    // Remove staging directory in case of leftovers, then (re)create it.
+    if( fs.existsSync(STAGING) )
+      fs.rmSync(STAGING, { recursive : true})
+    fs.mkdirSync(STAGING)
+
+    // copy all icons
+    const icons = fs.readdirSync(`${BASE_SRC}/icons`).filter(fn => fn.endsWith('.png'))
+    icons.forEach(fn => copyFileSync(`${BASE_SRC}/icons/${fn}`, `${STAGING}/icons`));
+    // copy config file
+    copyFileSync(`${BASE_SRC}/plugin-config.json`, STAGING)
+
+    // Platform-specific packaging
 
     let osTarget = platform.toLowerCase()
     let sharpPlatform = osTarget
     let execName = packageJson.name
     let libvipsSrcPath = SHARP_BUILD
-    let libvipsDestPath = `./base/${platform}/`
+    let libvipsDestPath = STAGING
 
     if (platform.toLowerCase() == "windows" ) {
         osTarget = "win"
         sharpPlatform = "win32"
         execName += ".exe"
-        libvipsDestPath += `${SHARP_BUILD}/`
+        libvipsDestPath += '/' + SHARP_BUILD
     }
     else if (platform.toLowerCase() == "macos") {
         sharpPlatform = 'darwin'
@@ -50,6 +60,7 @@ const build = async(platform, options ) => {
     }
 
     if (platform.toLowerCase() != "windows" )  {
+        // For Mac/Linux we need to find the Vips' version-specific libs folder
         const vendorLibDir = fs.readdirSync(`${SHARP_ROOT}/vendor/`, { recursive: false, withFileTypes: false } ).filter(fn => /^\d+\.\d+\.\d+$/.test(fn)).at(-1)
         if (!vendorLibDir) {
             console.error("Could not locate sharp vendor lib version/directory in " + `${SHARP_ROOT}/vendor/`)
@@ -57,17 +68,19 @@ const build = async(platform, options ) => {
         }
         console.log(`Found sharp lib vendor v${vendorLibDir}`)
         libvipsSrcPath = `${SHARP_ROOT}/vendor/${vendorLibDir}/${sharpPlatform}-x64/lib`
-        fs.copyFileSync("./base/start.sh", `./base/${platform}/start.sh`)
+        // Also copy the startup script
+        copyFileSync(`${BASE_SRC}/start.sh`, STAGING)
     }
 
     console.log(`Making sure sharp is built for ${platform} x64`)
     execSync(`npm rebuild --platform=${sharpPlatform} --arch=x64 sharp`)
+    // copy libVips binaries
     const libs = fs.readdirSync(libvipsSrcPath).filter(fn => fn.startsWith('lib'))
     libs.forEach(fn => copyFileSync(`${libvipsSrcPath}/${fn}`, libvipsDestPath));
-    copyFileSync(`${SHARP_BUILD}/sharp-${sharpPlatform}-x64.node`, `./base/${platform}/${SHARP_BUILD}/`)
+    copyFileSync(`${SHARP_BUILD}/sharp-${sharpPlatform}-x64.node`, `${STAGING}/${SHARP_BUILD}`)
 
     console.log("Generating entry.tp")
-    execSync(`node ./builders/gen_entry.js -o ./base/${platform}`)
+    execSync(`node ./builders/gen_entry.js -o "${STAGING}"`)
 
     console.log("Running pkg")
     await pkg.exec([
@@ -78,6 +91,7 @@ const build = async(platform, options ) => {
       ".",
     ]);
 
+    // Set the output archive .tpp name.
     let platform_arch = platform
     if(options?.type)
         platform_arch += `-${options.type}`
@@ -86,14 +100,14 @@ const build = async(platform, options ) => {
     console.log(`Creating zip file '${packageName}'`)
     const zip = new AdmZip()
     zip.addLocalFolder(
-      path.normalize(`./base/${platform}/`),
+      path.normalize(STAGING),
       packageJson.name
     );
 
     zip.writeZip(packageName)
 
     console.log("Cleaning Up")
-    fs.rmSync(`./base/${platform}`, { recursive : true})
+    fs.rmSync(STAGING, { recursive : true})
 }
 
 const cleanInstallers  = () => {
