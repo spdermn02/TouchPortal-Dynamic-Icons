@@ -328,9 +328,9 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 
             let action = 3  // finalize | render
             if (data.length > 1) {
-                // Action choices: "Finalize & Render", "Finalize", "Render"
+                // Action choices: "Finalize & Render", "Finalize Only", "Render Only"
                 let strVal:string = data[1].value.trim()
-                if (strVal.length < 9)
+                if (strVal.length < 17)
                     action = strVal[0] == 'F' ? 1 : 2
 
                 parseState.pos = 2;
