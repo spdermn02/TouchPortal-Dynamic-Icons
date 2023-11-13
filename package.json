@@ -1,8 +1,8 @@
 {
   "name": "touchportal-dynamic-icons",
-  "version": "1.2.0-alpha3",
+  "version": "1.2.0-beta1",
   "config": {
-    "build" : 3,
+    "build": 4,
     "nodeTarget": "node18"
   },
   "description": "Generate Dynamic Icons for Touch Portal on Actions and 0-100% values",
