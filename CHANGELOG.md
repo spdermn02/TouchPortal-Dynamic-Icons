@@ -1,10 +1,10 @@
 
 # Touch Portal Dynamic Icons - Change Log
 
-## v1.2.0-beta1 - Path Operations, Dynamic Colors, Enchanced Round Guage, & More
+## v1.2.0-beta1 - Path Operations, Dynamic Colors, Enhanced Round Gauge, & More
 
 ### New Features
-- Added a new set of actions for working with drawing paths (unstyled drawing elements). Completely freeform paths can be created, including support for SVG path syntax, as well as basic shapes like rectangles and ellipses.
+- Added a new set of actions for working with drawing paths (un-styled drawing elements). Completely freeform paths can be created, including support for SVG path syntax, as well as basic shapes like rectangles and ellipses.
   Paths can be combined and transformed in various ways to create complex shapes. They can then have a drawing style applied to them, or be used as a clipping region to constrain further drawing.
   For more details see the [notes on PR #27][#27].
 - Added new "Animate - Update a Color" action to dynamically change a color of an existing layer element. ([#28])
@@ -38,7 +38,7 @@
   - Added help text for each of the plugin's options shown in TP's Settings dialog.
 - Concurrent system thread usage changes: ([ee62e201])
   - The number of simultaneous image rendering threads is now set to use half the logical cores available on the host system. Previously this was always fixed to 4 threads.
-  - The default number of simultanous image compression threads has been reduced to using half the logical cores available (controllable via new Setting mentioned above). Previously this used as many threads as there were logical cores.
+  - The default number of simultaneous image compression threads has been reduced to using half the logical cores available (controllable via new Setting mentioned above). Previously this used as many threads as there were logical cores.
 - Prevent layer updates while icon is actively rendering (warnings are logged to file). ([ab60b03b])
 - Optimized data transfer between the drawing canvas ('skia-canvas') and final compression step ('sharp') by ~400% using updated custom version of 'skia-canvas' to export raw pixel data. ([cc4717e2], [skia-canvas@8cbc8910])
 - Slightly optimized image file loading (before cache) by creating canvas images using raw pixel data instead of encoded/decoded PNG format. ([72b907d5], [skia-canvas@1e7e09b7])
@@ -47,7 +47,7 @@
 - Updated TP Node API ('touchportal-node-api') to latest version allowing log message redirection and graceful plugin shutdown on exit. ([4b69a8d9], [0a65d4b2], [tp-api#36], [tp-api#38])
 - Minor performance optimizations. ([e830d054], [caacff04], [tp-api#40])
 
-**Full log:** [v1.2.0-alpha3...HEAD](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/compare/v1.2.0-alpha3...HEAD)
+**Full log:** [v1.2.0-alpha3...v1.2.0-beta1](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/compare/v1.2.0-alpha3...v1.2.0-beta1)
 
 [#23]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/23
 [#24]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/pull/24
