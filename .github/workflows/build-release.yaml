@@ -52,7 +52,6 @@ jobs:
         id: release_notes
         with:
           version_tag: ${{ steps.pckg_ver.outputs.version }}
-          changelog_ascending: true
           fallback_to_latest: true
 
       - name: Create Release
