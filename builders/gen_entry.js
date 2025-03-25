@@ -260,10 +260,6 @@ function makeNumericData(id, label, dflt, min, max, allowDec = true) {
     return d;
 }
 
-function makeIconNameData(id, label = "Icon Name") {
-    return makeTextData(jid(id, "name"), label);
-}
-
 function makeSizeTypeData(id, dflt = undefined) {
     return makeChoiceData(jid(id, "unit"), "Unit", ["%", "px"], dflt);
 }
@@ -273,7 +269,7 @@ function makeSizeTypeData(id, dflt = undefined) {
 
 function makeIconLayerCommonData(id, withIndex = false) {
     let format = "Icon\nName {0}";
-    const data = [ makeIconNameData(id) ];
+    const data = [ makeTextData(jid(id, "name"), "Icon Name") ];
     if (withIndex) {
         format += "Element\n@ Position{1}";
         data.push(makeTextData(jid(id, "layer_index"), "Layer Position", "1"));
@@ -758,15 +754,16 @@ function addGenerateLayersAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         "Finalize and/or Render a dynamic image icon which has been created using preceding 'New' and 'Draw/Layer' actions using the same Icon Name.\n" +
         "'Finalize' marks the icon as finished, removing any extra layers which may have been added previously. 'Render' produces the actual icon in its current state and sends it to TP.";
-    const format = "Icon Named {0} {1} with Compression Level {2} (default is set in plugin Settings)";
+    let [format, data] = makeIconLayerCommonData(id);
+    let i = data.length;
+    format += `{${i++}} with Compression Level {${i++}} (default is set in plugin Settings)`;
     // Do not use GPU setting for now, possibly revisit if skia-canvas is fixed.
     // const format = "Icon Named {0} {1} | Enable GPU Rendering: {2} Compression Level: {3} (defaults are set in plugin Settings)";
-    const data = [
-        makeIconNameData(id),
+    data.push(
         makeChoiceData("icon_generate_action", "Action", ["Finalize & Render", "Finalize Only", "Render Only"]),
         // makeChoiceData("icon_generate_gpu", "Enable GPU Rendering", ["default", "Enable", "Disable"]),
         makeChoiceData("icon_generate_cl", "Image Compression Level", ["default", "None", "1 (low)", "2", "3", "4", "5", "6", "7", "8", "9 (high)"]),
-    ];
+    );
     addAction(id, name, descript, format, data, subcat);
 }
 
