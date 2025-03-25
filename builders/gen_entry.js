@@ -276,7 +276,7 @@ function makeIconLayerCommonData(id, withIndex = false) {
     const data = [ makeIconNameData(id) ];
     if (withIndex) {
         format += "Element\n@ Position{1}";
-        data.push(makeNumericData(jid(id, "layer_index"), "Layer Position", 1, -99, 99, false));
+        data.push(makeTextData(jid(id, "layer_index"), "Layer Position", "1"));
     }
     return [ format, data ];
 }
