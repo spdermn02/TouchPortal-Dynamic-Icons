@@ -1,6 +1,6 @@
 
 import sharp from 'sharp';
-import { loadImage, CanvasImageSource } from 'skia-canvas';
+import { loadImageData, type CanvasDrawable } from 'skia-canvas';
 import { Mutex } from 'async-mutex';
 import { SizeType } from './geometry';
 import { PluginSettings } from '../common';
@@ -28,7 +28,7 @@ class ImageCacheOptions {
     };
 }
 
-export type ImageDataType = CanvasImageSource | null;
+export type ImageDataType = CanvasDrawable | null;
 
 type ImageRecord = {
     image: ImageDataType
@@ -203,9 +203,7 @@ export class ImageCache
                 const {data, info} = await image.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
                 // const meta = await image.metadata();
                 if (data)
-                    return await loadImage(data, { raw:
-                        { width: info.width, height: info.height, /* colorType: (meta.channels == 3 ? 'rgb' : 'rgba'), premultiplied: false */ }
-                    });
+                    return await loadImageData(data, info.width, info.height);
             }
         }
         catch (e) {

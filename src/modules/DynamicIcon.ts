@@ -1,11 +1,14 @@
-import sharp, { CreateRaw } from 'sharp';   // for final result image compression
-import { RenderOptions } from 'skia-canvas';
+import sharp, { type CreateRaw } from 'sharp';   // for final result image compression
 import { PluginSettings, TPClient } from '../common';
 import {
-    Canvas,
+    Canvas, LayerRole, logging, Rectangle, Size,
+    Transformation, TransformScope
+} from './';
+
+import type {
+    DOMMatrix,
     ILayerElement, IPathHandler, IPathProducer, IRenderable,
-    LayerRole, Logger, logging, Rectangle, Size, SizeType,
-    Path2D, PointType, Transformation, TransformScope
+    Logger, SizeType, PointType, Path2D,
 } from './';
 
 type TxStackRecord = { tx: Transformation, startIdx: number }
@@ -21,8 +24,8 @@ export default class DynamicIcon
     tile: PointType = { x: 0, y: 0 };
     /** `true` if icon was explicitly created with a "New" action, will require a corresponding "Render" action to actually draw it. */
     delayGeneration: boolean = false;
-    /** Whether to use GPU for rendering (on supported hardware). Passed to skia-canvas's Canvas::gpu property. ** Unused for now. ** */
-    //gpuRendering: boolean = PluginSettings.defaultGpuRendering;
+    /** Whether to use GPU for rendering (on supported hardware). Passed to skia-canvas's Canvas::gpu property. */
+    gpuRendering: boolean = PluginSettings.defaultGpuRendering;
     /** Used while building a icon from TP layer actions to keep track of current layer being affected. */
     nextIndex: number = 0;
     /** Flag to indicate early v1.2-alpha style tiling where the specified icon size was per tile instead of overall size. TODO: Remove  */
@@ -83,12 +86,12 @@ export default class DynamicIcon
 
     // Sends the canvas contents after re-compressing it with Sharp.
     private sendCompressedImage(canvas: Canvas) {
-        const  size = this.actualSize(),
-            raw: RenderOptions | CreateRaw = { width: size.width, height: size.height, channels: 4, premultiplied: true };
+        const size = this.actualSize();
+        const raw: CreateRaw = { width: size.width, height: size.height, channels: 4, premultiplied: true };
         canvas
-        .toImageData(raw)
-        .then((data: ImageData) => {
-            sharp(data.data, { raw: raw })
+        .toBuffer("raw" as any)
+        .then((data: Buffer) => {
+            sharp(data, { raw })
             .png(this.outputCompressionOptions)
             .toBuffer()
             .then((b: Buffer) => this.sendStateData(this.name, b) )
@@ -128,11 +131,11 @@ export default class DynamicIcon
     private sendCompressedTiles(canvas: Canvas) {
         const size = this.actualSize(),
             tileW = Math.ceil(size.width / this.tile.x),
-            tileH = Math.ceil(size.height / this.tile.y),
-            raw: RenderOptions | CreateRaw = { width: size.width, height: size.height, channels: 4, premultiplied: true };
+            tileH = Math.ceil(size.height / this.tile.y);
+        const raw: CreateRaw = { width: size.width, height: size.height, channels: 4, premultiplied: true };
         canvas
-        .toImageData(raw)
-        .then((data: ImageData) => {
+        .toBuffer("raw" as any)
+        .then((data: Buffer) => {
             for (let y=0; y < this.tile.y; ++y) {
                 for (let x=0; x < this.tile.x; ++x) {
                     const tl = tileW * x,
@@ -140,7 +143,7 @@ export default class DynamicIcon
                         tw = Math.min(tileW, size.width - tl),
                         th = Math.min(tileH, size.height - tt);
                     // extract image slice, encode PNG, and send the tile
-                    sharp(data.data, { raw: raw })
+                    sharp(data, { raw })
                     .extract({ left: tl, top: tt, width: tw, height: th })
                     .png(this.outputCompressionOptions)
                     .toBuffer()
@@ -161,7 +164,7 @@ export default class DynamicIcon
             const ctx = canvas.getContext("2d");
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
-            //canvas.gpu = this.gpuRendering;
+            canvas.gpu = this.gpuRendering;
 
             const pathStack: Array<Path2D> = [];
             const activeTxStack: Array<TxStackRecord> = [];

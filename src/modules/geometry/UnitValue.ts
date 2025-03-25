@@ -2,7 +2,7 @@
     For now unit types are only "%" or "px", and this object just stores
     a flag indicating if the value is relative (%) or absolute (px).
 */
-export default class UnitValue {
+export default class UnitValue extends Object {
     value: number;
     isRelative!: boolean;
     unit!: string;
@@ -11,6 +11,7 @@ export default class UnitValue {
     constructor(value: number, unit: string);
     constructor(value: number, isRelative: boolean);
     constructor(value: number = 0, unit: any = false) {
+        super();
         this.value = value;
         if (unit.length)
             this.setUnit(unit);
@@ -31,6 +32,10 @@ export default class UnitValue {
     setRelative(relative: boolean) {
         this.isRelative = relative;
         this.unit = relative ? "%" : "px";
+    }
+
+    override toString(): string {
+        return this.value + this.unit;
     }
 
 }

@@ -1,8 +1,10 @@
 
-import { IColorElement, ILayerElement, IRenderable, IValuedElement } from '../interfaces';
-import { Alignment, ColorUpdateType, ParseState, Point, PointType, Rectangle, RenderContext2D } from '../';
+import { Alignment, Point, UnitValue } from '../';
 import { evaluateValue, evaluateStringValue, parseAlignmentFromValue } from '../../utils'
 import { DrawingStyle } from './';
+
+import type { IColorElement, ILayerElement, IRenderable, IValuedElement } from '../interfaces';
+import type { ColorUpdateType, ParseState, PointType, Rectangle, RenderContext2D, TextMetrics, } from '../';
 
 // Draws text on a canvas context with various options. The text can be fully styled with the embedded DrawingStyle property.
 export default class StyledText implements ILayerElement, IRenderable, IValuedElement, IColorElement
@@ -14,15 +16,11 @@ export default class StyledText implements ILayerElement, IRenderable, IValuedEl
     private fontVariant: string = 'common-ligatures discretionary-ligatures contextual';  // ensure ligature support for named symbol fonts
     private alignment: Alignment = Alignment.CENTER;
     private direction: 'ltr' | 'rtl' | 'inherit' = 'inherit';
-    private tracking: number = 0;
+    private letterSpacing: UnitValue = new UnitValue(0, "em");
     private wrap: boolean = true;
     private offset: PointType = Point.new();
     private style: DrawingStyle = new DrawingStyle();
-
-    private metrics: {
-        textMetrics: TextMetrics | any | null,  // skia-canvas extended TextMetrics type
-        multiline: boolean
-    } = { textMetrics: null, multiline: false };
+    private tm: TextMetrics | null = null;
 
     // constructor(init?: Partial<StyledText>) { Object.assign(this, init); }
     // ILayerElement
@@ -37,7 +35,7 @@ export default class StyledText implements ILayerElement, IRenderable, IValuedEl
     // IValuedElement
     setValue(text: string): void {
         this.text = evaluateStringValue(text);
-        this.metrics.textMetrics = null;  // reset
+        this.tm = null;  // reset
     }
 
     // IColorElement
@@ -55,6 +53,7 @@ export default class StyledText implements ILayerElement, IRenderable, IValuedEl
                 case 'font':
                     this.font = data.value.trim();
                     this.style.line.widthScale = 1;  // depends on font, reset it
+                    this.tm = null;  // reset
                     break;
                 case 'alignH':
                     this.alignment &= ~Alignment.H_MASK;
@@ -71,7 +70,9 @@ export default class StyledText implements ILayerElement, IRenderable, IValuedEl
                     this.offset.y = evaluateValue(data.value);
                     break;
                 case 'tracking':
-                    this.tracking = parseFloat(data.value) || 0;
+                    // the deprecated skia-canvas textTracking value was a signed int representing 1/1000 of an 'em'
+                    this.letterSpacing.value = (parseFloat(data.value) || 0) / 1000;
+                    this.tm = null;  // reset
                     break;
                 default: {
                     if (styleParsed || !dataType || !dataType.startsWith('style_')) {
@@ -100,11 +101,12 @@ export default class StyledText implements ILayerElement, IRenderable, IValuedEl
         ctx.save();
 
         ctx.font = this.font;
-        ctx.fontVariant = this.fontVariant;
+        ctx.fontVariant = this.fontVariant as any;  // FontVariantSetting
         ctx.direction = this.direction;
-        ctx.textTracking = this.tracking;
         ctx.textWrap = this.wrap;
-        // ctx.textRendering = 'optimizeLegibility';  // not supported
+        ctx.fontHinting = true;  // looks & aligns better with most fonts
+        if (this.letterSpacing.value)
+            ctx.letterSpacing = this.letterSpacing.toString();
 
         // Calculate the stroke width first, if any.
         let penAdjust = 0;
@@ -120,54 +122,51 @@ export default class StyledText implements ILayerElement, IRenderable, IValuedEl
             this.style.shadow.saveContext(ctx);
         }
 
-        // Use 'center' alignment and 'middle' baseline to get metrics and as default (may change after metrics are calculated).
-        // This is important for the offset calculation code below to work.
-        ctx.textAlign = 'center';
+        // Set vertical default text alignment before getting text metrics (below, if we need them). "middle" gets the right metrics for all our cases.
         ctx.textBaseline = 'middle';
-        if (!this.metrics.textMetrics) {
-            this.metrics.textMetrics = ctx.measureText(this.text);
-            this.metrics.multiline = this.metrics.textMetrics.lines.length > 1;
-            // console.dir(this, {depth: 8});
-        }
-        const tm = this.metrics.textMetrics;
 
         // Calculate the draw offset based on alignment settings.
-        let offset = Point.new();
+        const offset = Point.new();
         // horizontal
         switch (this.alignment & Alignment.H_MASK) {
             case Alignment.HCENTER:
             case Alignment.JUSTIFY:
-                offset.x = (rect.width * 0.5 + tm.actualBoundingBoxLeft + tm.actualBoundingBoxRight);
+                ctx.textAlign = 'center';
+                if (!this.tm)
+                    this.tm = ctx.measureText(this.text);
+                offset.x = (rect.width * 0.5 - this.tm.actualBoundingBoxLeft + this.tm.actualBoundingBoxRight);
                 break;
             case Alignment.LEFT:
                 ctx.textAlign = 'left';
-                offset.x = rect.width * .025 + penAdjust;
-                break;  // add some left padding
+                // add some left padding
+                offset.x = rect.width * .015 + penAdjust;
+                break;
             case Alignment.RIGHT:
                 ctx.textAlign = 'right';
-                offset.x = rect.width - rect.width * .025 - penAdjust;
-                break; // add some right padding
+                // add some right padding
+                offset.x = rect.width - rect.width * .015 - penAdjust;
+                break;
         }
-        // vertical alignment is tricksier!  this may not work perfectly for all fonts since it relies heavily on their declared metrics, and those are not always as expected.
+        // vertical
         switch (this.alignment & Alignment.V_MASK) {
             case Alignment.VCENTER:
-                offset.y = (rect.height - tm.actualBoundingBoxAscent - tm.actualBoundingBoxDescent) * 0.5 +
-                           (this.metrics.multiline ? tm.actualBoundingBoxAscent : tm.fontBoundingBoxAscent);
+                if (!this.tm)
+                    this.tm = ctx.measureText(this.text);
+                offset.y = (rect.height - this.tm.actualBoundingBoxAscent - this.tm.actualBoundingBoxDescent) * 0.5 + this.tm.actualBoundingBoxAscent;
                 break;
             case Alignment.TOP:
-                if (this.metrics.multiline) {
-                    ctx.textBaseline = 'top';
-                    offset.y = tm.actualBoundingBoxAscent + penAdjust;
-                    break;
-                }
-                offset.y = tm.fontBoundingBoxAscent + penAdjust;
+                // no extra padding needed here since using "top" as baseline adds some already
+                ctx.textBaseline = 'top';
+                offset.y = penAdjust;
                 break;
             case Alignment.BOTTOM:
-                ctx.textBaseline = 'top';
-                offset.y = rect.height - tm.actualBoundingBoxDescent - tm.fontBoundingBoxAscent - penAdjust;
+                if (!this.tm)
+                    this.tm = ctx.measureText(this.text);
+                // needs a little bottom padding to match spacing of top aligned text
+                offset.y = rect.height - this.tm.actualBoundingBoxDescent - penAdjust - rect.height * .015;
                 break;
         }
-        // console.log(rect.size, offset, penAdjust, tm);
+        // console.log(this.text, this.font, rect.size, offset, penAdjust, this.tm);
 
         // add any user-specified offset as percent of canvas size
         if (!Point.isNull(this.offset))

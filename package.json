@@ -50,7 +50,7 @@
   "dependencies": {
     "async-mutex": "^0.4.0",
     "sharp": "0.32.6",
-    "skia-canvas": "github:mpaperno/skia-canvas#master",
+    "skia-canvas": "2.0.2",
     "touchportal-api": "github:spdermn02/touchportal-node-api#master"
   },
   "devDependencies": {
