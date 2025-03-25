@@ -3,23 +3,28 @@
   "version": "1.2.0-beta1",
   "config": {
     "build": 4,
-    "nodeTarget": "node18"
+    "nodeTarget": "node22"
   },
   "description": "Generate Dynamic Icons for Touch Portal on Actions and 0-100% values",
   "main": "src/index.js",
   "bin": {
     "touchportal-dynamic-icons": "dist/index.js"
   },
+  "pkg": {
+    "assets": [
+      "node_modules/@img/sharp*/**/*"
+    ]
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "pkg": "pkg .",
-    "pkg-win": "pkg --targets node18-win-x64 .",
-    "pkg-mac": "pkg --targets node18-macos-x64 .",
-    "pkg-linux": "pkg --targets node18-linux-x64 .",
+    "pkg-win": "pkg --targets node22-win-x64 .",
+    "pkg-mac": "pkg --targets node22-macos-arm64 .",
+    "pkg-linux": "pkg --targets node22-linux-x64 .",
     "build": "tsc && node builders/build.js",
-    "build-win": "tsc && node builders/build.js -p Windows",
-    "build-mac": "tsc && node builders/build.js -p MacOS",
-    "build-linux": "tsc && node builders/build.js -p Linux",
+    "build-win": "tsc && node builders/build.js -p win32",
+    "build-mac": "tsc && node builders/build.js -p darwin",
+    "build-linux": "tsc && node builders/build.js -p linux",
     "tsc": "tsc",
     "jest": "jest",
     "ts-node-dev": "ts-node-dev",
@@ -48,18 +53,18 @@
   },
   "homepage": "https://github.com/spdermn02/TouchPortal-Dynamic-Icons#readme",
   "dependencies": {
-    "async-mutex": "^0.4.0",
-    "sharp": "0.32.6",
+    "async-mutex": "^0.5",
+    "sharp": "^0.33.5",
     "skia-canvas": "2.0.2",
     "touchportal-api": "github:spdermn02/touchportal-node-api#master"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^4.30.0",
-    "adm-zip": "^0.5.9",
-    "eslint": "^7.32.0",
-    "fs-extra": "^10.1.0",
-    "pkg": "github:vercel/pkg#main",
-    "ts-node": "^10.9.1",
-    "typescript": "^5.0.4"
+    "@typescript-eslint/eslint-plugin": "^8",
+    "adm-zip": "^0.5",
+    "eslint": "^9",
+    "fs-extra": "^11",
+    "pkg": "npm:@yao-pkg/pkg@^6.3",
+    "ts-node": "^10.9",
+    "typescript": "^5.8"
   }
 }
