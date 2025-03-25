@@ -4,25 +4,33 @@ const fs = require("fs");
 const fse = require("fs-extra")
 const pkg = require("pkg");
 const packageJson = JSON.parse(fs.readFileSync("./package.json", "utf8"))
-const { exit } = require("process");
+const process = require("process");
 const { execSync } = require("child_process");
 
 const BASE_SRC = "./base";  // source folder for icons and other meta data
-// sharp/vips library path constants
-const SHARP_ROOT = "./node_modules/sharp"
-const SHARP_BUILD = SHARP_ROOT + "/build/Release"
 
-// use CLI -p argument to override build target platforms
-var targetPlatform = ["Windows", "MacOS", "Linux"]
+// use CLI -p argument to override build target platform(s)
+// "win32", "darwin", "darwin-x64", "linux"
+var targetPlatform = [ process.platform ]
+
+// clean up temp staging files after build
+var cleanStagedFiles = true
 
 // Handle CLI arguments
 for (let i=2; i < process.argv.length; ++i) {
     const arg = process.argv[i];
-    if (arg == "-p") targetPlatform = process.argv[++i].split(',');
+    if      (arg == "-p") targetPlatform = process.argv[++i].split(',');
+    else if (arg == "-nc") cleanStagedFiles = false;
 }
 
-const build = async(platform, options ) =>
+const build = async(platform) =>
 {
+    let arch = process.arch;
+    if (platform.indexOf('-') > -1)
+        [ platform, arch ] = platform.split('-', 2);
+    platform = platform.toLowerCase();
+    arch = arch.toLowerCase();
+
     const STAGING = `${BASE_SRC}/${platform}`  // temporary package build destination
 
     // Remove staging directory in case of leftovers, then (re)create it.
@@ -38,64 +46,51 @@ const build = async(platform, options ) =>
 
     // Platform-specific packaging
 
-    let osTarget = platform.toLowerCase()
-    let sharpPlatform = osTarget
+    let osName;
+    let pkgTarget = platform;
     let execName = packageJson.name
-    let libvipsSrcPath = SHARP_BUILD
-    let libvipsDestPath = STAGING
 
-    if (platform.toLowerCase() == "windows" ) {
-        osTarget = "win"
-        sharpPlatform = "win32"
+    if (platform == "win32" ) {
+        osName = 'Windows'
+        pkgTarget = "win"
         execName += ".exe"
-        libvipsDestPath += '/' + SHARP_BUILD
     }
-    else if (platform.toLowerCase() == "macos") {
-        sharpPlatform = 'darwin'
+    else if (platform == "darwin") {
+        osName = 'macOS'
+        pkgTarget = "macos"
     }
-    // MacOS-Arm64 ?
-    else if (platform.toLowerCase() != "linux") {
+    else if (platform == "linux") {
+        osName = 'Linux'
+    }
+    else {
         console.error("Can't handle platform " + platform)
-        exit(1)
+        process.exit(1)
     }
 
-    if (platform.toLowerCase() != "windows" )  {
-        // For Mac/Linux we need to find the Vips' version-specific libs folder
-        const vendorLibDir = fs.readdirSync(`${SHARP_ROOT}/vendor/`, { recursive: false, withFileTypes: false } ).filter(fn => /^\d+\.\d+\.\d+$/.test(fn)).at(-1)
-        if (!vendorLibDir) {
-            console.error("Could not locate sharp vendor lib version/directory in " + `${SHARP_ROOT}/vendor/`)
-            exit(1)
-        }
-        console.log(`Found sharp lib vendor v${vendorLibDir}`)
-        libvipsSrcPath = `${SHARP_ROOT}/vendor/${vendorLibDir}/${sharpPlatform}-x64/lib`
-        // Also copy the startup script
+    if (platform != "win32") {
+        // Copy the startup script
         copyFileSync(`${BASE_SRC}/start.sh`, STAGING)
     }
 
-    console.log(`Making sure sharp is built for ${platform} x64`)
-    execSync(`npm rebuild --platform=${sharpPlatform} --arch=x64 sharp`)
-    // copy libVips binaries
-    const libs = fs.readdirSync(libvipsSrcPath).filter(fn => fn.startsWith('lib'))
-    libs.forEach(fn => copyFileSync(`${libvipsSrcPath}/${fn}`, libvipsDestPath));
-    copyFileSync(`${SHARP_BUILD}/sharp-${sharpPlatform}-x64.node`, `${STAGING}/${SHARP_BUILD}`)
+    // check for x-platform build
+    if (platform != process.platform || arch != process.arch) {
+        console.log(`Building on ${process.platform} ${process.arch}; Installing sharp for ${platform} ${arch}`)
+        execSync(`npm install --os=${platform} --cpu=${arch} sharp`)
+    }
 
     console.log("Generating entry.tp")
     execSync(`node ./builders/gen_entry.js -o "${STAGING}"`)
 
     console.log("Running pkg")
     await pkg.exec([
-      "--targets",
-      `${packageJson.config.nodeTarget}-${osTarget}-x64`,
-      "--output",
-      `base/${platform}/${execName}`,
-      ".",
+        "--targets", `${packageJson.config.nodeTarget}-${pkgTarget}-${arch}`,
+        "--output",  `${STAGING}/${execName}`,
+        //   "--debug",
+        ".",
     ]);
 
     // Set the output archive .tpp name.
-    let platform_arch = platform
-    if(options?.type)
-        platform_arch += `-${options.type}`
-    const packageName = path.normalize(`./Installers/${packageJson.name}-${platform_arch}-${packageJson.version}.tpp`)
+    const packageName = path.normalize(`./Installers/${packageJson.name}-${osName}-${arch}-${packageJson.version}.tpp`)
 
     console.log(`Creating zip file '${packageName}'`)
     const zip = new AdmZip()
@@ -106,8 +101,10 @@ const build = async(platform, options ) =>
 
     zip.writeZip(packageName)
 
-    console.log("Cleaning Up")
-    fs.rmSync(STAGING, { recursive : true})
+    if (cleanStagedFiles) {
+        console.log("Cleaning Up")
+        fs.rmSync(STAGING, { recursive : true})
+    }
 }
 
 const cleanInstallers  = () => {
