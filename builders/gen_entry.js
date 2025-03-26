@@ -32,7 +32,7 @@ const C = require("../dist/utils/consts.js");
 var VERSION = pkgConfig.version;
 var BUILD_NUM = pkgConfig.config.build;
 var OUTPUT_PATH = "base"
-var DOCS_URL_BASE = "https://github.com/spdermn02/TouchPortal-Dynamic-Icons/wiki/Documentation";
+var DOCS_URL_BASE = pkgConfig.homepage + "/wiki/Documentation";
 var DEV_MODE = false;
 
 // Handle CLI arguments
@@ -90,6 +90,9 @@ const entry_base =
         colorLight: "#7289DA",
         parentCategory: "misc",
     },
+    settingsDescription: pkgConfig.description + "\n" +
+        "For more details, documentation, and examples please visit the plugin's home page at: " + pkgConfig.homepage + "\n" +
+        "Installed plugin version: " + VERSION,
     settings: [
         {
             name: C.SettingName.IconSize,

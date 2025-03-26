@@ -5,7 +5,7 @@
     "build": 4,
     "nodeTarget": "node22"
   },
-  "description": "Generate Dynamic Icons for Touch Portal on Actions and 0-100% values",
+  "description": "Generate dynamic icons and images for Touch Portal buttons.",
   "main": "src/index.js",
   "bin": {
     "touchportal-dynamic-icons": "dist/index.js"
@@ -51,7 +51,7 @@
   "bugs": {
     "url": "https://github.com/spdermn02/TouchPortal-Dynamic-Icons/issues"
   },
-  "homepage": "https://github.com/spdermn02/TouchPortal-Dynamic-Icons#readme",
+  "homepage": "https://github.com/spdermn02/TouchPortal-Dynamic-Icons",
   "dependencies": {
     "async-mutex": "^0.5",
     "sharp": "^0.33.5",
