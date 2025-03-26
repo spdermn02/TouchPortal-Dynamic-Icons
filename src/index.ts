@@ -285,36 +285,31 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
     switch (actionId)
     {
         case C.Act.IconDeclare: {
-            if (data.length < 2) {
-                logger.error("Missing all data for icon '" + iconName + "' action " + actionId);
-                return;
-            }
             // Create or modify a "layer stack" type icon. Layer elements need to be added in following action(s).
             icon.delayGeneration = true;   // must explicitly generate
             icon.nextIndex = 0;   // reset layer position index, this increments each time we parse a layer element into the icon
+
             // Parse and set the size property(ies).
-            const size = Size.new(parseInt(data[parseState.pos++].value) || PluginSettings.defaultIconSize.width);
-            // Size height parameter; Added in v1.2-alpha3
-            if (data[parseState.pos]?.id.endsWith("size_h"))
-                size.height = parseInt(data[parseState.pos++].value) || PluginSettings.defaultIconSize.height
-            else
-                icon.sizeIsActual = false;  // set flag indicating tiling style is for < v1.2-alpha3. TODO: Remove
-            Size.set(icon.size, size);
+            icon.size.width = parseIntOrDefault(parseState.dr.size, PluginSettings.defaultIconSize.width)
+            // Size height parameter added in v1.2-alpha3
+            // use current width as default for height, not the defaultIconSize.height (which is really for non-layered icons)
+            icon.size.height = parseIntOrDefault(parseState.dr.h, icon.size.width)
+            // set flag indicating tiling style is for < v1.2-alpha3. TODO: Remove and log as warning
+            if (parseState.dr.h == undefined)
+                icon.sizeIsActual = false
 
             // Handle tiling parameters, if any;  Added in v1.2.0
-            let tile: PointType = { x: 1, y: 1}
-            if (data[parseState.pos]?.id.endsWith("tile_x"))
-                tile = { x: parseInt(data[parseState.pos++].value) || 1, y: parseInt(data[parseState.pos]?.value) || 1 };
+            const tile: PointType = Point.new(parseIntOrDefault(parseState.dr.x, 1), parseIntOrDefault(parseState.dr.y, 1))
             // Create the TP state(s) now if we haven't yet (icon.tile will be 0,0); this way a user can create the new state at any time, separate from the render action.
             // Also check if the tiling settings have changed; we may need to clean up any existing TP states first or create new ones.
             if (!Point.equals(icon.tile, tile)) {
                 // Adjust icon states based on current tile property vs. the new one.
-                createOrRemoveIconStates(icon, tile);
+                createOrRemoveIconStates(icon, tile)
                 // Update the icons list state if this is a new icon.
                 if (!icon.tile.x)
                     sendIconLists()
                 // Set the tile property after adjusting the states.
-                Point.set(icon.tile, tile);
+                Point.set(icon.tile, tile)
             }
             return;
         }
