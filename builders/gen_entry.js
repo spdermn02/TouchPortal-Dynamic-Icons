@@ -159,8 +159,20 @@ const entry_base =
             readOnly: false,
             tooltip: {
                 title: cleanSettingTitle(C.SettingName.MaxImageProcThreads),
-                body: "Sets the maximum number of parallel CPU threads used for image compression. A value of \""+C.Str.Default+"\" (or zero) will use half the available CPU threads (usually twice the number of physical CPU cores).\n\n" +
-                    "When specifying a setting, this should be a number between 1 and the maximum number of threads a CPU can process in parallel, which again is usually twice the number of physical CPU cores.",
+                body: "Sets the maximum number of parallel CPU threads used for image compression. A value of \""+C.Str.Default+"\" (or zero) will use half the available CPU threads (modern CPUs can typically run 2 threads per physical CPU core).\n" +
+                    "When specifying a setting, this should be a number between 1 and the maximum number of threads a CPU can process in parallel.",
+                docUrl: `${DOCS_URL_BASE}#plugin-settings`
+            }
+        },
+        {
+            name: C.SettingName.MaxImageGenThreads,
+            type: "text",
+            default: C.Str.Default,
+            readOnly: false,
+            tooltip: {
+                title: cleanSettingTitle(C.SettingName.MaxImageGenThreads),
+                body: "Sets the maximum number of parallel threads used for image generation (rendering). A value of \""+C.Str.Default+"\" (or zero) will use half the available CPU threads (modern CPUs can typically run 2 threads per physical CPU core).\n" +
+                    "When specifying a setting, this should be a number between 1 and the maximum number of threads a CPU can process in parallel.",
                 docUrl: `${DOCS_URL_BASE}#plugin-settings`
             }
         },

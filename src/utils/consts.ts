@@ -85,6 +85,7 @@ export const enum SettingName {
     GPU = "Use GPU Rendering by Default",
     PngCompressLevel = "Default Output Image Compression Level (0-9)",
     MaxImageProcThreads = "Maximum Image Compression Threads",
+    MaxImageGenThreads = "Maximum Image Generator Threads",
 };
 
 // Math constants

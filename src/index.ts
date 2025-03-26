@@ -34,7 +34,7 @@ const DEFAULT_IMAGE_FILE_BASE_PATH = presolve(EXEC_BASE_PATH, '..', '..');
     const os = require('os');
     var SYS_MAX_THREADS = ('availableParallelism' in os ? os.availableParallelism() : os.cpus.length) || 1;
 }
-// Use half the available threads by default for each of the main procesing tasks we run (see 3rd party libs setup, below).
+// Use half the available threads by default for each of the main processing tasks we run (see 3rd party libs setup, below).
 const DEFAULT_CONCURRENCY = Math.ceil(SYS_MAX_THREADS / 2);
 
 // Translate TPClient log level strings to our LogLevel enum.
@@ -58,9 +58,8 @@ if (!process.env.UV_THREADPOOL_SIZE)
 // Curb Sharp's default enthusiasm for using up all the available system threads for compressing each image.
 // This is also set/changed by user's plugin settings after connecting to TP, but set a default here just in case.
 sharp_concurrency(DEFAULT_CONCURRENCY);
-
-// Set custom @mpaperno/skia-canvas option to properly draw ellipse paths as the user directed, including past a full circle.
-process.env.SKIA_CANVAS_DRAW_ELLIPSE_PAST_FULL_CIRCLE = "1";
+// Skia-canvas v2 introduced a new way to control number of threads used for image rendering.
+canvas_concurrency(DEFAULT_CONCURRENCY);
 
 
 // -------------------------------
@@ -227,6 +226,10 @@ function finishLayerElementUpdateAction(icon: DynamicIcon, data: TpActionDataArr
         icon.render();
 }
 
+// Sets skia-canvas async image generator thread limit
+function canvas_concurrency(numThreads: number) {
+    process.env.SKIA_CANVAS_THREADS = numThreads.toString()
+}
 
 // -------------------------------
 // Action handlers
@@ -626,7 +629,9 @@ function onSettings(settings:{ [key:string]:string }[]) {
                 break;
             case C.SettingName.MaxImageProcThreads:
                 sharp_concurrency(clamp(parseIntOrDefault(val, DEFAULT_CONCURRENCY), 1, SYS_MAX_THREADS));
-                logger.debug("Set output image processing concurrency to %d", sharp_concurrency());
+                break;
+            case C.SettingName.MaxImageGenThreads:
+                canvas_concurrency(clamp(parseIntOrDefault(val, DEFAULT_CONCURRENCY), 1, SYS_MAX_THREADS));
                 break;
             case C.SettingName.GPU:
                 PluginSettings.defaultGpuRendering = parseBoolOrDefault(val, PluginSettings.defaultGpuRendering);
