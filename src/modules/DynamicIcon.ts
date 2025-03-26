@@ -115,7 +115,7 @@ export default class DynamicIcon
                 try {
                     // Extract tile-sized part of the current canvas onto a new canvas which is the size of a tile.
                     const tileCtx = new Canvas(tw, th).getContext("2d");
-                    // tileCtx.canvas.gpu = this.gpuRendering;
+                    tileCtx.canvas.gpu = this.gpuRendering;
                     tileCtx.drawCanvas(canvas, tl, tt, tw, th, 0, 0, tw, th);
                     this.sendCanvasImage(this.getTileStateId({x: x, y: y}), tileCtx.canvas);
                 }

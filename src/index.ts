@@ -8,7 +8,7 @@ import { DynamicIcon, IColorElement, ParseState, globalImageCache } from "./modu
 import * as LE from "./modules/elements";
 import { ConsoleEndpoint, Logger, logging , LogLevel } from './modules/logging';
 import { setTPClient, PluginSettings } from './common'
-import { parseIntOrDefault, /* parseBoolOrDefault, */ clamp } from './utils/helpers'
+import { parseIntOrDefault, parseBoolOrDefault, clamp } from './utils/helpers'
 import { dirname as pdirname, resolve as presolve } from 'path';
 import { concurrency as sharp_concurrency } from 'sharp';
 const { version: pluginVersion } = require('../package.json');  // 'import' causes lint error in VSCode
@@ -327,27 +327,17 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             }
 
             let action = 3  // finalize | render
-            if (data.length > 1) {
-                // Action choices: "Finalize & Render", "Finalize Only", "Render Only"
-                let strVal:string = data[1].value.trim()
-                if (strVal.length < 17)
-                    action = strVal[0] == 'F' ? 1 : 2
+            // Action choices: "Finalize & Render", "Finalize Only", "Render Only"
+            if (parseState.dr.action && parseState.dr.action.length < 17)
+                action = parseState.dr.action[0] == 'F' ? 1 : 2
 
-                parseState.pos = 2;
-                // GPU rendering setting choices: "default", "Enable", "Disable"; Added in v1.2.0-a1, Removed after 1.2.0-a3.
-                if (data[parseState.pos]?.id.endsWith("gpu")) {
-                    /* Ignore GPU setting for now, possibly revisit if skia-canvas is fixed.
-                    strVal = data[parseState.pos++].value[0]
-                    icon.gpuRendering = (strVal == "d" && PluginSettings.defaultGpuRendering) || strVal == "E"
-                    */
-                    ++parseState.pos;
-                }
-                // Output compression choices: "default", "none", "1"..."9"; Added in v1.2.0-a3
-                if (data[parseState.pos]?.id.endsWith("cl")) {
-                    strVal = data[parseState.pos++].value[0]
-                    icon.outputCompressionOptions.compressionLevel = strVal == "d" ? PluginSettings.defaultOutputCompressionLevel : parseInt(strVal) || 0
-                }
-            }
+            // Output compression choices: "default", "none", "1"..."9"; Added in v1.2.0-a3
+            if (parseState.dr.cl != undefined)
+                icon.outputCompressionOptions.compressionLevel = parseIntOrDefault(parseState.dr.cl, PluginSettings.defaultOutputCompressionLevel)
+
+            // GPU rendering setting choices: "default", "Enabled", "Disabled"; Added in v1.2.0-a1, removed after 1.2.0-a3, re-added in 1.3.0.
+            if (parseState.dr.gpu != undefined)
+                icon.gpuRendering = parseBoolOrDefault(parseState.dr.gpu, PluginSettings.defaultGpuRendering)
 
             if (action & 1)
                 icon.layers.length = icon.nextIndex;   // trim any old layers
@@ -643,10 +633,9 @@ function onSettings(settings:{ [key:string]:string }[]) {
                 sharp_concurrency(clamp(parseIntOrDefault(val, DEFAULT_CONCURRENCY), 1, SYS_MAX_THREADS));
                 logger.debug("Set output image processing concurrency to %d", sharp_concurrency());
                 break;
-            // Ignore GPU setting for now, possibly revisit if skia-canvas is fixed.
-            // case C.SettingName.GPU:
-            //     PluginSettings.defaultGpuRendering = parseBoolOrDefault(val, PluginSettings.defaultGpuRendering);
-            //     break;
+            case C.SettingName.GPU:
+                PluginSettings.defaultGpuRendering = parseBoolOrDefault(val, PluginSettings.defaultGpuRendering);
+                break;
         }
     });
     // logger.debug("settings: %O", settings)

@@ -82,7 +82,7 @@ export const enum DataValue {
 export const enum SettingName {
     IconSize = "Default Icon Size",
     ImageFilesPath = "Default Image Files Path",
-    GPU = "Enable GPU Rendering by Default",  // unused for now
+    GPU = "Use GPU Rendering by Default",
     PngCompressLevel = "Default Output Image Compression Level (0-9)",
     MaxImageProcThreads = "Maximum Image Compression Threads",
 };

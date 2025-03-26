@@ -115,23 +115,22 @@ const entry_base =
                 docUrl: `${DOCS_URL_BASE}#plugin-settings`
             }
         },
-        /*  Do not use GPU setting for now, possibly revisit if skia-canvas is fixed. **
         {
             name: C.SettingName.GPU,
-            type: "text",
-            default: PluginSettings.defaultGpuRendering ? "Yes" : "No",
+            type: "switch",
+            default: PluginSettings.defaultGpuRendering ? "on" : "off",
             readOnly: false,
             tooltip: {
                 title: cleanSettingTitle(C.SettingName.GPU),
-                body: "Enables or disables using hardware acceleration (GPU), when available, for generating icon images. One of: \"yes, true, 1, or enable\" to enable, anything else to disable.\n" +
-                    "This setting can be also be overridden per icon. Changing this setting does not affect any icons already generated since the plugin was started.\n\n" +
-                    "When disabled, all image processing happens on the CPU, which may be slower and/or produce slightly different results in some cases.\n\n" +
-                    "GPU rendering is only supported on some hardware/OS/drivers, and is disabled on others regardless of this setting.\n\n" +
-                    "Note that at least some CPU will be used when generating icons in any case, most notably for image file loading and final output PNG compression.",
+                body: "Enables using hardware acceleration (GPU) for generating icon images (on supporrted hardware). " +
+                    "When disabled, all image processing happens on the CPU. Using GPU may provide speed or efficiency benefits in some cases and may produce slightly different visual results.\n\n" +
+                    "This setting can be also be overridden per icon when using layers.\n" +
+                    "GPU rendering is only supported on some hardware/OS/drivers, and is disabled on others regardless of this setting. " +
+                    "Note that at least some CPU will be used when generating icons in any case, most notably for image file loading and final output PNG compression. " +
+                    "Changing this setting will not affect any created icon instances until they're cleared (with \"Delete Icon State\" action) or the plugin is restarted.",
                 docUrl: `${DOCS_URL_BASE}#plugin-settings`
             }
         },
-        */
         {
             name: C.SettingName.PngCompressLevel,
             type: "number",
@@ -756,13 +755,11 @@ function addGenerateLayersAction(id, name, subcat) {
         "'Finalize' marks the icon as finished, removing any extra layers which may have been added previously. 'Render' produces the actual icon in its current state and sends it to TP.";
     let [format, data] = makeIconLayerCommonData(id);
     let i = data.length;
-    format += `{${i++}} with Compression Level {${i++}} (default is set in plugin Settings)`;
-    // Do not use GPU setting for now, possibly revisit if skia-canvas is fixed.
-    // const format = "Icon Named {0} {1} | Enable GPU Rendering: {2} Compression Level: {3} (defaults are set in plugin Settings)";
+    format += `{${i++}} with Compression Level {${i++}} and GPU Rendering {${i++}} (defaults are set in plugin Settings)`;
     data.push(
         makeChoiceData("icon_generate_action", "Action", ["Finalize & Render", "Finalize Only", "Render Only"]),
-        // makeChoiceData("icon_generate_gpu", "Enable GPU Rendering", ["default", "Enable", "Disable"]),
-        makeChoiceData("icon_generate_cl", "Image Compression Level", ["default", "None", "1 (low)", "2", "3", "4", "5", "6", "7", "8", "9 (high)"]),
+        makeChoiceData("icon_generate_cl", "Compression Level", ["default", "None", "1 (low)", "2", "3", "4", "5", "6", "7", "8", "9 (high)"]),
+        makeChoiceData("icon_generate_gpu", "GPU Rendering", ["default", "Enabled", "Disabled"]),
     );
     addAction(id, name, descript, format, data, subcat);
 }
