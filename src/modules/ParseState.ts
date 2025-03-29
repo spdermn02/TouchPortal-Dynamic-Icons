@@ -1,10 +1,10 @@
 import { Str } from "../utils/consts";
-import { TpActionDataArrayType, TpActionDataRecord, TpActionDataType } from "./types";
+import type { TpActionDataArrayType, TpActionDataRecord } from "./types";
 
 /** A struct to pass meta data as reference to chained action data parsing methods (eg. the various elements' loadFromActionData() methods) */
 export default class ParseState {
-    data: TpActionDataArrayType; // [in] data array to parse
-    pos: number;                 // [in/out] index into data array of current parsing position; incremented for every data field "consumed" by a parser
+    readonly data: TpActionDataArrayType; // [in] data array to parse
+    pos: number;                          // [in/out] index into data array of current parsing position; incremented for every data field "consumed" by a parser
 
     /** Get the whole data array as a flat object with data IDs as keys. Key names are only the last part after '_' separator in ID. */
     get dr(): TpActionDataRecord {
@@ -25,10 +25,11 @@ export default class ParseState {
     /** Transform data array to a flat object with data IDs as keys, starting at array index `start` (default 0).
      * Key names are only the last part after '_' separator in ID. */
     asRecord(start: number = 0, separator: string = Str.IdSep): TpActionDataRecord {
-        return Object.assign({}, ...this.data.map(
-            (d: TpActionDataType, i: number) => {
-                return i >= start ? { [d.id.split(separator).at(-1) as string]: d.value } : {};
-            }
-        ));
+        let ret: TpActionDataRecord = {};
+        for (const e = this.data.length; start < e; ++start) {
+            const d = this.data[start];
+            ret[d.id.split(separator).at(-1) as string] = d.value;
+        }
+        return ret;
     }
 }
