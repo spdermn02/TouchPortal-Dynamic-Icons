@@ -1,10 +1,10 @@
 import TP from 'touchportal-api'
 import * as C from './utils/consts'
 import { ColorUpdateType } from './modules/enums';
-import { TpActionDataArrayType } from './modules/types'
-import { ILayerElement, IValuedElement } from './modules/interfaces';
-import { Point, PointType, Size } from './modules/geometry';
-import { DynamicIcon, IColorElement, ParseState, globalImageCache } from "./modules";
+import type { ConstructorType, TpActionDataArrayType } from './modules/types'
+import type { IColorElement, ILayerElement, IValuedElement } from './modules/interfaces';
+import { Point, type PointType, Size } from './modules/geometry';
+import { DynamicIcon, ParseState, globalImageCache } from "./modules";
 import * as LE from "./modules/elements";
 import { ConsoleEndpoint, Logger, logging , LogLevel } from './modules/logging';
 import { setTPClient, PluginSettings } from './common'
@@ -43,13 +43,42 @@ const TPClientLogLevel = {
     "WARN" : LogLevel.WARNING,
     "INFO" : LogLevel.INFO,
     "DEBUG": LogLevel.DEBUG,
-}
+} as const;
+
+// Mapping of action names to layer element types with additional meta data for validation/etc.
+type LayerElementRecord = Record<string, {
+    type: ConstructorType<ILayerElement>,
+    layered?: boolean,    // layered icons only
+    prev_layer?: boolean, // requires previous (existing) layer(s) (implies `layered`)
+    ctor_arg?: boolean,   // requires argument(s) for constructor
+}>;
+// Used in `handleIconAction()`
+const ACTION_TO_ELEMENT_MAP: LayerElementRecord = {
+    // Elements which can be either layers or individual icons.
+    [C.Act.IconProgGauge ]: { type: LE.RoundProgressGauge },
+    'simple_round_gauge'  : { type: LE.RoundProgressGauge },  // keep for BC
+    [C.Act.IconProgBar   ]: { type: LE.LinearProgressBar },
+    [C.Act.IconBarGraph  ]: { type: LE.BarGraph },
+    'simple_bar_graph'    : { type: LE.BarGraph },            // keep for BC
+    [C.Act.IconRect      ]: { type: LE.StyledRectangle },
+    [C.Act.IconRectPath  ]: { type: LE.RectanglePath },
+    [C.Act.IconEllipse   ]: { type: LE.EllipsePath },
+    [C.Act.IconPath      ]: { type: LE.FreeformPath },
+    [C.Act.IconText      ]: { type: LE.StyledText },
+    [C.Act.IconImage     ]: { type: LE.DynamicImage,    ctor_arg: true },
+    // Elements which affect other layers in some way.
+    [C.Act.IconStyle     ]: { type: LE.DrawingStyle,    prev_layer: true },
+    [C.Act.IconClip      ]: { type: LE.ClippingMask,    prev_layer: true },
+    [C.Act.IconFilter    ]: { type: LE.CanvasFilter,    layered: true },
+    [C.Act.IconCompMode  ]: { type: LE.CompositionMode, layered: true },
+    [C.Act.IconTx        ]: { type: LE.Transformation,  layered: true },
+} as const;
 
 
 // ------------------------------
 // 3rd-party Libs Setup
 
-// Expand Node's thread pool if possible since both skia-canvas and sharp use it for async image processing.
+// Expand Node's thread pool if possible since sharp use it for async image loading/resizing.
 // Need to do this first before any I/O can happen. Sharp also runs multiple threads _per image_ for compression,
 // and tiling so leave some available. And don't override the limit if one is already set. 4 is the default.
 if (!process.env.UV_THREADPOOL_SIZE)
@@ -193,39 +222,6 @@ function removeIcons(iconNames: string[], removeStates = true) {
     });
 }
 
-// This is used for actions which update existing layers in an icon.
-// Checks if action data contains valid "_index" field and returns the corresponding layer item and the actual index if (0 <= index < icon.layers.length);
-// If "_index" data value is negative, it is treated as counting from the end of the array, meaning it is added to 'icon.layers.length' (and then validated).
-function getLayerElementForUpdateAction(icon: DynamicIcon, data: TpActionDataArrayType): {element: ILayerElement | undefined, index: number}  | null
-{
-    if (!icon.layers.length) {
-        logger.warn("Icon '%s' must first be created before updating a value.", icon.name)
-        return null
-    }
-    // Get index of layer to update
-    let layerIdx = -1;
-    if (data.length > 1 && data[1].id.endsWith("_index")) {
-        layerIdx= parseInt(data[1].value) || 0;
-        if (layerIdx < 0)
-            layerIdx = icon.layers.length + layerIdx;
-        else
-            --layerIdx;
-    }
-    if (layerIdx < 0 || layerIdx >= icon.layers.length) {
-        logger.warn(`Layer data update Position out of bounds for icon named '${icon.name}': Max. range 1-${icon.layers.length}, got ${layerIdx+1}.`)
-        return null
-    }
-    return { element: icon.layers.at(layerIdx), index: layerIdx }
-}
-
-// Used by update actions to parse/handle the final render option field.
-function finishLayerElementUpdateAction(icon: DynamicIcon, data: TpActionDataArrayType) {
-    // When updating a value/tx, there is an option to generate the icon immediately (w/out an explicit "generate" action)
-    const render = data.at(-1)
-    if (render && render.id.endsWith("render") && render.value === "Yes")
-        icon.render();
-}
-
 // Sets skia-canvas async image generator thread limit
 function canvas_concurrency(numThreads: number) {
     process.env.SKIA_CANVAS_THREADS = numThreads.toString()
@@ -262,7 +258,7 @@ function handleControlAction(actionId: string, data: TpActionDataArrayType) {
 }
 
 // Processes all icon layering and generation actions.
-async function handleIconAction(actionId: string, data: TpActionDataArrayType)
+function handleIconAction(actionId: string, data: TpActionDataArrayType)
 {
     // The icon name is always the first data field in all other actions.
     const iconName:string = data[0].value.trim()
@@ -271,26 +267,79 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
         return;
     }
 
-    // We must have an instance of DynamicIcon to work with, these are stored indexed by name.
+    // We may already have an instance of DynamicIcon to work with, these are stored indexed by name.
     let icon: DynamicIcon | undefined = g_dyanmicIconStates.get(iconName)
-    if (!icon) {
-        icon = new DynamicIcon({ name: iconName })
-        g_dyanmicIconStates.set(iconName, icon)
+    // prepare action data for parsing
+    const parseState = new ParseState(data)
+
+    // Check for most likely scenario of actions which map directly to element types.
+    const elTypeMeta = ACTION_TO_ELEMENT_MAP[actionId]
+    if (!!elTypeMeta) {
+
+        if (elTypeMeta.prev_layer && (!icon || icon.isEmpty)) {
+            logger.warn(`Icon '${iconName}' has no existing layers for a '${elTypeMeta.type.name}' to handle.`)
+            return
+        }
+
+        if ((elTypeMeta.layered || elTypeMeta.prev_layer) && !(icon && icon.delayGeneration)) {
+            logger.warn(`Layered icon '${iconName}' must first be declared before adding a '${elTypeMeta.type.name}' type layer.`)
+            return
+        }
+
+        // Must have an icon instance to work with
+        if (!icon) {
+            g_dyanmicIconStates.set(
+                iconName,
+                (icon = new DynamicIcon({ name: iconName }))
+            )
+        }
+        else if (!icon.delayGeneration) {
+            // reset position index for non-layered icons ("instant" rendering) since they can only have one layer
+            icon.resetCurrentIndex();
+        }
+
+        let args: any;
+        // image layer type requires icon name property as argument to c'tor
+        if (elTypeMeta.ctor_arg && actionId == C.Act.IconImage)
+            args = { iconName }
+
+        icon.setOrUpdateLayerAtCurrentIndex(parseState, elTypeMeta.type, args)
+
+        // render individual single-layered icon now
+        if (!icon.delayGeneration && !icon.isEmpty) {
+            // A new icon has tile = {0,0}, which is a way to check if we need to create a new TP State for it
+            if (!icon.tile.x) {
+                const tile: PointType = { x: 1, y: 1 }
+                // Create a new state now.
+                createOrRemoveIconStates(icon, tile)
+                // Set the tile property.
+                Point.set(icon.tile, tile)
+                sendIconLists()
+            }
+            icon.render()
+        }
+        return
     }
 
-    // reset position index for non-layered icons ("instant" rendering) since they can only have one layer
-    if (!icon.delayGeneration)
-        icon.nextIndex = 0
-
-    const layerElement: ILayerElement | null = icon.layers[icon.nextIndex]  // element at current position, if any
-    const parseState = new ParseState(data)                                 // passed to the various "loadFromActionData()" methods of layer elements
-
+    // Other actions either trigger icon creation/rendering or update existing layer data.
     switch (actionId)
     {
         case C.Act.IconDeclare: {
-            // Create or modify a "layer stack" type icon. Layer elements need to be added in following action(s).
-            icon.delayGeneration = true;   // must explicitly generate
-            icon.nextIndex = 0;   // reset layer position index, this increments each time we parse a layer element into the icon
+            // Create or modify a "layer stack" type icon. Layer elements need to be added/updated in following action(s).
+
+            // Create icon now if it doesn't exist yet
+            if (!icon) {
+                g_dyanmicIconStates.set(
+                    iconName,
+                    (icon = new DynamicIcon({ name: iconName, delayGeneration: true }))
+                )
+            }
+            else {
+                // reset layer position index, this increments each time we parse a layer element into the icon
+                icon.resetCurrentIndex();
+                // must explicitly generate (should already be true unless "converting" from single-layer icon)
+                icon.delayGeneration = true;
+            }
 
             // Parse and set the size property(ies).
             icon.size.width = parseIntOrDefault(parseState.dr.size, PluginSettings.defaultIconSize.width)
@@ -319,9 +368,9 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
 
         case C.Act.IconGenerate:  {
             // Generate an existing layered dynamic icon which should have been created and populated by preceding actions.
-            if (!icon.layers.length) {
+            if (!icon || icon.isEmpty) {
                 logger.warn("Image icon named '" + iconName + "' is empty, nothing to generate.");
-                return;
+                return
             }
 
             let action = 3  // finalize | render
@@ -338,217 +387,92 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
                 icon.gpuRendering = parseBoolOrDefault(parseState.dr.gpu, PluginSettings.defaultGpuRendering)
 
             if (action & 1)
-                icon.layers.length = icon.nextIndex;   // trim any old layers
+                icon.finalize()
             if (action & 2)
-                icon.render();
+                icon.render()
 
-            return;
+            return
         }
 
-        // Elements which can be either layers or individual icons.
+        default:
+            // Must be a layer update action...
+            if (!!icon)
+                handleIconUpdateAction(actionId, icon, parseState)
+            else
+                logger.warn(`No icon named '${iconName}' was found for update action ${actionId}`)
+            return
+    }
 
-        case 'simple_round_gauge':  // keep for BC
-        case C.Act.IconProgGauge: {
-            // Adds a round "progress bar" style gauge.
-            const gauge: LE.RoundProgressGauge = layerElement instanceof LE.RoundProgressGauge ? (layerElement as LE.RoundProgressGauge) : (icon.layers[icon.nextIndex] = new LE.RoundProgressGauge())
-            gauge.loadFromActionData(parseState);
-            ++icon.nextIndex
-            break;
-        }
+}  // handleIconAction()
 
-        case C.Act.IconProgBar: {
-            // Adds a linear "progress bar" style widget.
-            const gauge: LE.LinearProgressBar = layerElement instanceof LE.LinearProgressBar ? (layerElement as LE.LinearProgressBar) : (icon.layers[icon.nextIndex] = new LE.LinearProgressBar())
-            gauge.loadFromActionData(parseState);
-            ++icon.nextIndex
-            break;
-        }
+// Handle actions which update existing layer element properties (transform, value, color).
+// Note that this does support updating a "non-layered" icon with a single layer (!icon.delayGeneration),
+// as long as that icon has been created already (the layer and compatible element exist).
+function handleIconUpdateAction(actionId: string, icon: DynamicIcon, parseState: ParseState)
+{
+    // Get index of layer to update.
+    // Positive index values are 1-based so we subtract 1 to get actual array index,
+    // negative is treated as counting from the end of the array as in `Array.prototype.at()`
+    let layerIdx = parseInt(parseState.dr.index) || 0
+    if (layerIdx > 0)
+        --layerIdx
+    // Get element at this index, if any.
+    const el = icon.elementAt(layerIdx);
+    if (!el) {
+        // try to be more useful in error messages
+        const len = icon.layerCount();
+        if (layerIdx < 0) layerIdx += len
+        logger.warn(`No element found at Position ${layerIdx + 1} (out of ${len}) for icon '${icon.name}'.`)
+        return
+    }
 
-        case 'simple_bar_graph':  // keep for BC
-        case C.Act.IconBarGraph: {
-            // Bar graph of series data. Data values are stored in the actual graph element.
-            const barGraph: LE.BarGraph = layerElement instanceof LE.BarGraph ? (layerElement as LE.BarGraph) : (icon.layers[icon.nextIndex] = new LE.BarGraph())
-            barGraph.loadFromActionData(parseState)
-            barGraph.maxExtent = icon.actualSize().width;
-            ++icon.nextIndex
-            break
-        }
-
-        case C.Act.IconRect: {
-            // Adds a "styled rectangle" (background, etc).
-            const rect: LE.StyledRectangle = layerElement instanceof LE.StyledRectangle ? (layerElement as LE.StyledRectangle) : (icon.layers[icon.nextIndex] = new LE.StyledRectangle())
-            rect.loadFromActionData(parseState)
-            ++icon.nextIndex
-            break
-        }
-
-        case C.Act.IconRectPath: {
-            // Adds a rounded rectangle path.
-            const rect: LE.RectanglePath = layerElement instanceof LE.RectanglePath ? (layerElement as LE.RectanglePath) : (icon.layers[icon.nextIndex] = new LE.RectanglePath())
-            rect.loadFromActionData(parseState)
-            ++icon.nextIndex
-            break
-        }
-
-        case C.Act.IconEllipse: {
-            // Adds an ellipse path.
-            const ell: LE.EllipsePath = layerElement instanceof LE.EllipsePath ? (layerElement as LE.EllipsePath) : (icon.layers[icon.nextIndex] = new LE.EllipsePath())
-            ell.loadFromActionData(parseState)
-            ++icon.nextIndex
-            break
-        }
-
-        case C.Act.IconPath: {
-            // Adds a polyline or polygon path which can be styled or used as clip region.
-            const path: LE.FreeformPath = layerElement instanceof LE.FreeformPath ? (layerElement as LE.FreeformPath) : (icon.layers[icon.nextIndex] = new LE.FreeformPath())
-            path.loadFromActionData(parseState)
-            ++icon.nextIndex
-            break
-        }
-
-        case C.Act.IconText: {
-            // Adds a "styled text" element.
-            const text: LE.StyledText = layerElement instanceof LE.StyledText ? (layerElement as LE.StyledText) : (icon.layers[icon.nextIndex] = new LE.StyledText())
-            text.loadFromActionData(parseState)
-            ++icon.nextIndex
-            break
-        }
-
-        case C.Act.IconImage: {
-            // Adds an image source with possible embedded transformation element.
-            const image: LE.DynamicImage = layerElement instanceof LE.DynamicImage ? (layerElement as LE.DynamicImage) : (icon.layers[icon.nextIndex] = new LE.DynamicImage({iconName: iconName}))
-            image.loadFromActionData(parseState)
-            ++icon.nextIndex
-            break
-        }
-
-        // Elements which affect other layers in some way.
-
-        case C.Act.IconStyle: {
-            // Applies style to any previously unhandled path-producing elements.
-            const style: LE.DrawingStyle = layerElement instanceof LE.DrawingStyle ? (layerElement as LE.DrawingStyle) : (icon.layers[icon.nextIndex] = new LE.DrawingStyle())
-            style.loadFromActionData(parseState)
-            ++icon.nextIndex
-            break
-        }
-
-        case C.Act.IconClip: {
-            // Creates a clipping mask from any previously unhandled path-producing elements.
-            const clip: LE.ClippingMask = layerElement instanceof LE.ClippingMask ? (layerElement as LE.ClippingMask) : (icon.layers[icon.nextIndex] = new LE.ClippingMask())
-            clip.loadFromActionData(parseState)
-            ++icon.nextIndex
-            break
-        }
-
-        case C.Act.IconFilter: {
-            // Adds a CanvasFilter layer to an existing layered dynamic icon. This is purely CSS style 'filter' shorthand for applying to the canvas. The filter will affect all following layers.
-            if (!icon.layers.length && !icon.delayGeneration) {
-                logger.warn("Layered icon '" + iconName + "' must first be created before adding a filter.")
-                return
-            }
-            const filter: LE.CanvasFilter = layerElement instanceof LE.CanvasFilter ? (layerElement as LE.CanvasFilter) : (icon.layers[icon.nextIndex] = new LE.CanvasFilter())
-            filter.loadFromActionData(parseState)
-            ++icon.nextIndex
-            break
-        }
-
-        case C.Act.IconCompMode: {
-            // Adds a CompositionMode layer to an existing layered dynamic icon. This sets the drawing context's globalCompositeOperation value for various blending effects.
-            // The operating mode will affect all following layers until end or a new comp. mode layer.
-            if (!icon.layers.length && !icon.delayGeneration) {
-                logger.warn("Layered icon '" + iconName + "' must first be created before adding a composition mode.")
-                return
-            }
-            const cm: LE.CompositionMode = layerElement instanceof LE.CompositionMode ? (layerElement as LE.CompositionMode) : (icon.layers[icon.nextIndex] = new LE.CompositionMode())
-            cm.loadFromActionData(parseState)
-            ++icon.nextIndex
-            break
-        }
-
-        case C.Act.IconTx: {
-            // Adds a Transformation layer on an existing layered icon.
-            // The tx may affect either a single preceding layer, all the preceding layers so far, or all following layers (until end or reset).
-            if (!icon.layers.length && !icon.delayGeneration) {
-                logger.warn("Icon '" + iconName + "' must first be created before adding a transformation.")
-                return
-            }
-            const tx: LE.Transformation = layerElement instanceof LE.Transformation ? (layerElement as LE.Transformation) : (icon.layers[icon.nextIndex] = new LE.Transformation())
-            tx.loadFromActionData(parseState)
-            ++icon.nextIndex
-            break
-        }
-
-        // Actions to update existing layer element properties.
-
-        case C.Act.IconSetTx: {
+    switch (actionId)
+    {
+        // `break` from cases to finish the update process or `return` to cancel.
+        case C.Act.IconSetTx:
             // Updates/sets a transformation on an existing icon layer of a type which supports it.
-            // Note that this does support updating a "non-layered" icon with a single layer (!icon.delayGeneration),
-            // as long as that icon has been created already (the layer and compatible element exist).
-            const elemInfo = getLayerElementForUpdateAction(icon, data);
-            if (!elemInfo || !elemInfo.element || data.length < 3)
-                return
-
-            parseState.setPos(2)  // set up position for Tx parsing
+            parseState.setPos(2)  // set up position for Tx parsing; TODO: convert Tx parser to use named fields instead of positional
             // If layer is a Tx, update it.
-            if (elemInfo.element instanceof LE.Transformation)
-                (elemInfo.element as LE.Transformation).loadFromActionData(parseState)
+            if (el instanceof LE.Transformation)
+                el.loadFromActionData(parseState)
             // Image element types have their own transform property which we can update directly.
-            else if (elemInfo.element instanceof LE.DynamicImage)
-                (elemInfo.element as LE.DynamicImage).loadTransform(parseState)
-            // If we already appended a Tx to a single-layer icon (upon last update, see the following condition), then the _next_ layer would be a Tx
-            else if (icon.layers.length == 2 && icon.layers[1] instanceof LE.Transformation)
-                (icon.layers[1] as LE.Transformation).loadFromActionData(parseState)
-            // If there's only one layer then we actually want to append this Tx (should only happen once per icon, next update will hit the previous condition)
-            else if (icon.layers.length == 1)
-                icon.layers.push(new LE.Transformation().loadFromActionData(parseState))
+            else if (el instanceof LE.DynamicImage)
+                el.loadTransform(parseState)
+            // If this is a single-layer icon then we actually want to append this Tx (should only happen once per icon).
+            // If we already appended a Tx to a single-layer icon (upon last update), then the next layer would already be a Tx.
+            else if (!icon.delayGeneration && !layerIdx)
+                icon.setOrUpdateLayerAtIndex(1, parseState, LE.Transformation);
             // Otherwise we'd have to replace the current layer with the Tx, which is probably not what the user intended.
             else {
-                logger.warn(`Could not set transform at Position ${elemInfo.index + 1} for icon named '${iconName}' on element is of type '${elemInfo.element.constructor.name}'.`)
+                if (layerIdx < 0) layerIdx += icon.layerCount()
+                logger.warn(`Could not set transform at Position ${layerIdx+1} for icon named '${icon.name}' on element of type '${el.constructor.name}'.`)
                 return
             }
-            finishLayerElementUpdateAction(icon, data);
-            return
-        }
+            break
 
-        case C.Act.IconSetValue: {
+        case C.Act.IconSetValue:
             // Updates/sets a single value on an existing icon layer of a type which supports it.
-            // Note that this does support updating a "non-layered" icon with a single layer (!icon.delayGeneration),
-            // as long as that icon has been created already (the layer and compatible element exist).
-            const elemInfo = getLayerElementForUpdateAction(icon, data);
-            if (!elemInfo || !elemInfo.element || data.length < 3)
-                return
-
-            if (typeof((elemInfo.element as IValuedElement).setValue) === 'function') {
-                (elemInfo.element as IValuedElement).setValue(data[2].value)
-                finishLayerElementUpdateAction(icon, data)
+            if (typeof((<IValuedElement>el).setValue) === 'function') {
+                (<IValuedElement>el).setValue(parseState.dr.value)
+                break
             }
-            else {
-                logger.warn(`Could not update data at Position ${elemInfo.index + 1} for icon named '${iconName}': Element type '${elemInfo.element.constructor.name}' does not support data updates.`)
-            }
+            if (layerIdx < 0) layerIdx += icon.layerCount()
+            logger.warn(`Could not update data at Position ${layerIdx+1} for icon named '${icon.name}': Element type '${el.constructor.name}' does not support data updates.`)
             return
-        }
 
-        case C.Act.IconSetColor: {
+        case C.Act.IconSetColor:
             // Updates/sets a single value on an existing icon layer of a type which supports it.
-            // Note that this does support updating a "non-layered" icon with a single layer (!icon.delayGeneration),
-            // as long as that icon has been created already (the layer and compatible element exist).
-            const elemInfo = getLayerElementForUpdateAction(icon, data);
-            if (!elemInfo || !elemInfo.element || data.length < 4)
-                return
-
-            if (typeof((elemInfo.element as IColorElement).setColor) === 'function') {
-                // Color update type = data[2]; Color value = data[3].
-                // Color update type data: "Stroke/Foreground", "Fill/Background", "Shadow"
-                const type: ColorUpdateType = data[2].value[1] == 't' ? ColorUpdateType.Stroke :
-                                              data[2].value[0] == 'F' ? ColorUpdateType.Fill : ColorUpdateType.Shadow;
-                (elemInfo.element as IColorElement).setColor(data[3].value, type)
-                finishLayerElementUpdateAction(icon, data)
+            if (typeof((<IColorElement>el).setColor) === 'function') {
+                // Color update fields: type = 'type'; Color value = 'color'.
+                // Color update type values: "Stroke/Foreground", "Fill/Background", "Shadow"
+                const type: ColorUpdateType = parseState.dr.type[1] == 't' ? ColorUpdateType.Stroke :
+                                              parseState.dr.type[0] == 'F' ? ColorUpdateType.Fill : ColorUpdateType.Shadow;
+                (<IColorElement>el).setColor(parseState.dr.color, type)
+                break
             }
-            else {
-                logger.warn(`Could not update color at Position ${elemInfo.index + 1} for icon named '${iconName}': Element type '${elemInfo.element.constructor.name}' does not support color updates.`)
-            }
+            if (layerIdx < 0) layerIdx += icon.layerCount()
+            logger.warn(`Could not update color at Position ${layerIdx+1} for icon named '${icon.name}': Element type '${el.constructor.name}' does not support color updates.`)
             return
-        }
 
         default:
             // unknown message ID... shouldn't get here
@@ -556,21 +480,11 @@ async function handleIconAction(actionId: string, data: TpActionDataArrayType)
             return
     }
 
-    // render individual single-layered icon now
-    if (!icon.delayGeneration && icon.layers.length > 0) {
-        // A new icon has tile = {0,0}, which is a way to check if we need to create a new TP State for it
-        if (!icon.tile.x) {
-            const tile: PointType = { x: 1, y: 1 }
-            // Create a new state now.
-            createOrRemoveIconStates(icon, tile)
-            // Set the tile property.
-            Point.set(icon.tile, tile)
-            sendIconLists()
-        }
+    // When updating a value/tx, there is an option to generate the icon immediately (w/out an explicit "generate" action)
+    if (parseState.dr.render === C.DataValue.YesValue)
         icon.render();
-    }
 
-}  // handleIconAction()
+}  // handleIconUpdateAction()
 
 
 // -------------------------------

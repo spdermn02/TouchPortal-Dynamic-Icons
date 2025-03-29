@@ -6,9 +6,9 @@ import {
 } from './';
 
 import type {
-    DOMMatrix,
+    ConstructorType, DOMMatrix,
     ILayerElement, IPathHandler, IPathProducer, IRenderable,
-    Logger, SizeType, PointType, Path2D,
+    Logger, SizeType, ParseState, PointType, Path2D,
 } from './';
 
 type TxStackRecord = { tx: Transformation, startIdx: number }
@@ -30,8 +30,6 @@ export default class DynamicIcon
     nextIndex: number = 0;
     /** Flag to indicate early v1.2-alpha style tiling where the specified icon size was per tile instead of overall size. TODO: Remove  */
     sizeIsActual: boolean = true;
-    /** The array of elements which will be rendered. */
-    readonly layers: ILayerElement[] = [];
     // Options for the 'sharp' lib image compression. These are passed to sharp() when generating PNG results.
     // `compressionLevel` of `0` disables compression step entirely (sharp lib is never invoked).
     // See https://sharp.pixelplumbing.com/api-output#png for option descriptions.
@@ -41,6 +39,8 @@ export default class DynamicIcon
         palette: true     // MP: Again the docs suggest enabling this would be slower but my tests show a significant speed improvement.
     };
 
+    /** The array of elements which will be rendered. */
+    private readonly layers: ILayerElement[] = [];
     private log: Logger;
 
     constructor(init?: Partial<DynamicIcon>) {
@@ -50,6 +50,43 @@ export default class DynamicIcon
 
     /** true if the image should be split into parts before delivery, false otherwise. Checks if either of `tile.x` or `tile.y` are `> 1`. */
     get isTiled() { return this.tile.x > 1 || this.tile.y > 1; }
+
+    /** Returns `true` if icon has no layer elements. */
+    get isEmpty() { return !this.layers.length; }
+
+    /** Returns the number of element layers currently defined. */
+    layerCount(): number { return this.layers.length; }
+
+    /** Returns element at `index`, if any, or `undefined` otherwise. Negative indexes count from the end, as in `Array.prototype.at()`. */
+    elementAt(index: number) : ILayerElement | undefined {
+        return this.layers.at(index);
+    }
+
+    /** Resets the current layer counter to starting position. Call before adding/updating layers via actions sequence. */
+    resetCurrentIndex() {
+        this.nextIndex = 0;
+    }
+
+    /** Finish adding/updating element layers. Call after modifying elements via actions sequence. */
+    finalize() {
+        this.layers.length = this.nextIndex;   // trim any old layers
+    }
+
+    /** Adds or updates layer element of given type at the current insertion sequence (current index). This advances the sequence count.
+        Optional `args` are passed to element constructor if it needs to be created.
+        Call while adding/updating layers via actions sequence (after `resetCurrentIndex()` and before `finalize()`). */
+    setOrUpdateLayerAtCurrentIndex<T extends ILayerElement>(parseState: ParseState, elType: ConstructorType<T>, ...args: any[]) {
+        this.setOrUpdateLayerAtIndex(this.nextIndex++, parseState, elType, ...args);
+    }
+
+    /** Adds or updates layer element of given type at the given index. */
+    setOrUpdateLayerAtIndex<T extends ILayerElement>(index: number, parseState: ParseState, elType: ConstructorType<T>, ...args: any[]) {
+        const el = this.layers[index];
+        if (el instanceof elType)
+            el.loadFromActionData(parseState)
+        else
+            this.layers[index] = new elType(...args).loadFromActionData(parseState);
+    }
 
     /** Returns actual pixel dimensions of this image, which is either same as the `size` property if `sizeIsActual` is true,
         or otherwise the `size` property multiplied by the number of grid cells specified in `tile` property for each dimension.
@@ -174,8 +211,10 @@ export default class DynamicIcon
             let tx: Transformation | null = null;
             let layerResetTx: DOMMatrix | null = null;
 
-            for (let i = 0, e = this.layers.length; i < e; ++i) {
-                layer = this.layers[i];
+            // Iterate over a shallow copy of the layers array
+            const layers = this.layers.slice(0);
+            for (let i = 0, e = layers.length; i < e; ++i) {
+                layer = layers[i];
                 if (!layer)
                     continue;
 
@@ -223,7 +262,7 @@ export default class DynamicIcon
                             // type layer since the canvas transforms would already be removed by the code below.
                             if (!pathStack.length)
                                 // This would be a "mistake" on the user's part, putting a "previous layer" Tx after something like a style or clip. Which we don't handle gracefully at this time.
-                                this.log.warn("A 'previous layer' scope transformation cannot be applied to layer %d of type '%s' for icon '%s'. ", i+1, this.layers.at(i-1)?.type, this.name);
+                                this.log.warn("A 'previous layer' scope transformation cannot be applied to layer %d of type '%s' for icon '%s'. ", i+1, layers.at(i-1)?.type, this.name);
                             break;
 
                         case TransformScope.UntilReset:
@@ -268,7 +307,7 @@ export default class DynamicIcon
                 // This is because to transform what we're drawing, we need to actually transform the canvas first, before we draw our thing.
                 // But for UI purposes it makes more sense to apply transform(s) after the thing one wants to transform. If we handle this on the action parsing side (index.ts or whatever),
                 // we'd have to resize the layers array to insert transforms in the correct places and also keep track of when to reset the transform.
-                while (i+1 < this.layers.length && (this.layers[i+1] instanceof Transformation) && (tx = this.layers[i+1] as Transformation).scope == TransformScope.PreviousOne) {
+                while (i+1 < layers.length && (layers[i+1] instanceof Transformation) && (tx = layers[i+1] as Transformation).scope == TransformScope.PreviousOne) {
                     if (!layerResetTx)
                         layerResetTx = ctx.getTransform();
                     tx.render(ctx, rect);
@@ -299,7 +338,7 @@ export default class DynamicIcon
 
         }
         catch (e: any) {
-            this.log.error("ERROR", `Exception while rendering icon '${this.name}': ${e}\n${e.stack}`);
+            this.log.error(`Exception while rendering icon '${this.name}': ${e}\n${e.stack}`);
         }
 
     };

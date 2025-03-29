@@ -76,6 +76,8 @@ export const enum DataValue {
     TxScopeCumulative  = "all previous",
     TxScopeUntilReset  = "all following",
     TxScopeReset       = "reset following",
+    YesValue           = "Yes",
+    NoValue            = "No",
 }
 
 // Full names of plugin settings used in TP UI and messages.

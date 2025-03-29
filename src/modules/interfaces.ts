@@ -1,12 +1,11 @@
 
-import { ColorUpdateType, LayerRole } from './enums';
-import { Rectangle } from './geometry';
-import { Path2D, RenderContext2D } from './types';
+import type { ColorUpdateType, LayerRole, ParseState, Path2D, Rectangle, RenderContext2D } from './';
 
 // DynamicIcon uses this type for its layers array members.
 export interface ILayerElement {
     readonly type: string;
     readonly layerRole?: LayerRole;
+    loadFromActionData(state: ParseState) : ILayerElement
  }
 
 // Represents an abstract item which can be drawn onto, or otherwise affect (eg. style, transform), a canvas context.
