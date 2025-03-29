@@ -210,12 +210,6 @@ String.prototype.format = function (args) {
     });
 };
 
-// Wraps a string _once_ at the given width, so at most it creates 2 lines of text, one <= the given width and one (possibly longer) with the remainder.
-String.prototype.wrap = function(width = 280) {
-    const re = new RegExp(`(?![^\\n]{1,${width}}$)([^\\n]{1,${width}})\\s`, 'm');  // replace 'm' flag with 'g' for wrap to multiple lines
-    return this.replace(re, '$1\n').trim();
-}
-
 // Remove any trailing range info like " (0-9)" from settings name for use in tooltip window.
 function cleanSettingTitle(title) {
     return title.replace(/ \(.+\)$/, "");
@@ -225,6 +219,8 @@ function cleanSettingTitle(title) {
 function jid(...args) {
     return args.join(C.Str.IdSep);
 }
+
+// Action and action data creation helpers
 
 function addAction(id, name, descript, format, data, subcat = null, hold = false) {
     const action = {
@@ -274,8 +270,14 @@ function makeNumericData(id, label, dflt, min, max, allowDec = true) {
     return d;
 }
 
+// Specific action data types
+
 function makeSizeTypeData(id, dflt = undefined) {
     return makeChoiceData(jid(id, "unit"), "Unit", ["%", "px"], dflt);
+}
+
+function makeRenderChoiceData(id) {
+    return makeChoiceData(jid(id, "render"), "Render?", [C.DataValue.NoValue, C.DataValue.YesValue]);
 }
 
 // Shared functions which create both a format string and data array.
@@ -686,7 +688,7 @@ function addFreeformPathAction(id, name, subcat) {
     data.push(
         makeTextData(jid(id, "path"), "Coordinate List", "[0, 0] [50, 50], [100, 0]"),
         makeSizeTypeData(id),
-        makeChoiceData(jid(id, "close"), "Close Path", ["No", "Yes"]),
+        makeChoiceData(jid(id, "close"), "Close Path", [C.DataValue.NoValue, C.DataValue.YesValue]),
     );
     format += makeAlignmentData(id, data) + " ";
     format += makeOffsetData(id, data) + " ";
@@ -696,9 +698,9 @@ function addFreeformPathAction(id, name, subcat) {
 
 function addStyleAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
-        "Apply a Style to preceeding Path layer(s). An Icon with same Name and at least one unused Path drawing layer must already be defined.\n" +
+        "Apply a Style to preceding Path layer(s). An Icon with same Name and at least one unused Path drawing layer must already be defined.\n" +
         "Items which can be styled are the Rectangle, Ellipse, and Freeform Path actions (only non-linear paths can have a fill color applied). " +
-        "The style will be applied to any preceeding Path layer(s) which have not already had a style applied or used as a clip mask.";
+        "The style will be applied to any preceding Path layer(s) which have not already had a style applied or used as a clip mask.";
     let [format, data] = makeIconLayerCommonData(id);
     format += makeDrawStyleData(id, data, {all: true});
     addAction(id, name, descript, format, data, subcat);
@@ -706,14 +708,14 @@ function addStyleAction(id, name, subcat) {
 
 function addClipAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
-        "Use preceeding Path layer(s) to create a clipping mask area on the current drawing. " +
-        "The full area will include all preceeding Path layer(s) which have not already had a style applied or been used as another mask. " +
+        "Use preceding Path layer(s) to create a clipping mask area on the current drawing. " +
+        "The full area will include all preceding Path layer(s) which have not already had a style applied or been used as another mask. " +
         "At least one unused Path drawing type layer must be added first for this action to have any effect.\n" +
         "A clip mask defines a shape outside of which nothing is drawn, like a window which hides anything outside the frame. It will hide parts of anything drawn afterwards which fall outside of it." +
         "'Inverse' will create a mask hiding everything inside of the given path(s). The 'Release' action will restore the drawing area back to the full icon's size.";
     let [format, data] = makeIconLayerCommonData(id);
     let i = data.length;
-    format += ` {${i++}} Clipping Mask from preceeding Path layer(s) | Create with Fill Rule {${i++}}`;
+    format += ` {${i++}} Clipping Mask from preceding Path layer(s) | Create with Fill Rule {${i++}}`;
     data.push(
         makeChoiceData(jid(id, "action"), "Action", [C.DataValue.ClipMaskNormal, C.DataValue.ClipMaskInverse, C.DataValue.ClipMaskRelease]),
         makeChoiceData(jid(id, "fillRule"), "Fill Rule", C.STYLE_FILL_RULE_CHOICES)
@@ -798,7 +800,7 @@ function addTransformAction(id, name, subcat, withIndex = false) {
     format += makeTransformData(C.DEFAULT_TRANSFORM_OP_ORDER, id, data);
     if (withIndex) {
         format += `Render\nIcon?{${data.length}}`;
-        data.push(makeChoiceData(jid(id, "render"), "Render?", ["No", "Yes"]));
+        data.push(makeRenderChoiceData(id));
     }
     else {
         format += `Scope {${data.length}}`
@@ -820,8 +822,8 @@ function addValueUpdateAction(id, name, subcat) {
     let [format, data] = makeIconLayerCommonData(id, true);
     format += `set value to{${data.length}}and render icon? {${data.length+1}}`;
     data.push(
-        makeActionData("value_update_value", "text", "Value", ""),
-        makeChoiceData("value_update_render", "Render?", ["No", "Yes"]),
+        makeActionData(jid(id, "value"), "text", "Value", ""),
+        makeRenderChoiceData(id),
     );
     addAction(id, name, descript, format, data, subcat);
 }
@@ -838,7 +840,7 @@ function addColorUpdateAction(id, name, subcat) {
     data.push(
         makeChoiceData(jid(id, "type"), "Type", C.COLOR_UPDATE_TYPE_CHOICES),
         makeColorData(jid(id, "color"), "Color", "#00000000"),
-        makeChoiceData(jid(id, "render"), "Render?", ["No", "Yes"]),
+        makeRenderChoiceData(id),
     );
     addAction(id, name, descript, format, data, subcat);
 }
