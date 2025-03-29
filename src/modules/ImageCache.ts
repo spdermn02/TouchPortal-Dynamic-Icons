@@ -1,7 +1,7 @@
 
 import sharp from 'sharp';
 import { loadImageData, type CanvasDrawable } from 'skia-canvas';
-import { Mutex } from 'async-mutex';
+import { Mutex } from './Mutex';
 import { SizeType } from './geometry';
 import { PluginSettings } from '../common';
 import { Logger, logging } from './logging';
@@ -77,7 +77,7 @@ export class ImageCache
 
     private async trimCache()
     {
-        await this.mutex.runExclusive(async() =>
+        await this.mutex.runExclusive(() =>
         {
             let deltaSz = this.count() - ImageCache.cacheOptions.maxCachedImages;
             if (deltaSz <= 0)
@@ -143,40 +143,32 @@ export class ImageCache
 
         let img: ImageDataType = null;
         const key: string = this.makeKey(src, size, resizeOptions);
-        await this.mutex.runExclusive(async() => {
-            img = this.getImage_impl(key);
-            if (!img) {
-                img = await this.loadImage(src, size, resizeOptions);
-                if (img)
-                    this.saveImage_impl(key, img, meta);
-                this.log.debug("[%s] Image cache miss for '%s%s'; Returned: %O", meta?.iconName, (src.length > 50 ? "..." : ""), src.slice(-50), img);
-            }
-        });
+        await this.mutex.acquire();
+        img = this.getImage_impl(key);
+        if (!img) {
+            img = await this.loadImage(src, size, resizeOptions);
+            this.saveImage_impl(key, img, meta);
+            this.log.debug("[%s] Image cache miss for '%s%s'; Returned size: %d x %d", meta?.iconName, (key.length > 75 ? "..." : ""), key.slice(-75), img?.width, img?.height);
+        }
+        this.mutex.release();
         return img;
     }
 
     /** Returns an image from cache if it exists, otherwise returns null.
     Cache key is based on image source and requested size and options.  */
     public async getImage(src: string, size: SizeType, resizeOptions:any = {}): Promise<ImageDataType> {
-        let image: ImageDataType = null;
-        try {
-            await this.mutex.runExclusive(async() => {
-                image = this.getImage_impl(this.makeKey(src, size, resizeOptions));
-            });
-        }
-        catch (e) { this.log.error(e); }
+        await this.mutex.acquire();
+        const image: ImageDataType = this.getImage_impl(this.makeKey(src, size, resizeOptions));
+        this.mutex.release();
         return image;
     }
 
     /** Saves an image to cache, possibly replacing any existing entry with the same key.
     Cache key is based on image source and requested size and options. */
     public async saveImage(src: string, size: SizeType, image: ImageDataType, resizeOptions:any = {}, meta?: any) {
-        try {
-            await this.mutex.runExclusive(async() => {
-                this.saveImage_impl(this.makeKey(src, size, resizeOptions), image, meta);
-            });
-        }
-        catch (e) { this.log.error(e); }
+        await this.mutex.acquire();
+        this.saveImage_impl(this.makeKey(src, size, resizeOptions), image, meta);
+        this.mutex.release();
     }
 
     /** Loads an image from source file and potentially scales it to fit the given size with optional resize options.
@@ -219,15 +211,16 @@ export class ImageCache
 
     /** Removes all entries from the cache. */
     public async clear() {
-        await this.mutex.runExclusive(async() => {
-            this.cache.clear();
-            this.log.info("Image cache cleared.")
-        });
+        await this.mutex.acquire();
+        this.cache.clear();
+        this.mutex.release();
+        this.log.info("Image cache cleared.")
     }
 
     /** Removes all entries for a specific icon name from the cache. This will also affect any other icons using the same cached image. */
     public async clearIconName(name: string) {
-        await this.mutex.runExclusive(async() => {
+        await this.mutex.acquire();
+        try {
             for (const [k, v] of this.cache.entries()) {
                 if (v.iconNames.includes(name)) {
                     this.cache.delete(k);
@@ -235,7 +228,9 @@ export class ImageCache
                     this.log.info("Removed cached image '%s%s' for icon '%s'.", (src.length > 60 ? "..." : ""), src.slice(-60), name);
                 }
             }
-        });
+        }
+        catch (e) { this.log.error(e); }
+        finally { this.mutex.release(); }
     }
 
 }

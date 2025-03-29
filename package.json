@@ -53,7 +53,6 @@
   },
   "homepage": "https://github.com/spdermn02/TouchPortal-Dynamic-Icons",
   "dependencies": {
-    "async-mutex": "^0.5",
     "sharp": "^0.33.5",
     "skia-canvas": "2.0.2",
     "touchportal-api": "github:spdermn02/touchportal-node-api#master"
