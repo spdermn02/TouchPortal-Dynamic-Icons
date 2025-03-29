@@ -122,8 +122,7 @@ export default class DynamicIcon
     }
 
     // Sends the canvas contents after re-compressing it with Sharp.
-    private sendCompressedImage(canvas: Canvas) {
-        const size = this.actualSize();
+    private sendCompressedImage(canvas: Canvas, size: SizeType) {
         const raw: CreateRaw = { width: size.width, height: size.height, channels: 4, premultiplied: true };
         canvas
         .toBuffer("raw" as any)
@@ -139,8 +138,8 @@ export default class DynamicIcon
 
     // Sends the canvas tiled, w/out compression.
     // While this isn't really any faster than using Skia anyway, it does use less CPU and/or uses GPU instead when that option is enabled.
-    private sendCanvasTiles(canvas: Canvas) {
-        const size = this.actualSize(),
+    private sendCanvasTiles(canvas: Canvas, size: SizeType) {
+        const
             tileW = Math.ceil(size.width / this.tile.x),
             tileH = Math.ceil(size.height / this.tile.y);
         for (let y=0; y < this.tile.y; ++y) {
@@ -165,8 +164,8 @@ export default class DynamicIcon
 
     // Send the canvas contents by breaking up into tiles using Sharp, with added compression.
     // Much more efficient than using the method in sendCanvasTiles() and then compressing each resulting canvas tile.
-    private sendCompressedTiles(canvas: Canvas) {
-        const size = this.actualSize(),
+    private sendCompressedTiles(canvas: Canvas, size: SizeType) {
+        const
             tileW = Math.ceil(size.width / this.tile.x),
             tileH = Math.ceil(size.height / this.tile.y);
         const raw: CreateRaw = { width: size.width, height: size.height, channels: 4, premultiplied: true };
@@ -323,16 +322,16 @@ export default class DynamicIcon
 
             if (this.isTiled) {
                 if (this.outputCompressionOptions.compressionLevel > 0)
-                    this.sendCompressedTiles(canvas);
+                    this.sendCompressedTiles(canvas, rect.size);
                 else
-                    this.sendCanvasTiles(canvas);
+                    this.sendCanvasTiles(canvas, rect.size);
                 return;
             }
 
             // Not tiled, send whole rendered canvas at once.
 
             if (this.outputCompressionOptions.compressionLevel > 0)
-                this.sendCompressedImage(canvas);
+                this.sendCompressedImage(canvas, rect.size);
             else
                 this.sendCanvasImage(this.name, canvas);
 
