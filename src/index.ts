@@ -9,7 +9,7 @@ import * as LE from "./modules/elements";
 import { ConsoleEndpoint, Logger, logging , LogLevel } from './modules/logging';
 import { setTPClient, PluginSettings } from './common'
 import { parseIntOrDefault, parseBoolOrDefault, clamp } from './utils/helpers'
-import { dirname as pdirname, resolve as presolve } from 'path';
+import { dirname as pdirname, extname as pathExtName, isAbsolute as pathIsAbs, join as pathJoin, resolve as presolve } from 'path';
 import { concurrency as sharp_concurrency } from 'sharp';
 const { version: pluginVersion } = require('../package.json');  // 'import' causes lint error in VSCode
 
@@ -74,6 +74,18 @@ const ACTION_TO_ELEMENT_MAP: LayerElementRecord = {
     [C.Act.IconTx        ]: { type: LE.Transformation,  layered: true },
 } as const;
 
+// Supported image file output formats indexed by file extension.
+const OUTPUT_FORMATS = new Map([
+  ['avif', 'avif'],
+  ['jpeg', 'jpeg'],
+  ['jpg', 'jpeg'],
+  ['jpe', 'jpeg'],
+  ['png', 'png'],
+  ['tiff', 'tiff'],
+  ['tif', 'tiff'],
+  ['webp', 'webp'],
+  ['gif', 'gif'],
+]);
 
 // ------------------------------
 // 3rd-party Libs Setup
@@ -395,6 +407,50 @@ function handleIconAction(actionId: string, data: TpActionDataArrayType)
             if (action & 2)
                 icon.render()
 
+            return
+        }
+
+        case C.Act.IconSaveFile:  {
+            // Generate and save an image to a file in various formats.
+            if (!icon || icon.isEmpty) {
+                logger.warn("Image icon named '" + iconName + "' is empty, nothing to generate.")
+                return
+            }
+
+            // Format is based on file extension.
+            const format = OUTPUT_FORMATS.get(pathExtName(parseState.dr.file || "").toLowerCase().slice(1))
+            if (!format) {
+                logger.warn(`Unsupported output file format "${pathExtName(parseState.dr.file)}" for icon '${icon.name}'. Supported formats: ${[...OUTPUT_FORMATS.keys()].join(',')}`)
+                return
+            }
+            // rendering options for icon.render()
+            const options = {
+                file: parseState.dr.file,
+                format,
+                output: {}
+            }
+            // expand relative paths if we have a default path
+            if (!!PluginSettings.imageFilesBasePath && !pathIsAbs(options.file))
+                options.file = pathJoin(PluginSettings.imageFilesBasePath, options.file)
+
+            // Convert name=value pairs to Sharp output options object.
+            // We don't validate the values here... would be too much. Sharp will handle it and we'll log any errors at that point.
+            const optsData = parseState.dr.options.split(',')
+            for (const opt of optsData) {
+                const kv = opt.split('=')
+                const key = kv.at(0)?.trim()
+                const strVal = kv.at(1)?.trim()
+                if (!key || !strVal)
+                    continue
+                // most values are numeric or boolean, and a couple are strings;
+                // strings should be quoted although only "chromaSubsampling" with values like "4:4:2" is an issue;
+                let val: number|boolean|string = parseFloat(strVal)
+                if (Number.isNaN(val))
+                    val = (strVal == 'true' ? true : strVal == 'false' ? false : strVal.replace(/["']/g, ""))
+                options.output[key] = val
+            }
+
+            icon.render(options)
             return
         }
 

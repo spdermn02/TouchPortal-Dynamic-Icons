@@ -262,7 +262,7 @@ function makeActionData(id, type, label = "", deflt = "") {
     };
 }
 
-function makeTextData(id, label, dflt = "") {
+function makeTextData(id, label = "", dflt = "") {
     return makeActionData(id, "text", label, dflt + '');
 }
 
@@ -282,6 +282,12 @@ function makeNumericData(id, label, dflt, min, max, allowDec = true) {
     d.allowDecimals = allowDec;
     d.minValue = min;
     d.maxValue = max;
+    return d;
+}
+
+function makeFileData(id, extensions = [], dflt = "") {
+    const d = makeActionData(id, "file", "", dflt);
+    d.extensions = extensions;
     return d;
 }
 
@@ -798,6 +804,20 @@ function addGenerateLayersAction(id, name, subcat) {
     addAction(id, name, descript, format, data, subcat);
 }
 
+function addSaveToFileAction(id, name, subcat) {
+    const descript = "Dynamic Icons: " +
+        "Save the generated image to a file (or multiple files for tiled images). File paths are relative to this plugin's \"Default Image Files Path\" setting, or use absolute paths.\n" +
+        "Extension of the given file name determines the format. Supported: AVIF, GIF, JPEG, PNG, TIFF, & WEBP. Each format accepts different options, see plugin documentation wiki for details.";
+    let [format, data] = makeIconLayerCommonData(id);
+    let i = data.length;
+    format += `save to file {${i++}} with options {${i++}} (name=value, name2=value, ...)`;
+    data.push(
+        makeFileData(jid(id, "file"), ["*.avif", "*.gif", "*.jpg", "*.jpeg", "*.png", "*.tif", "*.tiff", "*.webp"]),
+        makeTextData(jid(id, "options")),
+    );
+    addAction(id, name, descript, format, data, subcat);
+}
+
 // Shared actions for updating existing icons/layers.
 
 function addTransformAction(id, name, subcat, withIndex = false) {
@@ -890,6 +910,7 @@ addTransformAction(      jid(iid, C.Act.IconTx),        "Layer - Add Transformat
 addFilterAction(         jid(iid, C.Act.IconFilter),    "Layer - Set Effect Filter",          ACTION_CATS.layer );
 addCompositeModeAction(  jid(iid, C.Act.IconCompMode),  "Layer - Set Composite Mode",         ACTION_CATS.layer );
 addGenerateLayersAction( jid(iid, C.Act.IconGenerate),  "Layer - Generate Layered Icon",      ACTION_CATS.layer );
+addSaveToFileAction(     jid(iid, C.Act.IconSaveFile),  "Layer - Save Icon To File",          ACTION_CATS.layer );
 addRectanglePathAction(  jid(iid, C.Act.IconRectPath),  "Paths - Add Rounded Rectangle",      ACTION_CATS.paths );
 addEllipsePathAction(    jid(iid, C.Act.IconEllipse),   "Paths - Add Ellipse / Arc",          ACTION_CATS.paths );
 addFreeformPathAction(   jid(iid, C.Act.IconPath),      "Paths - Add Freeform Path",          ACTION_CATS.paths );
