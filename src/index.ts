@@ -378,9 +378,9 @@ function handleIconAction(actionId: string, data: TpActionDataArrayType)
             if (parseState.dr.action && parseState.dr.action.length < 17)
                 action = parseState.dr.action[0] == 'F' ? 1 : 2
 
-            // Output compression choices: "default", "none", "1"..."9"; Added in v1.2.0-a3
+            // Output compression choices: "default", "None", "1"..."9"; Added in v1.2.0-a3
             if (parseState.dr.cl != undefined)
-                icon.outputCompressionOptions.compressionLevel = parseIntOrDefault(parseState.dr.cl, PluginSettings.defaultOutputCompressionLevel)
+                icon.outputCompressionOptions.compressionLevel = parseState.dr.cl[0] == 'N' ? 0 : parseIntOrDefault(parseState.dr.cl, PluginSettings.defaultOutputCompressionLevel)
 
             // Output quality level: "default", 1-100; Added in v1.3.0
             if (parseState.dr.quality != undefined)
