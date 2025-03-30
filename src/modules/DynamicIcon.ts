@@ -36,7 +36,8 @@ export default class DynamicIcon
     readonly outputCompressionOptions: any = {
         compressionLevel: PluginSettings.defaultOutputCompressionLevel,
         effort: 1,        // MP: 1 actually uses less CPU time than higher values (contrary to what sharp docs suggest) and gives slightly higher compression.
-        palette: true     // MP: Again the docs suggest enabling this would be slower but my tests show a significant speed improvement.
+        palette: true,    // force PNG-8 format output (PNG-24 produces significantly larger file sizes); this is also implied by using `quality` setting.
+        quality: PluginSettings.defaultOutputQuality,  // for PNG-8: use the lowest number of colours needed to achieve given quality
     };
 
     /** The array of elements which will be rendered. */

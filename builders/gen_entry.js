@@ -153,6 +153,21 @@ const entry_base =
             }
         },
         {
+            name: C.SettingName.PngQualityLevel,
+            type: "number",
+            default: PluginSettings.defaultOutputQuality.toString(),
+            minValue: 0,
+            maxValue: 100,
+            readOnly: false,
+            tooltip: {
+                title: cleanSettingTitle(C.SettingName.PngQualityLevel),
+                body: "Sets the default image color quality of generated and compressed icons. The final image will have the lowest number of colors needed to achieve the specified quality.\n" +
+                    "The number of colors affects the final image data size which will be sent to the TP device for display. Using fewer colors produces smaller images, but possibly at the expense of image quality.\n" +
+                    "This option can be also be overridden per icon when using layers. It has no effect on icons generated with compression disabled entirely.",
+                docUrl: `${DOCS_URL_BASE}#plugin-settings`
+            }
+        },
+        {
             name: C.SettingName.MaxImageProcThreads,
             type: "text",
             default: C.Str.Default,
@@ -772,11 +787,13 @@ function addGenerateLayersAction(id, name, subcat) {
         "'Finalize' marks the icon as finished, removing any extra layers which may have been added previously. 'Render' produces the actual icon in its current state and sends it to TP.";
     let [format, data] = makeIconLayerCommonData(id);
     let i = data.length;
-    format += `{${i++}} with Compression Level {${i++}} and GPU Rendering {${i++}} (defaults are set in plugin Settings)`;
+    format += `{${i++}} with Compression Level {${i++}} Quality {${i++}} and GPU Rendering {${i++}} (defaults are set in plugin Settings)`;
     data.push(
-        makeChoiceData("icon_generate_action", "Action", ["Finalize & Render", "Finalize Only", "Render Only"]),
-        makeChoiceData("icon_generate_cl", "Compression Level", ["default", "None", "1 (low)", "2", "3", "4", "5", "6", "7", "8", "9 (high)"]),
-        makeChoiceData("icon_generate_gpu", "GPU Rendering", ["default", "Enabled", "Disabled"]),
+        makeChoiceData(jid(id, "action"), "Action", ["Finalize & Render", "Finalize Only", "Render Only"]),
+        makeChoiceData(jid(id, "cl"), "Compression Level", [C.Str.Default, "None", "1 (low)", "2", "3", "4", "5", "6", "7", "8", "9 (high)"]),
+        // makeTextData(jid(id, "quality"), "Quality", "100"),
+        makeChoiceData(jid(id, "quality"), "Quality", [C.Str.Default, ...Array.from( {length: 100}, (_, i) => (i+1).toString()).reverse() ]),
+        makeChoiceData(jid(id, "gpu"), "GPU Rendering", [C.Str.Default, "Enabled", "Disabled"]),
     );
     addAction(id, name, descript, format, data, subcat);
 }

@@ -11,5 +11,6 @@ export const PluginSettings = {
     defaultIconSize: <SizeType> { width: 128, height: 128 },
     defaultGpuRendering: <boolean> false,
     defaultOutputCompressionLevel: <number> 4,  // MP: 4 seems to give the highest effective compression in my tests, no gains with higher levels but does slow down.
+    defaultOutputQuality: <number> 100,
     imageFilesBasePath: <string> ''
 };

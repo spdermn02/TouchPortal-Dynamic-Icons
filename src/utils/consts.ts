@@ -86,6 +86,7 @@ export const enum SettingName {
     ImageFilesPath = "Default Image Files Path",
     GPU = "Use GPU Rendering by Default",
     PngCompressLevel = "Default Output Image Compression Level (0-9)",
+    PngQualityLevel = "Default Output Image Quality (1-100)",
     MaxImageProcThreads = "Maximum Image Compression Threads",
     MaxImageGenThreads = "Maximum Image Generator Threads",
 };

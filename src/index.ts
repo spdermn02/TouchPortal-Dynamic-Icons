@@ -382,6 +382,10 @@ function handleIconAction(actionId: string, data: TpActionDataArrayType)
             if (parseState.dr.cl != undefined)
                 icon.outputCompressionOptions.compressionLevel = parseIntOrDefault(parseState.dr.cl, PluginSettings.defaultOutputCompressionLevel)
 
+            // Output quality level: "default", 1-100; Added in v1.3.0
+            if (parseState.dr.quality != undefined)
+                icon.outputCompressionOptions.quality = clamp(parseIntOrDefault(parseState.dr.quality, PluginSettings.defaultOutputQuality), 1, 100)
+
             // GPU rendering setting choices: "default", "Enabled", "Disabled"; Added in v1.2.0-a1, removed after 1.2.0-a3, re-added in 1.3.0.
             if (parseState.dr.gpu != undefined)
                 icon.gpuRendering = parseBoolOrDefault(parseState.dr.gpu, PluginSettings.defaultGpuRendering)
@@ -540,6 +544,9 @@ function onSettings(settings:{ [key:string]:string }[]) {
                 break;
             case C.SettingName.PngCompressLevel:
                 PluginSettings.defaultOutputCompressionLevel = clamp(parseIntOrDefault(val, PluginSettings.defaultOutputCompressionLevel), 0, 9);
+                break;
+            case C.SettingName.PngQualityLevel:
+                PluginSettings.defaultOutputQuality = clamp(parseIntOrDefault(val, PluginSettings.defaultOutputQuality), 1, 100);
                 break;
             case C.SettingName.MaxImageProcThreads:
                 sharp_concurrency(clamp(parseIntOrDefault(val, DEFAULT_CONCURRENCY), 1, SYS_MAX_THREADS));
