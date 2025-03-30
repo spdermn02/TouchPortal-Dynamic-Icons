@@ -588,7 +588,7 @@ function addImageAction(id, name, subcat) {
     let i = data.length;
     format += `Image\nFile {${i++}}Resize\nFit {${i++}}`;
     data.push(
-        makeActionData(jid(id, "src"), "file", "Image Source"),
+        makeFileData(jid(id, "src"), ["*.avif", "*.gif", "*.jpg", "*.jpeg", "*.png", "*.svg", "*.tif", "*.tiff", "*.webp"]),
         makeChoiceData(jid(id, "fit"), "Resize Fit", ["contain", "cover", "fill", "scale-down", "none"]),
     );
     format += makeTransformData(C.DEFAULT_TRANSFORM_OP_ORDER.slice(0, 3), jid(id, C.Act.IconTx), data);  // don't include skew op
