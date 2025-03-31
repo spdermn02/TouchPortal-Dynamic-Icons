@@ -21,18 +21,21 @@ export class Size implements SizeType
     /** Returns true if both width and height values are equal to zero to within 4 decimal places of precision. */
     get fuzzyIsNull(): boolean { return Size.fuzzyIsNull(this, 0.0001); }
 
+    /** Returns a new `Size` instance with values copied from this one. */
+    clone() : Size { return new Size(this); }
+
     /** Set the width and height properties.
         The `widthOrSize` parameter can be any object containing 'width' and 'height' properties, or a numeric value for the 'width' value.
         In the latter case, if a `height` parameter is passed, it is assigned to the 'height' value; otherwise the `widthOrSize` parameter
         is used for both 'width' and 'height'.  */
-    set(widthOrSize: number | SizeType = 0, height?: number): Size { return Size.set(this, widthOrSize, height) as Size; }
-
-    toString() { Size.toString(this); }
+    set(widthOrSize: number | SizeType = 0, height?: number): this { return Size.set(this, widthOrSize, height) as this; }
 
     /** Returns true if this size equals the `widthOrSize` SizeType or width & height values. */
     equals(widthOrSize: number | SizeType, height?: number): boolean { return Size.equals(this, widthOrSize, height); }
     /** Returns true is this size equals the given SizeType to within `epsilon` decimal places of precision. */
     fuzzyEquals(other: SizeType, epsilon: number = 0.0001): boolean { return Size.fuzzyEquals(this, other, epsilon); }
+
+    toString() { Size.toString(this); }
 
     // Static methods operate only on generic `SizeType` types, not `Size`.
     // This is generally faster for creation and read-only access than an full new instance of `Size`, but slower for writes/updates.

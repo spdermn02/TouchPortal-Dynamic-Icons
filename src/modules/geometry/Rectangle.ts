@@ -12,22 +12,22 @@ export default class Rectangle
     constructor(top: number, left: number, size: SizeType);
     constructor(top: number, left: number, width: number, height: number);
     // implementation
-    constructor(xOrOrigin?: number | PointType, yOrSize?: number | SizeType, wOrSize?: number | SizeType, h?: number) {
+    constructor(xOrOrigin?: number | PointType, yOrWorSize?: number | SizeType, wOrHorSize?: number | SizeType, h?: number) {
         if (xOrOrigin == undefined)
             return;
         if (typeof xOrOrigin == "object")
             Point.set(this.origin, xOrOrigin);
         else
-            Point.set(this.origin, xOrOrigin, (typeof yOrSize == "number" ? yOrSize : undefined));
+            Point.set(this.origin, xOrOrigin, (typeof yOrWorSize == "number" ? yOrWorSize : undefined));
 
-        if (typeof (yOrSize) === "object")
-            Size.set(this.size, yOrSize.width, yOrSize.height);
-        else if (wOrSize == undefined)
-            return;
-        else if (typeof (wOrSize) === "object")
-            Size.set(this.size, wOrSize.width, wOrSize.height);
-        else
-            Size.set(this.size, wOrSize, h);
+        if (typeof (yOrWorSize) === "object")
+            Size.set(this.size, yOrWorSize.width, yOrWorSize.height);
+        else if (typeof (wOrHorSize) === "object")
+            Size.set(this.size, wOrHorSize.width, wOrHorSize.height);
+        else if (typeof yOrWorSize == 'number' && typeof xOrOrigin == "object")
+            Size.set(this.size, yOrWorSize, wOrHorSize);
+        else if (wOrHorSize != undefined)
+            Size.set(this.size, wOrHorSize, h);
     }
 
     clone(): Rectangle {
@@ -40,7 +40,7 @@ export default class Rectangle
 
     /** Creates a new instance of Rectangle with origin(0,0) and the given size for width and height. */
     static fromSize(size: SizeType): Rectangle {
-        return new Rectangle(0, 0, size.width, size.height);
+        return new Rectangle(Point.new(), size);
     }
     /** Creates a new instance of Rectangle from a "bounds" type object where origin coordinate properties are left/top instead of x/y. */
     static fromBounds(bounds: {left: number, top: number, width: number, height: number}): Rectangle {
@@ -69,6 +69,28 @@ export default class Rectangle
     /** Returns true if both width and height values are equal to zero to within 4 decimal places of precision. */
     get fuzzyIsNull() { return this.size.fuzzyIsNull; }
 
+    /** Sets the top left coordinates of this rectangle to `origin` and returns itself. */
+    setOrigin(origin: PointType): this;
+    /** Sets the top left coordinates of this rectangle to `x` and `y` and returns itself.
+        If `y` is undefined then value of `x` is used for both dimensions. */
+    setOrigin(x: number, y?: number): this;
+    // implementation
+    setOrigin(xOrOrigin: number | PointType, y?: number): this {
+        this.origin.set(xOrOrigin, y);
+        return this;
+    }
+
+    /** Sets the size of this rectangle to `size` and returns itself. */
+    setSize(size: SizeType): this;
+    /** Sets the size of this rectangle to `width` and `height` and returns itself.
+        If `height` is undefined then value of `width` is used for both dimensions. */
+    setSize(width: number, height?: number): this;
+    // implementation
+    setSize(widthOrSize: number | SizeType, height?: number): this {
+        this.size.set(widthOrSize, height);
+        return this;
+    }
+
     /** Returns true if this rectangle's origin and size are equal to `other` rectangle's origin and size. */
     equals(other: Rectangle): boolean {
         return this.origin.equals(other.origin) && this.size.equals(other.size);
@@ -90,14 +112,24 @@ export default class Rectangle
     }
 
     /** Adds `origin` to both origin coordinates and `size` to both size coordinates of this instance and returns itself. */
-    adjust(origin: number | PointType, size: number | SizeType): Rectangle;
+    adjust(origin: number | PointType, size: number | SizeType): this;
     /** Adds `origin` to both origin coordinates and `right` and `bottom` to size coordinates of this instance and returns itself. */
-    adjust(origin: number | PointType, right: number, bottom: number): Rectangle;
+    adjust(origin: number | PointType, right: number, bottom: number): this;
     /** Adds given values to this rectangle's coordinates and returns this instance. */
-    adjust(left: number, top: number, right: number, bottom: number): Rectangle;
+    adjust(left: number, top: number, right: number, bottom: number): this;
     // implementation
-    adjust(leftOrOffs: number | PointType, topOrOrSz: number | SizeType, rtOrBot?: number, bottom?: number): Rectangle {
-        return Rectangle.adjust(this, leftOrOffs, topOrOrSz, rtOrBot, bottom);
+    adjust(leftOrOffs: number | PointType, topOrOrSz: number | SizeType, rtOrBot?: number, bottom?: number): this {
+        return Rectangle.adjust(this, leftOrOffs, topOrOrSz, rtOrBot, bottom) as this;
+    }
+
+    /** Moves the x,y origin of the rectangle by the given offset. */
+    translate(offset: PointType): this
+    /** Moves the x,y origin of the rectangle by the given amounts. If `y` is undefined then `x` value is added to both dimensions. */
+    translate(x: number, y?: number): this;
+    // implementation
+    translate(xOrOffs: number | PointType, y?: number): this {
+        this.origin.plus_eq(xOrOffs, y);
+        return this;
     }
 
     /** Adds given offsets to a copy of the `rect` Rectangle and returns the copied & adjusted Rectangle. */
