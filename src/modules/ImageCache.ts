@@ -32,7 +32,7 @@ export type ImageDataType = CanvasDrawable | null;
 
 type ImageRecord = {
     image: ImageDataType
-    iconNames: string[]   // icon(s) using this cached image
+    iconNames: Set<string>   // icon(s) using this cached image
 }
 class ImageStorage extends Map<string, ImageRecord> {}  // just an alias
 
@@ -94,9 +94,13 @@ export class ImageCache
     }
 
     // The private methods provide actual implementation but w/out mutex locking.
-    private getImage_impl(key: string): ImageDataType {
+    private getImage_impl(key: string, iconName?: string): ImageDataType {
         const record: ImageRecord | undefined = this.cache.get(key);
-        return record ? record.image : null;
+        if (!record)
+            return null;
+        if (!!iconName)
+            record.iconNames.add(iconName);
+        return record.image;
     }
 
     // The private methods provide actual implementation but w/out mutex locking.
@@ -104,16 +108,15 @@ export class ImageCache
         if (!image)
             return;
         try {
-            let rec: ImageRecord | undefined = this.cache.get(key);
-            if (rec) {
+            const rec: ImageRecord | undefined = this.cache.get(key);
+            if (!!rec) {
                 rec.image = image;
+                if (meta?.iconName)
+                    rec.iconNames.add(meta.iconName);
             }
             else {
-                rec = { image: image, iconNames: [] }
-                this.cache.set(key, rec);
+                this.cache.set(key, { image, iconNames: new Set([ meta?.iconName ]) });
             }
-            if (meta?.iconName && !rec.iconNames.includes(meta.iconName))
-                rec.iconNames.push(meta.iconName);
 
             // Check for cache overflow; schedule trim if needed.
             if (!this.trimTimerId && this.count() >= ImageCache.cacheOptions.maxCachedImages + ImageCache.cacheHighTide)
@@ -144,7 +147,7 @@ export class ImageCache
         let img: ImageDataType = null;
         const key: string = this.makeKey(src, size, resizeOptions);
         await this.mutex.acquire();
-        img = this.getImage_impl(key);
+        img = this.getImage_impl(key, meta?.iconName);
         if (!img) {
             img = await this.loadImage(src, size, resizeOptions);
             this.saveImage_impl(key, img, meta);
@@ -221,8 +224,8 @@ export class ImageCache
     public async clearIconName(name: string) {
         await this.mutex.acquire();
         try {
-            for (const [k, v] of this.cache.entries()) {
-                if (v.iconNames.includes(name)) {
+            for (const k of this.cache.keys()) {
+                if (this.cache.get(k)?.iconNames.has(name)) {
                     this.cache.delete(k);
                     const src = k.split(',')[0];
                     this.log.info("Removed cached image '%s%s' for icon '%s'.", (src.length > 60 ? "..." : ""), src.slice(-60), name);
