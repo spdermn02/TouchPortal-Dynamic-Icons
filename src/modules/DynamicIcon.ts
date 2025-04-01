@@ -141,7 +141,7 @@ export default class DynamicIcon
         canvas
         .toBuffer("raw" as any)
         .then((data: Buffer) => {
-            sharp(data, { raw : { width: size.width, height: size.height, channels: 4, premultiplied: true } })
+            sharp(data, { raw : { width: size.width, height: size.height, channels: 4, premultiplied: false } })
             .png(this.outputCompressionOptions)
             .toBuffer()
             .then((b: Buffer) => this.sendStateData(this.name, b) )
@@ -170,7 +170,7 @@ export default class DynamicIcon
     // Send the canvas contents by breaking up into tiles using Sharp, with added compression.
     // Much more efficient than using the method in sendCanvasTiles() and then compressing each resulting canvas tile.
     private sendCompressedTiles(canvas: Canvas, size: SizeType) {
-        const raw: CreateRaw = { width: size.width, height: size.height, channels: 4, premultiplied: true };
+        const raw: CreateRaw = { width: size.width, height: size.height, channels: 4, premultiplied: false };
         canvas
         .toBuffer("raw" as any)
         .then((data: Buffer) => {
@@ -194,7 +194,7 @@ export default class DynamicIcon
         canvas
         .toBuffer("raw" as any)
         .then((data: Buffer) => {
-            sharp(data, { raw: { width: size.width, height: size.height, channels: 4, premultiplied: true } })
+            sharp(data, { raw: { width: size.width, height: size.height, channels: 4, premultiplied: false } })
             .toFormat(format as any, options)
             .toFile(file)
             .catch(e => this.log.error(`Error while saving image for icon '${this.name}' to file "${file}": ${e}`) );
@@ -204,7 +204,7 @@ export default class DynamicIcon
 
     // Saves the canvas contents to a files by breaking up into tiles using Sharp.
     private saveImageTiles(canvas: Canvas, size: SizeType, file: string, format: string, options?: {}) {
-        const raw: CreateRaw = { width: size.width, height: size.height, channels: 4, premultiplied: true };
+        const raw: CreateRaw = { width: size.width, height: size.height, channels: 4, premultiplied: false };
         const pathInfo = pathParse(file);
         const basePath = pathJoin(pathInfo.dir, pathInfo.name);
         canvas
