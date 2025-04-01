@@ -118,6 +118,7 @@ const entry_base =
                 docUrl: `${DOCS_URL_BASE}#plugin-settings`
             }
         },
+        /* Disable GPU option for now, revisit later if GPU usage becomes stable.
         {
             name: C.SettingName.GPU,
             type: "switch",
@@ -134,6 +135,7 @@ const entry_base =
                 docUrl: `${DOCS_URL_BASE}#plugin-settings`
             }
         },
+        */
         {
             name: C.SettingName.PngCompressLevel,
             type: "number",
@@ -793,13 +795,14 @@ function addGenerateLayersAction(id, name, subcat) {
         "'Finalize' marks the icon as finished, removing any extra layers which may have been added previously. 'Render' produces the actual icon in its current state and sends it to TP.";
     let [format, data] = makeIconLayerCommonData(id);
     let i = data.length;
-    format += `{${i++}} with Compression Level {${i++}} Quality {${i++}} and GPU Rendering {${i++}} (defaults are set in plugin Settings)`;
+    format += `{${i++}} with Compression Level {${i++}} and Quality {${i++}} (defaults are set in plugin Settings)`;
+    // Disable GPU option for now, revisit later if GPU usage becomes stable.
+    // format += `{${i++}} with Compression Level {${i++}} Quality {${i++}} and GPU Rendering {${i++}} (defaults are set in plugin Settings)`;
     data.push(
         makeChoiceData(jid(id, "action"), "Action", ["Finalize & Render", "Finalize Only", "Render Only"]),
         makeChoiceData(jid(id, "cl"), "Compression Level", [C.Str.Default, "None", "1 (low)", "2", "3", "4", "5", "6", "7", "8", "9 (high)"]),
-        // makeTextData(jid(id, "quality"), "Quality", "100"),
         makeChoiceData(jid(id, "quality"), "Quality", [C.Str.Default, ...Array.from( {length: 100}, (_, i) => (i+1).toString()).reverse() ]),
-        makeChoiceData(jid(id, "gpu"), "GPU Rendering", [C.Str.Default, "Enabled", "Disabled"]),
+        // makeChoiceData(jid(id, "gpu"), "GPU Rendering", [C.Str.Default, "Enabled", "Disabled"]),
     );
     addAction(id, name, descript, format, data, subcat);
 }

@@ -8,7 +8,7 @@ import { DynamicIcon, ParseState, globalImageCache } from "./modules";
 import * as LE from "./modules/elements";
 import { ConsoleEndpoint, Logger, logging , LogLevel } from './modules/logging';
 import { setTPClient, PluginSettings } from './common'
-import { parseIntOrDefault, parseBoolOrDefault, clamp } from './utils/helpers'
+import { parseIntOrDefault, /* parseBoolOrDefault, */ clamp } from './utils/helpers'
 import { dirname as pdirname, extname as pathExtName, isAbsolute as pathIsAbs, join as pathJoin, resolve as presolve } from 'path';
 import { concurrency as sharp_concurrency } from 'sharp';
 const { version: pluginVersion } = require('../package.json');  // 'import' causes lint error in VSCode
@@ -398,9 +398,10 @@ function handleIconAction(actionId: string, data: TpActionDataArrayType)
             if (parseState.dr.quality != undefined)
                 icon.outputCompressionOptions.quality = clamp(parseIntOrDefault(parseState.dr.quality, PluginSettings.defaultOutputQuality), 1, 100)
 
-            // GPU rendering setting choices: "default", "Enabled", "Disabled"; Added in v1.2.0-a1, removed after 1.2.0-a3, re-added in 1.3.0.
-            if (parseState.dr.gpu != undefined)
-                icon.gpuRendering = parseBoolOrDefault(parseState.dr.gpu, PluginSettings.defaultGpuRendering)
+            // GPU rendering setting choices: "default", "Enabled", "Disabled"; Added in v1.2.0-a1, removed after 1.2.0-a3
+            // Disabled for now, revisit later if GPU usage becomes stable.
+            // if (parseState.dr.gpu != undefined)
+                // icon.gpuRendering = parseBoolOrDefault(parseState.dr.gpu, PluginSettings.defaultGpuRendering)
 
             if (action & 1)
                 icon.finalize()
@@ -610,9 +611,10 @@ function onSettings(settings:{ [key:string]:string }[]) {
             case C.SettingName.MaxImageGenThreads:
                 canvas_concurrency(clamp(parseIntOrDefault(val, DEFAULT_CONCURRENCY), 1, SYS_MAX_THREADS));
                 break;
-            case C.SettingName.GPU:
-                PluginSettings.defaultGpuRendering = parseBoolOrDefault(val, PluginSettings.defaultGpuRendering);
-                break;
+            // Disabled for now, revisit later if GPU usage becomes stable.
+            // case C.SettingName.GPU:
+            //     PluginSettings.defaultGpuRendering = parseBoolOrDefault(val, PluginSettings.defaultGpuRendering);
+            //     break;
         }
     });
     // logger.debug("settings: %O", settings)
