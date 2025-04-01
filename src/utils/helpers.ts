@@ -40,6 +40,25 @@ export function fuzzyEquals5p(value1: number, value2: number): boolean { return 
 /** Returns true if 2 numbers are equal within 6 decimal places of precision. */
 export function fuzzyEquals6p(value1: number, value2: number): boolean { return fuzzyEquals(value1, value2, 0.000_001); }
 
+
+// ------------------------
+// String utils.
+
+/** Left-trims `str` to `maxLen` characters and adds an ellipsis at the start if the input string was shortened. */
+export function elideLeft(str: string, maxLen: number): string {
+    if (str.length <= maxLen)
+        return str;
+    return "…" + str.slice(-maxLen);
+}
+
+/** Right-trims `str` to `maxLen` characters and adds an ellipsis to the end if the input string was shortened. */
+export function elideRight(str: string, maxLen: number): string {
+    if (str.length <= maxLen)
+        return str;
+    return str.slice(0, maxLen+1) + "…";
+}
+
+
 // ------------------------
 // Object helpers
 

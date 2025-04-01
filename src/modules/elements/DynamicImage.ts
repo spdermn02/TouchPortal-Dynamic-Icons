@@ -1,18 +1,20 @@
 
-import { ILayerElement, IRenderable, IValuedElement } from '../interfaces';
 import { Transformation } from './';
-import { globalImageCache, ImageDataType, ParseState, Rectangle, RenderContext2D } from '../'
+import { globalImageCache, Image, Rectangle } from '../'
 import { evaluateStringValue } from '../../utils';
+import type { ILayerElement, IRenderable, IValuedElement } from '../interfaces';
+import type { ParseState, RenderContext2D } from '../'
+
+type CssObjectFit = "contain" | "cover" | "fill" | "scale-down" | "none";
 
 // This class hold an image source (path) and associated data like processing options or transformation to apply.
-
 export default class DynamicImage implements ILayerElement, IRenderable, IValuedElement
 {
     source: string = "";
     transform: Transformation | null = null;
     iconName: string = "";   // for icon cache meta data
     resizeOptions: any = {
-        fit: "contain" // as per CSS object-fit property: contain, cover, fill, scale-down, none
+        fit: <CssObjectFit> "contain"
     };
 
     constructor(init?: Partial<DynamicImage>) { Object.assign(this, init); }
@@ -71,23 +73,64 @@ export default class DynamicImage implements ILayerElement, IRenderable, IValued
         return this;
     }
 
+    // Scales `imgRect` to size of `intoRect` based on `fit` strategy. Also centers `imgRect` if it is smaller than `intoRect` in either dimension.
+    // Modifies `imgRect` input.
+    private static scaleImageRect(imgRect: Rectangle, intoRect: Rectangle, fit: CssObjectFit)  {
+        let scale = 0;
+        switch (fit) {
+            case 'contain':
+                scale = Math.min(intoRect.width / imgRect.width, intoRect.height / imgRect.height);
+                break;
+            case 'scale-down':
+                scale = Math.min(1, intoRect.width / imgRect.width, intoRect.height / imgRect.height);
+                break;
+            case 'cover':
+                scale = Math.max(intoRect.width / imgRect.width, intoRect.height / imgRect.height);
+                break;
+            case 'fill':
+                imgRect.setSize(intoRect.size);
+                // assumes imgRect.origin already == intoRect.origin
+                return;
+            // 'none'
+            default:
+                break;
+        }
+        if (scale != 0) {
+            imgRect.setSize(
+                Math.ceil(imgRect.width * scale),
+                Math.ceil(imgRect.height * scale)
+            );
+        }
+        // for legacy reasons we don't translate oversize images beyond the top left boundary of drawing rectangle
+        imgRect.translate(
+            Math.max(0, (intoRect.width - imgRect.width) * .5),
+            Math.max(0, (intoRect.height - imgRect.height) * .5)
+        );
+    }
+
     // ILayerElement
     async render(ctx: RenderContext2D, rect: Rectangle) : Promise<void> {
         if (!ctx || this.isEmpty)
             return;
 
-        const img: ImageDataType = await globalImageCache().getOrLoadImage(this.source, rect.size, this.resizeOptions, { iconName: this.iconName });
+        const img = await globalImageCache().getOrLoadImage(this.source, rect.size, this.resizeOptions, { iconName: this.iconName });
         if (!img)
             return;
+
+        const imgRect = new Rectangle(rect.origin, img.width, img.height);
+        // `Image` type instances are actually scalable vectors (SVG) so we need to resize & position them here
+        if (img instanceof Image)
+            DynamicImage.scaleImageRect(imgRect, rect, this.resizeOptions.fit);
+
         // check if any transformation steps are needed, otherwise just draw the image directly
         if (this.transform && !this.transform.isEmpty) {
             const prevTx = ctx.getTransform();
-            this.transform.render(ctx, rect);
-            ctx.drawImage(img, rect.x, rect.y);
+            this.transform.render(ctx, imgRect);
+            ctx.drawImage(img, imgRect.x, imgRect.y, imgRect.width, imgRect.height);
             ctx.setTransform(prevTx);
         }
         else {
-            ctx.drawImage(img, rect.x, rect.y);
+            ctx.drawImage(img, imgRect.x, imgRect.y, imgRect.width, imgRect.height);
         }
     }
 }
