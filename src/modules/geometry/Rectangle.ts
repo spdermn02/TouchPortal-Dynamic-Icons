@@ -1,33 +1,59 @@
 import { PointType, Point, Size, SizeType, Vect2d } from './';
 import { round5p } from '../../utils';
 
+/** A rectangle type storing x, y, with, & height values. Convenience methods are provided for various operations.
+
+The values are stored as `origin` (`Vect2d` type) and `size` (`Size` type) properties
+which can be read or manipulated directly using their respective methods.
+*/
 export default class Rectangle
 {
-    origin: Vect2d = new Vect2d();
-    size: Size =  new Size();
+    readonly origin: Vect2d = new Vect2d();
+    readonly size: Size =  new Size();
 
     constructor();
+    constructor(rect: Rectangle);
     constructor(origin: PointType, size: SizeType);
     constructor(origin: PointType, width: number, height: number);
     constructor(top: number, left: number, size: SizeType);
     constructor(top: number, left: number, width: number, height: number);
     // implementation
-    constructor(xOrOrigin?: number | PointType, yOrWorSize?: number | SizeType, wOrHorSize?: number | SizeType, h?: number) {
-        if (xOrOrigin == undefined)
-            return;
-        if (typeof xOrOrigin == "object")
-            Point.set(this.origin, xOrOrigin);
-        else
-            Point.set(this.origin, xOrOrigin, (typeof yOrWorSize == "number" ? yOrWorSize : undefined));
+    constructor(...args: any[]) {
+        // @ts-ignore
+        this.set(...args);
+    }
 
-        if (typeof (yOrWorSize) === "object")
-            Size.set(this.size, yOrWorSize.width, yOrWorSize.height);
-        else if (typeof (wOrHorSize) === "object")
-            Size.set(this.size, wOrHorSize.width, wOrHorSize.height);
-        else if (typeof yOrWorSize == 'number' && typeof xOrOrigin == "object")
-            Size.set(this.size, yOrWorSize, wOrHorSize);
-        else if (wOrHorSize != undefined)
-            Size.set(this.size, wOrHorSize, h);
+    set(rect: Rectangle): this;
+    set(origin: PointType, size: SizeType): this;
+    set(origin: PointType, width: number, height: number): this;
+    set(top: number, left: number, size: SizeType): this;
+    set(top: number, left: number, width: number, height: number): this;
+    // implementation
+    set(...args: any[]): this {
+        // (0?: number | PointType | Rectangle, 1?: number | SizeType, 2?: number | SizeType, 3?: number)
+        if (args[0] == undefined)
+            return this;
+        let arg0isObj = (typeof args[0] == 'object'),
+            arg1notObj = false;
+        if (arg0isObj) {
+            if (args[0] instanceof Rectangle)
+                return this.set(args[0].origin, args[0].size);
+            Point.set(this.origin, args[0]);
+        }
+        else if (typeof args[0] == 'number') {
+            Point.set(this.origin, args[0], args[1]);
+            arg1notObj = true;
+        }
+
+        if (!arg1notObj && typeof args[1] == 'object')
+            return this.setSize(args[1]);
+         if (arg1notObj && typeof args[2] == 'object')
+            return this.setSize(args[2]);
+        if (typeof args[1] == 'number' && arg0isObj)
+            return this.setSize(args[1], args[2]);
+        if (args[2] != undefined)
+            return this.setSize(args[2], args[3]);
+        return this;
     }
 
     clone(): Rectangle {
@@ -44,7 +70,7 @@ export default class Rectangle
     }
     /** Creates a new instance of Rectangle from a "bounds" type object where origin coordinate properties are left/top instead of x/y. */
     static fromBounds(bounds: {left: number, top: number, width: number, height: number}): Rectangle {
-        return new Rectangle(Point.new(bounds.left, bounds.top), Size.new(bounds.width, bounds.height));
+        return new Rectangle(bounds.left, bounds.top, bounds.width, bounds.height);
     }
 
     get x(): number  { return this.origin.x; }
@@ -107,8 +133,9 @@ export default class Rectangle
     /** Adds given offsets to a copy of this rectangle and returns the copy. */
     adjusted(left: number, top: number, right: number, bottom: number): Rectangle;
     // implementation
-    adjusted(leftOrOffs: number | PointType, topOrRtOrSz: number | SizeType, rtOrBot?: number, bottom?: number): Rectangle {
-        return Rectangle.adjust(this.clone(), leftOrOffs, topOrRtOrSz, rtOrBot, bottom);
+    adjusted(...args: any[]): Rectangle {
+        // @ts-ignore
+        return Rectangle.adjust(this.clone(), ...args);
     }
 
     /** Adds `origin` to both origin coordinates and `size` to both size coordinates of this instance and returns itself. */
@@ -118,8 +145,9 @@ export default class Rectangle
     /** Adds given values to this rectangle's coordinates and returns this instance. */
     adjust(left: number, top: number, right: number, bottom: number): this;
     // implementation
-    adjust(leftOrOffs: number | PointType, topOrOrSz: number | SizeType, rtOrBot?: number, bottom?: number): this {
-        return Rectangle.adjust(this, leftOrOffs, topOrOrSz, rtOrBot, bottom) as this;
+    adjust(...args: any[]): this {
+        // @ts-ignore
+        return Rectangle.adjust(this, ...args) as this;
     }
 
     /** Moves the x,y origin of the rectangle by the given offset. */
@@ -139,8 +167,9 @@ export default class Rectangle
     /** Adds given offsets to a copy of `rect` Rectangle and returns the copy. */
     static adjusted(rect: Rectangle, left: number, top: number, right: number, bottom: number): Rectangle;
     // implementation
-    static adjusted(rect: Rectangle, leftOrOffs: number | PointType, topOrSz: number | SizeType, rtOrBot?: number, bottom?: number): Rectangle {
-        return Rectangle.adjust(rect.clone(), leftOrOffs, topOrSz, rtOrBot, bottom);
+    static adjusted(...args: any[]): Rectangle {
+        // @ts-ignore
+        return Rectangle.adjust(rect.clone(), ...args);
     }
 
     /** Adds `origin` to both `rect.origin` coordinates and `size` to both `rect.size` coordinates. The input rectangle is modified. Returns the adjusted Rectangle.  */
@@ -149,8 +178,6 @@ export default class Rectangle
     static adjust(rect: Rectangle, origin: number | PointType, right: number, bottom: number): Rectangle;
     /** Adds given offsets to the given rectangle's coordinates. The input rectangle is modified. Returns the adjusted Rectangle. */
     static adjust(rect: Rectangle, left: number, top: number, right: number, bottom: number): Rectangle;
-    /** This overload is for internal use; one of the other overloads will be invoked in most cases. */
-    static adjust(rect: Rectangle, leftOrOffs: number | PointType, topOrSz: number | SizeType, rtOrBot?: number, bottom?: number): Rectangle;
     // implementation
     static adjust(
         rect: Rectangle,
