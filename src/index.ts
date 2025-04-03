@@ -8,8 +8,8 @@ import { DynamicIcon, ParseState, globalImageCache } from "./modules";
 import * as LE from "./modules/elements";
 import { ConsoleEndpoint, Logger, logging , LogLevel } from './modules/logging';
 import { setTPClient, PluginSettings } from './common'
-import { parseIntOrDefault, /* parseBoolOrDefault, */ clamp } from './utils/helpers'
-import { dirname as pdirname, extname as pathExtName, isAbsolute as pathIsAbs, join as pathJoin, resolve as presolve } from 'path';
+import { qualifyFilepath, parseIntOrDefault, /* parseBoolOrDefault, */ clamp } from './utils/helpers'
+import { dirname as pdirname, extname as pathExtName, resolve as presolve } from 'path';
 import { concurrency as sharp_concurrency } from 'sharp';
 const { version: pluginVersion } = require('../package.json');  // 'import' causes lint error in VSCode
 
@@ -424,15 +424,13 @@ function handleIconAction(actionId: string, data: TpActionDataArrayType)
                 logger.warn(`Unsupported output file format "${pathExtName(parseState.dr.file)}" for icon '${icon.name}'. Supported formats: ${[...OUTPUT_FORMATS.keys()].join(',')}`)
                 return
             }
+
             // rendering options for icon.render()
             const options = {
-                file: parseState.dr.file,
+                file: qualifyFilepath(parseState.dr.file),
                 format,
                 output: {}
             }
-            // expand relative paths if we have a default path
-            if (!!PluginSettings.imageFilesBasePath && !pathIsAbs(options.file))
-                options.file = pathJoin(PluginSettings.imageFilesBasePath, options.file)
 
             // Convert name=value pairs to Sharp output options object.
             // We don't validate the values here... would be too much. Sharp will handle it and we'll log any errors at that point.

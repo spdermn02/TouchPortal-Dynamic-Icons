@@ -1,5 +1,7 @@
 import { Str } from './consts'
 import { Alignment, logging, PointType } from '../modules';
+import { PluginSettings } from '../common';
+import { isAbsolute as pathIsAbs, join as pathJoin } from 'path';
 
 // Used to validate if a string is a single numeric value. Accepts leading sign, base prefix (0x/0b/0o), decimals, and exponential notation.
 const NUMBER_VALIDATION_REGEX = new RegExp(/^[+-]?(?:0[xbo])?\d+(?:\.\d*)?(?:e[+-]?\d+)?$/);
@@ -58,6 +60,11 @@ export function elideRight(str: string, maxLen: number): string {
     return str.slice(0, maxLen+1) + "…";
 }
 
+export function qualifyFilepath(path: string): string {
+    if (PluginSettings.imageFilesBasePath && !pathIsAbs(path))
+        return pathJoin(PluginSettings.imageFilesBasePath, path);
+    return path;
+}
 
 // ------------------------
 // Object helpers

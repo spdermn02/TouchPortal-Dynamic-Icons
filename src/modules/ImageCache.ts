@@ -2,10 +2,8 @@
 import sharp from 'sharp';
 import { Image, loadImage, loadImageData, type CanvasDrawable } from 'skia-canvas';
 import { Mutex } from './Mutex';
-import { PluginSettings } from '../common';
-import { elideLeft } from '../utils';
+import { elideLeft, qualifyFilepath } from '../utils';
 import { Logger, logging } from './logging';
-import { isAbsolute as isAbsPath, join as pjoin } from 'path';
 import type { SizeType } from './geometry';
 
 /** Central storage for various image processing options; Set via ImageCache.cacheOptions
@@ -67,12 +65,12 @@ export class ImageCache
     }
 
     private resolveSource(src: string) {
-        const isData = src.startsWith("data:");
-        if (isData)
+        const isB64Data = src.startsWith("data:");
+        if (isB64Data)
             src = src.substring(5);
-        else if (PluginSettings.imageFilesBasePath && !isAbsPath(src))
-            src = pjoin(PluginSettings.imageFilesBasePath, src);
-        return { src: src, isB64Data: isData, isSvg: !isData && ImageCache.isSvg(src) };
+        else
+            src = qualifyFilepath(src);
+        return { src, isB64Data, isSvg: !isB64Data && ImageCache.isSvg(src) };
     }
 
     private async trimCache()
