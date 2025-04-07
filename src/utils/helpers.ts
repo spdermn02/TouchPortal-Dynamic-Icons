@@ -70,16 +70,16 @@ export function qualifyFilepath(path: string): string {
 // Object helpers
 
 /** Assigns property values in `from` object to values in the `to` object, but _only_ if they already exist in `to` _and_ have a matching `typeof` type.
-    Recurses up to `recurseLevel` nested objects, and skips assigning object-type properties beyond the recursion level.
+    Recurses up to `recurseLevel` nested objects, and skips assigning object-type properties beyond the recursion level. Arrays are copied by value.
 */
-export function assignExistingProperties(to: {}, from: {}, recurseLevel = 0) {
+export function assignExistingProperties(to: {}, from?: {}, recurseLevel = 0) {
     if (!to || !from)
         return;
     for (const key in from) {
         if (key in to && typeof to[key] == typeof from[key]) {
-            if (typeof to[key] == 'object') {
+            if (typeof to[key] == 'object' && !Array.isArray(to[key])) {
                 if (recurseLevel > 0)
-                    assignExistingProperties(to[key], from[key], --recurseLevel);
+                    assignExistingProperties(to[key], from[key], recurseLevel - 1);
             }
             else {
                 to[key] = from[key];
@@ -98,9 +98,9 @@ export function arraysMatchExactly(array1: any[], array2: any[]) {
 
 /** Evaluates a numeric expression within an arbitrary string. Returns zero if evaluation fails or value string was empty.
     Note that the number formats must be "language neutral," meaning always period for decimal separator and no thousands separators. */
-export function evaluateValue(value: string): number {
+export function evaluateValue(value: string, defaultValue: number | any = 0): number | typeof defaultValue {
     if (!value)
-        return 0
+        return defaultValue;
     try {
         // First try parsing the string as a single number. Even using a regex check this is still ~6x faster overall for single numeric values.
         // For expressions there's a little unnecessary overhead but it's fractions of a percent difference since the regex is fast.
@@ -108,10 +108,10 @@ export function evaluateValue(value: string): number {
         // because they'll return any number at the start of a string and ignore the rest (eg from "2 + 2" they return 2).
         // Use Number() c'tor vs. parseFloat() because it also handles base prefixes (0x/0b/0o).
         if (NUMBER_VALIDATION_REGEX.test(value))
-            return Number(value) || 0;
+            return Number(value) || defaultValue;
 
         // If it's not just a plain number then evaluate it as an expression.
-        return (new Function( `"use strict"; return (${value})`))() || 0;
+        return (new Function( `"use strict"; return (${value})`))() || defaultValue;
     }
     catch (e) {
         logging().getLogger('plugin').warn("Error evaluating the numeric expression '" + value + "':", e)
@@ -188,7 +188,7 @@ export function parseNumericArrayString(
     Results are assigned to the returned Vect2d's `x` and `y` members respectively.
     If only one value is found in the string then it is assigned to the result's `y` member as well as to `x`.
     An empty value string produces a default zero-length vector.
-    See also `parseNumericArrayFromValue()`
+    See also `parseNumericArrayString()`
 */
 export function parsePointFromValue(value: string): PointType {
     const ret: PointType = {x: 0, y: 0},
@@ -200,46 +200,56 @@ export function parsePointFromValue(value: string): PointType {
     return ret;
 }
 
-/** Parses a string value into an Alignment enum type result and returns it.
+/** Parses a string value into an `Alignment` enum type result and returns it.
     Accepted string values (brackets indicate the minimum # of characters required):
+    ```
         Horizontal: "[l]eft", "[c]enter", "[r]ight", "[j]ustify"
         Vertical:   "[t]op", "[m]iddle", "[b]ottom", "[ba]seline"
-    Which direction(s) to evaluate can be specified in the `atype` parameter as one of the alignment type masks.
+    ```
+    Which direction to evaluate can be specified in the `mask` parameter as one of `Alignment.H_MASK` or `Alignment.V_MASK`.
  */
-export function parseAlignmentFromValue(value: string, atype: Alignment = Alignment.H_MASK | Alignment.V_MASK): Alignment {
-    let ret: Alignment = Alignment.NONE;
-
-    if (atype & Alignment.H_MASK) {
+export function parseAlignmentFromValue(value: string, mask: Alignment): Alignment {
+    if (mask & Alignment.H_MASK) {
         // "left", "center", "right", "justify"
         switch (value[0]) {
             case 'c':
-                ret |= Alignment.HCENTER;
-                break;
+                return Alignment.HCENTER;
             case 'l':
-                ret |= Alignment.LEFT;
-                break;
+                return Alignment.LEFT;
             case 'r':
-                ret |= Alignment.RIGHT;
-                break;
+                return Alignment.RIGHT;
             case 'j':
-                ret |= Alignment.JUSTIFY;
-                break;
+                return Alignment.JUSTIFY;
         }
     }
-    if (atype & Alignment.V_MASK) {
+    if (mask & Alignment.V_MASK) {
         // "top", "middle", "bottom", "baseline"
         switch (value[0]) {
             case 'm':
-                ret |= Alignment.VCENTER;
-                break;
+                return Alignment.VCENTER;
             case 't':
-                ret |= Alignment.TOP;
-                break;
+                return Alignment.TOP;
             case 'b':
-                ret |= (value[1] == 'a' ? Alignment.BASELINE : Alignment.BOTTOM);
-                break;
+                return (value[1] == 'a' ? Alignment.BASELINE : Alignment.BOTTOM);
         }
     }
+    return Alignment.NONE;
+}
+
+/** Parses a string containing 1 or 2 alignment values into an `Alignment` enum type result and returns it.
+    See `parseAlignmentFromValue()` for accepted string values for each direction.
+
+    Values may be specified individually or separated by space or comma, in either order. Eg: "top" or "middle" or "left top" or "middle right"
+
+    To determine which direction(s) were specified in the input string, check the mask of the return value.
+
+    To limit the alignment direction to evaluate & return, specified the `mask` parameter as one of `Alignment.H_MASK` or `Alignment.V_MASK`.
+ */
+export function parseAlignmentsFromString(value: string, mask: Alignment = (Alignment.H_MASK | Alignment.V_MASK)): Alignment {
+    let ret: Alignment = Alignment.NONE;
+    const values = value.split(/[\s,]+/, 2);
+    for (const v of values)
+        ret |= parseAlignmentFromValue(v, mask);
     return ret;
 }
 
