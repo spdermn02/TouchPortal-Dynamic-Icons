@@ -5,7 +5,7 @@
 export default class UnitValue extends Object {
     value: number = 0;
     isRelative: boolean = false;
-    unit!: string;
+    protected _unit!: string;
 
     constructor(value?: number);
     constructor(value: string);
@@ -33,29 +33,32 @@ export default class UnitValue extends Object {
         return new UnitValue().setFromString(value);
     }
 
+    get unit() { return this._unit; }
+    set unit(unit: string) { this.setUnit(unit); }
+
     setUnit(unit: string): boolean {
         this.isRelative = UnitValue.isRelativeUnit(unit);
-        this.unit = unit;
+        this._unit = unit;
         return this.isRelative;
     }
 
     setRelative(relative: boolean) {
         this.isRelative = relative;
-        this.unit = relative ? "%" : "px";
+        this._unit = relative ? "%" : "px";
     }
 
     setFromString(value: string) {
-        let v:any = parseInt(value);
+        let v:any = parseFloat(value);
         if (v != Number.NaN)
             this.value = v;
-        v = value.replace(/\D/, '');
+        v = value.replace(/\W/g, '');
         if (v)
             this.setUnit(v);
         return this;
     }
 
     override toString(): string {
-        return this.value + this.unit;
+        return this.value + this._unit;
     }
 
 }
