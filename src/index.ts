@@ -9,6 +9,7 @@ import * as LE from "./modules/elements";
 import { ConsoleEndpoint, Logger, logging , LogLevel } from './modules/logging';
 import { setTPClient, PluginSettings } from './common'
 import { qualifyFilepath, parseIntOrDefault, /* parseBoolOrDefault, */ clamp } from './utils/helpers'
+import './utils/extensions'
 import { dirname as pdirname, extname as pathExtName, resolve as presolve } from 'path';
 import { concurrency as sharp_concurrency } from 'sharp';
 const { version: pluginVersion } = require('../package.json');  // 'import' causes lint error in VSCode

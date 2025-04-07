@@ -9,8 +9,8 @@ export type ConstructorType<T> = new(...args:any[])=>T;
 // The idea is to centralize the types here which other modules need, instead of importing from skia-canvas inside each implementation.
 // This should also make is easier to change provider libraries if necessary.
 export {
-    Canvas, CanvasRenderingContext2D as RenderContext2D,
+    Canvas, CanvasRenderingContext2D, CanvasRenderingContext2D as RenderContext2D,
     DOMMatrix, DOMPoint, DOMRect,
-    Image, ImageData,
+    Image, ImageData, loadImage, loadImageData,
     Path2D, TextMetrics,
 } from 'skia-canvas';
