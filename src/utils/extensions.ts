@@ -6,7 +6,8 @@ import type { PointType, CanvasRenderingContext2D } from '../modules';
 
 // Extends `DOMMatrix` and `CanvasRenderingContext2D` with `rotate*()` method
 // overloads which accept an optional origin point around which to rotate.
-// Also adds `CanvasRenderingContext2D.scale(x, y, origin)` overload.
+// Adds `CanvasRenderingContext2D.scale(x, y, origin)` overload.
+// Adds `DOMMatrix.skew[Self](sx, sy, origin)` overloads.
 // Adds more efficient `DOMMatrix.rotateZ[Self]()` methods which skip a couple useless multiplication steps of the original.
 
 declare module 'skia-canvas' {
@@ -35,6 +36,13 @@ declare module 'skia-canvas' {
         rotateZSelf(degrees: number, origin?: PointType): DOMMatrix;
         rotateZSelf(degrees: number, origin?: [number,number]): DOMMatrix;
         rotateZSelf(degrees: number, originX?: number, originY?: number): DOMMatrix;
+
+        skew(sx?: number, sy?: number, origin?: PointType): DOMMatrix;
+        skew(sx?: number, sy?: number, origin?: [number,number]): DOMMatrix;
+        skew(sx?: number, sy?: number, originX?: number, originY?: number): DOMMatrix;
+        skewSelf(sx?: number, sy?: number, origin?: PointType): DOMMatrix;
+        skewSelf(sx?: number, sy?: number, origin?: [number,number]): DOMMatrix;
+        skewSelf(sx?: number, sy?: number, originX?: number, originY?: number): DOMMatrix;
     }
 
 }
@@ -49,6 +57,7 @@ const NATIVE_METHODS = {
     contextRotate: CanvasRenderingContext2D.prototype.rotate,
     contextScale: CanvasRenderingContext2D.prototype.scale,
     matrixRotateSelf: DOMMatrix.prototype.rotateSelf,
+    matrixSkewSelf: DOMMatrix.prototype.skewSelf
 } as const;
 
 // export function extendCanvasContext() {
@@ -107,4 +116,18 @@ const NATIVE_METHODS = {
     DOMMatrix.prototype.rotateZ = function(this: DOMMatrix, degrees: number, origin?: Origin, originY?: number): DOMMatrix {
         return this.clone().rotateZSelf(degrees, <number>origin, originY);
     }
+
+    DOMMatrix.prototype.skewSelf = function(this: DOMMatrix, sx?: number, sy?: number, origin?: Origin, originY?: number): DOMMatrix {
+        if (!origin && !originY)
+            return NATIVE_METHODS.matrixSkewSelf.call(this, sx, sy);
+        const [tx, ty] = txOriginFromArgs(origin, originY);
+        this.translateSelf(tx, ty);
+        NATIVE_METHODS.matrixSkewSelf.call(this, sx, sy);
+        return this.translateSelf(-tx, -ty);
+    }
+
+    DOMMatrix.prototype.skew = function(this: DOMMatrix, sx?: number, sy?: number, origin?: Origin, originY?: number): DOMMatrix {
+        return this.clone().skewSelf(sx, sy,  <number>origin, originY);
+    }
+
 // }
