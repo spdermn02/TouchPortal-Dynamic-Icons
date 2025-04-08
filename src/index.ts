@@ -342,6 +342,7 @@ function handleIconAction(actionId: string, data: TpActionDataArrayType)
         case C.Act.IconDeclare: {
             // Create or modify a "layer stack" type icon. Layer elements need to be added/updated in following action(s).
 
+            const dr = parseState.dr;
             // Create icon now if it doesn't exist yet
             if (!icon) {
                 g_dyanmicIconStates.set(
@@ -357,16 +358,16 @@ function handleIconAction(actionId: string, data: TpActionDataArrayType)
             }
 
             // Parse and set the size property(ies).
-            icon.size.width = parseIntOrDefault(parseState.dr.size, PluginSettings.defaultIconSize.width)
+            icon.size.width = parseIntOrDefault(dr.size, PluginSettings.defaultIconSize.width)
             // Size height parameter added in v1.2-alpha3
             // use current width as default for height, not the defaultIconSize.height (which is really for non-layered icons)
-            icon.size.height = parseIntOrDefault(parseState.dr.h, icon.size.width)
+            icon.size.height = parseIntOrDefault(dr.h, icon.size.width)
             // set flag indicating tiling style is for < v1.2-alpha3. TODO: Remove and log as warning
-            if (parseState.dr.h == undefined)
+            if (dr.h == undefined)
                 icon.sizeIsActual = false
 
             // Handle tiling parameters, if any;  Added in v1.2.0
-            const tile: PointType = Point.new(parseIntOrDefault(parseState.dr.x, 1), parseIntOrDefault(parseState.dr.y, 1))
+            const tile: PointType = Point.new(parseIntOrDefault(dr.x, 1), parseIntOrDefault(dr.y, 1))
             // Create the TP state(s) now if we haven't yet (icon.tile will be 0,0); this way a user can create the new state at any time, separate from the render action.
             // Also check if the tiling settings have changed; we may need to clean up any existing TP states first or create new ones.
             if (!Point.equals(icon.tile, tile)) {
@@ -388,23 +389,24 @@ function handleIconAction(actionId: string, data: TpActionDataArrayType)
                 return
             }
 
+            const dr = parseState.dr;
             let action = 3  // finalize | render
             // Action choices: "Finalize & Render", "Finalize Only", "Render Only"
-            if (parseState.dr.action && parseState.dr.action.length < 17)
-                action = parseState.dr.action[0] == 'F' ? 1 : 2
+            if (dr.action && dr.action.length < 17)
+                action = dr.action[0] == 'F' ? 1 : 2
 
             // Output compression choices: "default", "None", "1"..."9"; Added in v1.2.0-a3
-            if (parseState.dr.cl != undefined)
-                icon.outputCompressionOptions.compressionLevel = parseState.dr.cl[0] == 'N' ? 0 : parseIntOrDefault(parseState.dr.cl, PluginSettings.defaultOutputCompressionLevel)
+            if (dr.cl != undefined)
+                icon.outputCompressionOptions.compressionLevel = dr.cl[0] == 'N' ? 0 : parseIntOrDefault(dr.cl, PluginSettings.defaultOutputCompressionLevel)
 
             // Output quality level: "default", 1-100; Added in v1.3.0
-            if (parseState.dr.quality != undefined)
-                icon.outputCompressionOptions.quality = clamp(parseIntOrDefault(parseState.dr.quality, PluginSettings.defaultOutputQuality), 1, 100)
+            if (dr.quality != undefined)
+                icon.outputCompressionOptions.quality = clamp(parseIntOrDefault(dr.quality, PluginSettings.defaultOutputQuality), 1, 100)
 
             // GPU rendering setting choices: "default", "Enabled", "Disabled"; Added in v1.2.0-a1, removed after 1.2.0-a3
             // Disabled for now, revisit later if GPU usage becomes stable.
-            // if (parseState.dr.gpu != undefined)
-                // icon.gpuRendering = parseBoolOrDefault(parseState.dr.gpu, PluginSettings.defaultGpuRendering)
+            // if (dr.gpu != undefined)
+                // icon.gpuRendering = parseBoolOrDefault(dr.gpu, PluginSettings.defaultGpuRendering)
 
             if (action & 1)
                 icon.finalize()
@@ -421,23 +423,24 @@ function handleIconAction(actionId: string, data: TpActionDataArrayType)
                 return
             }
 
+            const dr = parseState.dr;
             // Format is based on file extension.
-            const format = OUTPUT_FORMATS.get(pathExtName(parseState.dr.file || "").toLowerCase().slice(1))
+            const format = OUTPUT_FORMATS.get(pathExtName(dr.file || "").toLowerCase().slice(1))
             if (!format) {
-                logger.warn(`Unsupported output file format "${pathExtName(parseState.dr.file)}" for icon '${icon.name}'. Supported formats: ${[...OUTPUT_FORMATS.keys()].join(',')}`)
+                logger.warn(`Unsupported output file format "${pathExtName(dr.file)}" for icon '${icon.name}'. Supported formats: ${[...OUTPUT_FORMATS.keys()].join(',')}`)
                 return
             }
 
             // rendering options for icon.render()
             const options = {
-                file: qualifyFilepath(parseState.dr.file),
+                file: qualifyFilepath(dr.file),
                 format,
                 output: {}
             }
 
             // Convert name=value pairs to Sharp output options object.
             // We don't validate the values here... would be too much. Sharp will handle it and we'll log any errors at that point.
-            const optsData = parseState.dr.options.split(',')
+            const optsData = dr.options.split(',')
             for (const opt of optsData) {
                 const kv = opt.split('=')
                 const key = kv.at(0)?.trim()
@@ -472,10 +475,11 @@ function handleIconAction(actionId: string, data: TpActionDataArrayType)
 // as long as that icon has been created already (the layer and compatible element exist).
 function handleIconUpdateAction(actionId: string, icon: DynamicIcon, parseState: ParseState)
 {
+    const dr = parseState.dr;
     // Get index of layer to update.
     // Positive index values are 1-based so we subtract 1 to get actual array index,
     // negative is treated as counting from the end of the array as in `Array.prototype.at()`
-    let layerIdx = parseInt(parseState.dr.index) || 0
+    let layerIdx = parseInt(dr.index) || 0
     if (layerIdx > 0)
         --layerIdx
     // Get element at this index, if any.
@@ -515,7 +519,7 @@ function handleIconUpdateAction(actionId: string, icon: DynamicIcon, parseState:
         case C.Act.IconSetValue:
             // Updates/sets a single value on an existing icon layer of a type which supports it.
             if (typeof((<IValuedElement>el).setValue) === 'function') {
-                (<IValuedElement>el).setValue(parseState.dr.value)
+                (<IValuedElement>el).setValue(dr.value)
                 break
             }
             if (layerIdx < 0) layerIdx += icon.layerCount()
@@ -527,9 +531,8 @@ function handleIconUpdateAction(actionId: string, icon: DynamicIcon, parseState:
             if (typeof((<IColorElement>el).setColor) === 'function') {
                 // Color update fields: type = 'type'; Color value = 'color'.
                 // Color update type values: "Stroke/Foreground", "Fill/Background", "Shadow"
-                const type: ColorUpdateType = parseState.dr.type[1] == 't' ? ColorUpdateType.Stroke :
-                                              parseState.dr.type[0] == 'F' ? ColorUpdateType.Fill : ColorUpdateType.Shadow;
-                (<IColorElement>el).setColor(parseState.dr.color, type)
+                const type: ColorUpdateType = dr.type[1] == 't' ? ColorUpdateType.Stroke : dr.type[0] == 'F' ? ColorUpdateType.Fill : ColorUpdateType.Shadow;
+                (<IColorElement>el).setColor(dr.color, type)
                 break
             }
             if (layerIdx < 0) layerIdx += icon.layerCount()
