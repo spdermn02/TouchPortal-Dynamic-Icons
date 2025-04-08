@@ -100,7 +100,7 @@ export default class StreamEndpoint implements ILogEndpoint
     get minLevel(): LogLevel { return this.level; }
     set minLevel(level: LogLevel) { this.options.minLevel = this.level = level; }
 
-    async logEntry(entry: ILogEntry)
+    logEntry(entry: ILogEntry)
     {
         if (!this.cnsl || entry.level < this.level)
             return;

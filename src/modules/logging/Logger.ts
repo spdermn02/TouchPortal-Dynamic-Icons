@@ -51,7 +51,7 @@ export default class Logger
         this.minLevel = minLevel;
     }
 
-    private async log_impl(logLevel: LogLevel, message: any, ...args: any[]): Promise<void>
+    private log_impl(logLevel: LogLevel, message: any, ...args: any[])
     {
         if (logLevel < this.minLevel)
             return;
@@ -65,7 +65,7 @@ export default class Logger
         };
 
         // This creates a new stack trace and pulls the caller from it.
-        if (logLevel < LogLevel.INFO) {
+        if (logLevel < LogLevel.INFO || logLevel > LogLevel.WARNING) {
             const error:any = {};
             // The stack trace will start at the function _before_ this one. Since all the public log functions
             // are proxies for this one, we know they're the next ones up the stack and the one before that will be the caller.
