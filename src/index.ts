@@ -230,6 +230,8 @@ function removeIcons(iconNames: string[], removeStates = true) {
             if (removeStates)
                 createOrRemoveIconStates(icon, Point.new());
             globalImageCache().clearIconName(icon.name);
+            if (!g_quitting)
+                logger.info("Deleted icon instance '%s'", icon.name);
             g_dyanmicIconStates.delete(n);
         }
     });
