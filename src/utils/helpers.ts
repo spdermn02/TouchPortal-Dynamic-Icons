@@ -108,14 +108,14 @@ export function evaluateValue(value: string, defaultValue: number | any = 0): nu
         // because they'll return any number at the start of a string and ignore the rest (eg from "2 + 2" they return 2).
         // Use Number() c'tor vs. parseFloat() because it also handles base prefixes (0x/0b/0o).
         if (NUMBER_VALIDATION_REGEX.test(value))
-            return Number(value) || defaultValue;
+            return Number(value) ?? defaultValue;
 
         // If it's not just a plain number then evaluate it as an expression.
-        return (new Function( `"use strict"; return (${value})`))() || defaultValue;
+        return (new Function( `"use strict"; return (${value})`))() ?? defaultValue;
     }
     catch (e) {
-        logging().getLogger('plugin').warn("Error evaluating the numeric expression '" + value + "':", e)
-        return 0
+        logging().getLogger('plugin').warn("Error evaluating the numeric expression '" + value + "':", e);
+        return defaultValue;
     }
 }
 
