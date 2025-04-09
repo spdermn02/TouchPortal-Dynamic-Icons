@@ -3,7 +3,7 @@
 export { default as BarGraph } from './BarGraph'
 export { default as BrushStyle } from './BrushStyle'
 export { default as CanvasFilter } from './CanvasFilter'
-export { default as ClippingMask } from './ClippingMask'
+export { default as ClippingMask, ClipAction } from './ClippingMask'
 export { default as CompositionMode } from './CompositionMode'
 export { default as DrawingStyle } from './DrawingStyle'
 export { default as DynamicImage } from './DynamicImage'

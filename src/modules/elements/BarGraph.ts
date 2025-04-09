@@ -1,7 +1,8 @@
-import { IColorElement, ILayerElement, IRenderable, IValuedElement } from '../interfaces';
-import { ColorUpdateType, ParseState, Rectangle, RenderContext2D } from '../';
+import { ColorUpdateType, LayerRole, } from '../';
 import { BrushStyle } from './';
 import { assignExistingProperties, evaluateValue } from '../../utils';
+import type { IColorElement, ILayerElement, IRenderable, IValuedElement } from '../interfaces';
+import type { ParseState, Rectangle, RenderContext2D } from '../';
 
 // Draws a values series as a basic horizontal bar graph onto a canvas context.
 export default class BarGraph implements ILayerElement, IRenderable, IValuedElement, IColorElement
@@ -13,10 +14,11 @@ export default class BarGraph implements ILayerElement, IRenderable, IValuedElem
     backgroundColor: BrushStyle = new BrushStyle("#FFFFFFFF")
     maxExtent: number = 256   // maximum width into which the bars need to fit (or height if an orientation option is added)
 
-    constructor(init?: Partial<BarGraph> | any) { assignExistingProperties(this, init, 0); }
+    constructor(init?: Partial<BarGraph>) { assignExistingProperties(this, init, 0); }
 
     // ILayerElement
-    readonly type: string = "BarGraph";
+    /** @internal */
+    readonly layerRole: LayerRole = LayerRole.Drawable;
 
     // IValuedElement
     // Adds value to current array and shifts values if necessary based on available size and bar width.
@@ -69,7 +71,7 @@ export default class BarGraph implements ILayerElement, IRenderable, IValuedElem
         return this;
     }
 
-    // ILayerElement
+    // IRenderable
     render(ctx: RenderContext2D, rect: Rectangle): void {
         if (!ctx)
             return
