@@ -287,10 +287,10 @@ export default class DynamicIcon
 
                         case TransformScope.PreviousOne:
                             // If we encounter this tx type in the layers here then it can only apply to a Path
-                            // type layer since the canvas transforms would already be removed by the code below.
+                            // type layer since the canvas transforms would already have been handled by the code below.
                             if (!pathStack.length)
                                 // This would be a "mistake" on the user's part, putting a "previous layer" Tx after something like a style or clip. Which we don't handle gracefully at this time.
-                                this.log.warn("A 'previous layer' scope transformation cannot be applied to layer %d of type '%s' for icon '%s'. ", i+1, layers.at(i-1)?.type, this.name);
+                                this.log.warn("A 'previous layer' scope transformation cannot be applied to layer %d of type '%s' for icon '%s'. ", i, layers.at(i-1)?.constructor?.name, this.name);
                             break;
 
                         case TransformScope.UntilReset:
