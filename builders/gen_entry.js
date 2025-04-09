@@ -617,7 +617,7 @@ function addProgressGaugeAction(id, name, subcat) {
         makeSizeTypeData("gauge_line_width"),
         makeChoiceData("gauge_line_cap", "Gauge Icon Cap Type", ["round", "butt", "square"]),
         makeTextData("gauge_radius", "Diameter", "78"),
-        makeChoiceData("gauge_counterclockwise", "Gauge Direction", ["Clockwise", "Counter CW", "Automatic"]),
+        makeChoiceData("gauge_counterclockwise", "Gauge Direction", C.ARC_DIRECTION_CHOICES),
         makeActionData("gauge_background_color", "color", "Gauge Background Color", "#000000FF"),
         makeActionData("gauge_shadow_color", "color", "Gauge Shadow Color", "#282828FF"),
     );
@@ -689,7 +689,7 @@ function addEllipsePathAction(id, name, subcat) {
     data.push(
         makeTextData(jid(id, "start"), "Start Angle", "0"),
         makeTextData(jid(id, "end"), "End Angle", "360"),
-        makeChoiceData(jid(id, "dir"), "Draw Direction", ["Clockwise", "Counter CW"]),
+        makeChoiceData(jid(id, "dir"), "Draw Direction", C.ARC_DIRECTION_CHOICES),
         makeTextData(jid(id, "rotate"), "rotation Angle", "0"),
     );
     format += makeAlignmentData(id, data) + " ";

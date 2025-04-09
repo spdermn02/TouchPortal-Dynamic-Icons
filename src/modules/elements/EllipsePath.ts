@@ -1,23 +1,25 @@
 
-import { ILayerElement, IPathProducer, IValuedElement } from '../interfaces';
-import { ParseState, Path2D } from '../';
-import { Point, Rectangle } from '../geometry';
-import { evaluateValue, round4p, round5p, round6p } from '../../utils';
+import { ArcDrawDirection, Point, Path2D } from '../';
+import { evaluateValue, parseArcDirection, round4p, round5p, round6p } from '../../utils';
 import { Act, M, Str } from '../../utils/consts'
 import Path from './Path';
-
-const enum DrawDirection { CW, CCW }
+import type { ILayerElement, IPathProducer, IValuedElement } from '../interfaces';
+import type { ParseState, Rectangle } from '../';
 
 /** Creates a full or partial ellipse/circle/arc path of given diameter, start and end angle values,
     draw direction, and optional rotation around center. Essentially a proxy for `Path2D.ellipse()` method.
-    The `IValuedElement::setValue()` interface sets the arc's ending angle, for lack of anything more obvious.  */
+    The `IValuedElement::setValue()` interface sets the arc's ending angle. */
 export default class EllipsePath extends Path implements ILayerElement, IPathProducer, IValuedElement
 {
     // all angles stored as radians; start and end are adjusted -90° from user-specified value (so 0° points north instead of east)
+    /** Starting angle in radians (0 points east) */
     startAngle: number = 0;
+    /** Ending angle in radians (0 points east) */
     endAngle: number = 0;
+    /** Rotation angle in radians (0 points east) */
     rotation: number = 0;
-    direction: DrawDirection = DrawDirection.CW;
+    /** Drawing direction, clockwise (0), counter-clockwise (1), or automatic (2) based on value being positive (CW) or negative (CCW). */
+    direction: ArcDrawDirection = ArcDrawDirection.CW;
 
     // constructor(init?: Partial<EllipsePath> | any) { super(init); assignExistingProperties(this, init, 0); }
 
@@ -29,7 +31,8 @@ export default class EllipsePath extends Path implements ILayerElement, IPathPro
         return !this.width.value || !this.height.value;
     }
 
-    /** Sets the ending angle of the arc. */
+    // IValuedElement
+    /** Sets the ending angle of the arc using evaluated string value. */
     setValue(value: string) {
         this.endAngle = round6p((evaluateValue(value) - 90) * M.D2R);
     }
@@ -45,7 +48,7 @@ export default class EllipsePath extends Path implements ILayerElement, IPathPro
         if (dr.rotate)
             this.rotation = round5p(evaluateValue(dr.rotate) * M.D2R);
         if (dr.dir)
-            this.direction = dr.dir.startsWith("Clock") ? DrawDirection.CW : DrawDirection.CCW;
+            this.direction = parseArcDirection(dr.dir);
         // console.dir(this);
         return this;
     }
@@ -60,9 +63,10 @@ export default class EllipsePath extends Path implements ILayerElement, IPathPro
             bounds: Rectangle = super.computeBounds(rect),
             rX = round4p(bounds.width * .5),
             rY = round4p(bounds.height * .5),
-            ctr = Point.plus(bounds.origin, rX, rY);
+            ctr = Point.plus(bounds.origin, rX, rY),
+            ccw = this.direction == ArcDrawDirection.CCW || (this.direction == ArcDrawDirection.Auto && this.endAngle < this.startAngle);
 
-        path.ellipse(ctr.x, ctr.y, rX, rY, this.rotation, this.startAngle, this.endAngle, this.direction == DrawDirection.CCW);
+        path.ellipse(ctr.x, ctr.y, rX, rY, this.rotation, this.startAngle, this.endAngle, ccw);
         return super.getCombinedPath(path, pathStack);
     }
 }

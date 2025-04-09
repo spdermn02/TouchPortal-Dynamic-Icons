@@ -65,18 +65,27 @@ export const enum ChoiceDataId {
 
 // Strings for misc. data values where the UI and processing code must match.
 export const enum DataValue {
+    // Choices for ControlCommand action
     ClearImageCache = "Clear the Source Image Cache",
     DelIconState = "Delete Icon State",
+    // Mapped to ClippingMask.ClipAction enum types
     ClipMaskNormal  = "Create Normal",
     ClipMaskInverse = "Create Inverse",
     ClipMaskRelease = "Release",
+    // Mapped to ColorUpdateType enum types
     ColorTypeStroke = "Stroke/Foreground",
     ColorTypeFill   = "Fill/Background",
     ColorTypeShadow = "Shadow",
+    // Mapped to Transformation.TransformScope enum types
     TxScopePreviousOne = "previous layer",
     TxScopeCumulative  = "all previous",
     TxScopeUntilReset  = "all following",
     TxScopeReset       = "reset following",
+    // Mapped to ArcDrawDirection enum types
+    ArcDrawCW          = "Clockwise",
+    ArcDrawCCW         = "Counter CW",
+    ArcDrawAuto        = "Automatic",
+    // Yes/No options on various actions
     YesValue           = "Yes",
     NoValue            = "No",
 }
@@ -101,7 +110,7 @@ export const enum M {
     R2D = 180 / PI,
 }
 
-
+// The exports not used in the core source code are for the entry.tp generator script.
 export const CTRL_CMD_ACTION_CHOICES = [ DataValue.ClearImageCache, DataValue.DelIconState ];
 export const DEFAULT_TRANSFORM_OP_ORDER = [TransformOpType.Offset, TransformOpType.Rotate, TransformOpType.Scale, TransformOpType.Skew];
 export const STYLE_FILL_RULE_CHOICES = ["nonzero", "evenodd"];
@@ -110,4 +119,4 @@ export const PATH_BOOL_OPERATION_CHOICES = [
     PathBoolOperation.Difference, PathBoolOperation.Intersect, PathBoolOperation.Union, PathBoolOperation.Xor
 ];
 export const COLOR_UPDATE_TYPE_CHOICES = [DataValue.ColorTypeStroke, DataValue.ColorTypeFill, DataValue.ColorTypeShadow];
-
+export const ARC_DIRECTION_CHOICES = [ DataValue.ArcDrawCW, DataValue.ArcDrawCCW, DataValue.ArcDrawAuto ]

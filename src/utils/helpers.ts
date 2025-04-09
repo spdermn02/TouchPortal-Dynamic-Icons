@@ -1,5 +1,5 @@
 import { Str } from './consts'
-import { Alignment, logging, PointType } from '../modules';
+import { Alignment, logging, PointType, ArcDrawDirection } from '../modules';
 import { PluginSettings } from '../common';
 import { isAbsolute as pathIsAbs, join as pathJoin } from 'path';
 
@@ -251,6 +251,21 @@ export function parseAlignmentsFromString(value: string, mask: Alignment = (Alig
     for (const v of values)
         ret |= parseAlignmentFromValue(v, mask);
     return ret;
+}
+
+/** Parses a string into an `ArcDrawDirection` enum value. If no match is found then `defaultValue` is returned.
+    Strings must match one of: "Clockwise", "Counter CW", or "Automatic" (case-insensitive). */
+export function parseArcDirection(value: string, defaultValue: ArcDrawDirection = ArcDrawDirection.CW): ArcDrawDirection {
+    switch (value[1]) {
+        case 'l':
+            return ArcDrawDirection.CW;
+        case 'o':
+            return ArcDrawDirection.CCW;
+        case 'u':
+            return ArcDrawDirection.Auto;
+        default:
+            return defaultValue;
+    }
 }
 
 /** Returns true/false based on if a string value looks "truthy", meaning it contains "yes", "on", "true", "enable[d]", or any digit > 0. */

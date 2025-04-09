@@ -1,11 +1,10 @@
 
-import { IColorElement, ILayerElement, IRenderable, IValuedElement } from '../interfaces';
-import { ColorUpdateType, ParseState, Rectangle, RenderContext2D } from '../';
+import { ArcDrawDirection, ColorUpdateType } from '../';
 import { StrokeStyle, BrushStyle } from './';
-import { evaluateValue, clamp } from '../../utils';
+import { clamp, evaluateValue, parseArcDirection } from '../../utils';
 import { M } from '../../utils/consts';
-
-const enum DrawDirection { CW, CCW, Auto }
+import type { IColorElement, ILayerElement, IRenderable, IValuedElement } from '../interfaces';
+import type { ParseState, Rectangle, RenderContext2D } from '../';
 
 // Draws an arc/circle extending from 0 to 360 degrees based on a given value onto a canvas context.
 export default class RoundProgressGauge implements ILayerElement, IRenderable, IValuedElement, IColorElement
@@ -14,7 +13,7 @@ export default class RoundProgressGauge implements ILayerElement, IRenderable, I
     highlightOn = true
     shadowColor = new BrushStyle('#282828FF')
     startAngle = 180 * M.D2R  // radians
-    direction: DrawDirection = DrawDirection.CW
+    direction: ArcDrawDirection = ArcDrawDirection.CW
     backgroundColor = new BrushStyle('#000000FF')
     radius = 0.39  // approximates the original ratio of 100 for 256px icon size
     lineStyle: StrokeStyle = new StrokeStyle({
@@ -66,13 +65,9 @@ export default class RoundProgressGauge implements ILayerElement, IRenderable, I
                 case 'radius':
                     this.radius = clamp(evaluateValue(data.value), 2, 200) * .005
                     break
-                case 'counterclockwise': {
-                    const value = data.value.toLocaleLowerCase();
-                    this.direction = value.startsWith("clock") ? DrawDirection.CW :
-                        value.startsWith("auto") ? DrawDirection.Auto :
-                        DrawDirection.CCW
+                case 'counterclockwise':
+                    this.direction = parseArcDirection(data.value)
                     break
-                }
                 case 'background_color':
                     this.backgroundColor.color = data.value
                     break
@@ -111,7 +106,7 @@ export default class RoundProgressGauge implements ILayerElement, IRenderable, I
     // ILayerElement
     render(ctx: RenderContext2D, rect: Rectangle): void {
 
-        let ccw = this.direction == DrawDirection.CCW  // check to invert the value for endAngle
+        let ccw = this.direction == ArcDrawDirection.CCW  // check to invert the value for endAngle
         const cx = rect.width * .5,
             cy = rect.height * .5,
             minSize = Math.min(rect.width, rect.height),
@@ -121,7 +116,7 @@ export default class RoundProgressGauge implements ILayerElement, IRenderable, I
             addFilter = currentFilter && currentFilter != "none" ? currentFilter + " " : ""
 
         // set CCW arc draw direction if in Auto mode with negative value
-        if (!ccw && this.direction == DrawDirection.Auto && this.value < 0)
+        if (!ccw && this.direction == ArcDrawDirection.Auto && endAngle < this.startAngle)
             ccw = true
 
         // relative stroke width is percentage of half the overall size where 100% would be half the smaller of width/height (and strokes would overlay the whole shape)

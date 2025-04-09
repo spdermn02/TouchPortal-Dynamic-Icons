@@ -9,6 +9,8 @@ export const enum LayerRole {
 
 export const enum Orientation { H, V };
 
+export const enum ArcDrawDirection { CW, CCW, Auto }
+
 export const enum Alignment {
     NONE     = 0,
     LEFT     = 0x01,
