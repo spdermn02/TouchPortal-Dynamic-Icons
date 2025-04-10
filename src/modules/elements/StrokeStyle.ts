@@ -1,35 +1,51 @@
 
-import { ParseState, Rectangle, RenderContext2D, UnitValue } from '..';
+import { UnitValue } from '..';
 import { BrushStyle } from '.';
 import { assignExistingProperties, evaluateValue, parseNumericArrayString, round4p } from '../../utils';
+import type { Rectangle, RenderContext2D, TpActionDataRecord } from '..';
 
-// Applies a stroke (line) style to a canvas context, which includes stroke style, line width, pen, cap, join, miter, and dash array.
+/** Stores stroke (line) canvas context property definitions, which includes stroke ("pen") style, line width, cap, join, miter, and dash array properties.
+Line width can be defined as a relative % and scaled automatically in the {@link render} method.
+ */
 export default class StrokeStyle
 {
+    /** Size of the stroke in pixels or % of final drawing size. */
     width: UnitValue = new UnitValue(0, "%");
+    /** Scaling factor for the stroke size when a relative (%) unit is used.
+        This affects return values from `scaledWidth`, `scaledLineDash` and `scaledDashOffset` properties.
+        The value is always re-computed inside the {@link render} method if a `rect` argument is passed to it. */
     widthScale: number = 1;
+    /** Style (color/gradient/pattern/texture) for the stroke. */
     pen: BrushStyle;
+    /** Context `lineCap` property to apply. Default is 'butt'. */
     cap: CanvasLineCap = 'butt';
+    /** Context `lineJoin` property to apply. Default is 'miter'. */
     join: CanvasLineJoin = 'miter';
+    /** Context `miterLimit` property to apply. Default is `10`. */
     miterLimit: number = 10;
+    /** Optional array to pass to context's `setLineDash()` method. Default is an empty array (solid line). */
     lineDash: number[] = [];
+    /** Context `lineDashOffset` property to apply when specifying a dash pattern. Default is 0. */
     dashOffset: number = 0;
 
-    // IRenderable
-    readonly type: string = "StrokeStyle";
-
-    // returns true if color is invalid or line width is zero
+    /** Returns `true` if stroke style is invalid (eg. no color) or {@link scaledWidth} is <= zero. */
     get isEmpty(): boolean { return this.scaledWidth <= 0 || this.pen.isNull; }
+    /** If the {@link width} unit type is relative (%) then returns the defined width multiplied by {@link widthScale}. Otherwise just returns the actual defined width. */
     get scaledWidth(): number { return this.width.isRelative ? round4p(this.width.value * this.widthScale) : this.width.value; }
+    /** If the {@link width} unit type is relative (%) then returns a copy of the {@link lineDash} array with each member multiplied by {@link widthScale}. Otherwise just returns {@link lineDash} unmodified. */
     get scaledLineDash(): number[] { return this.width.isRelative ? this.lineDash.map(v => round4p(v * this.widthScale)) : this.lineDash; }
+    /** If the {@link width} unit type is relative (%) then returns the {@link dashOffset} value multiplied by {@link widthScale}. Otherwise just returns {@link dashOffset} unmodified. */
     get scaledDashOffset(): number { return this.width.isRelative && this.dashOffset ? round4p(this.dashOffset * this.widthScale) : this.dashOffset; }
 
-    constructor(init?: Partial<StrokeStyle> | any ) {
-        if (init?.width != undefined)
+    constructor(init?: Partial<StrokeStyle | { width?: number|string, color?: string }> ) {
+        if (typeof init?.width == 'number') {
             this.width.value = Math.abs(init.width);
-        if (init?.widthUnit)
-            this.setWidthUnit(init.widthUnit);
-        this.pen = new BrushStyle(init?.color);
+        }
+        else if (typeof init?.width == 'string') {
+            this.width.setFromString(init.width);
+        }
+        // @ts-ignore
+        this.pen = new BrushStyle(init?.pen || init?.color);
         assignExistingProperties(this, init, 0);
     }
 
@@ -39,48 +55,53 @@ export default class StrokeStyle
             this.widthScale = 1;
     }
 
-    loadFromActionData(state: ParseState, dataIdPrefix:string = ""): StrokeStyle {
-        let atEnd = false;
-        // the incoming data IDs should be structured with a naming convention
-        for (let e = state.data.length; state.pos < e && !atEnd; ) {
-            const data = state.data[state.pos];
-            const dataType = data?.id.split(dataIdPrefix + 'line_').at(-1);  // last part of the data ID determines its meaning
-            switch (dataType) {
-                case 'width':
-                    this.width.value = Math.abs(evaluateValue(data.value));
+    /** @internal Returns `true` if line width or the width unit have changed. */
+    loadFromDataRecord(dr: TpActionDataRecord): boolean {
+        let dirty = false;
+        for (const [key, value] of Object.entries(dr)) {
+            switch (key) {
+                case 'width': {
+                    const val = Math.abs(evaluateValue(value));
+                    if (val != this.width.value) {
+                        this.width.value = val;
+                        dirty = true;
+                    }
                     break;
+                }
                 case 'width_unit':
-                    this.setWidthUnit(data.value);
+                    if (value != this.width.unit) {
+                        this.setWidthUnit(value);
+                        dirty = true;
+                    }
                     break;
                 case 'color':
-                    this.pen.color = data.value;
+                    this.pen.color = value;
                     break;
                 case 'cap':
-                    this.cap = data.value as CanvasLineCap;
+                    this.cap = <CanvasLineCap>value;
                     break;
                 case 'join':
-                    this.join = data.value as CanvasLineJoin;
+                    this.join = <CanvasLineJoin>value;
                     break;
                 case 'miterLimit':
-                    this.miterLimit = parseFloat(data.value) || this.miterLimit;
+                    this.miterLimit = parseFloat(value) || this.miterLimit;
                     break;
                 case 'dash':
-                    parseNumericArrayString(data.value, this.lineDash = [], 0, 0);
+                    parseNumericArrayString(value, this.lineDash = [], 0, 0);
                     break;
                 case 'dashOffset':
-                    this.dashOffset = evaluateValue(data.value);
+                    this.dashOffset = evaluateValue(value);
                     break;
                 default:
-                    atEnd = true;  // end the loop on unknown data id
-                    continue;      // do not increment position counter
+                    continue;
             }
-            ++state.pos;
+            delete dr[key];
         }
         // console.dir(this);
-        return this;
+        return dirty;
     }
 
-    // IRenderable
+    /** Applies current stroke styling properties to the given canvas `ctx`. `rect` size is used to scale relative-sized stroke width. */
     render(ctx: RenderContext2D, rect?: Rectangle): void {
         if (this.isEmpty)
             return;
