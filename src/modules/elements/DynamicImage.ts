@@ -1,37 +1,52 @@
 
 import { Transformation } from './';
-import { globalImageCache, Image, Rectangle } from '../'
-import { evaluateStringValue } from '../../utils';
+import { globalImageCache, Image, LayerRole, Rectangle } from '../'
+import { assignExistingProperties, evaluateStringValue } from '../../utils';
 import type { ILayerElement, IRenderable, IValuedElement } from '../interfaces';
-import type { ParseState, RenderContext2D } from '../'
+import type { ParseState, RenderContext2D, ResizeFitOption, TpActionDataRecord } from '../'
 
-type CssObjectFit = "contain" | "cover" | "fill" | "scale-down" | "none";
+/**
+    This class hold an image source (file path or b64 string) and associated data like processing options and a transformation to apply.
 
-// This class hold an image source (path) and associated data like processing options or transformation to apply.
+    It makes use of a global image cache for storing & retrieving the actual images.
+
+    The `render()` method will take care of any required scaling (according to the {@link resizeOptions.fit} property setting)
+    and apply the {@link transform}, if needed.
+*/
 export default class DynamicImage implements ILayerElement, IRenderable, IValuedElement
 {
+    /** Path to image file or a base-64 encoded string containing image data.
+        Relative paths are resolved against default file path configured in plugin settings, if any. */
     source: string = "";
-    transform: Transformation | null = null;
-    iconName: string = "";   // for icon cache meta data
-    resizeOptions: any = {
-        fit: <CssObjectFit> "contain"
+    /** The icon name to which this image is assigned. This is required for image cache management. */
+    iconName: string = "";
+    /** Settings to determine how images are resized to fit into drawing area. */
+    resizeOptions = {
+        /** Defines how to resize image. Equivalent to the CSS {@link https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit | object-fit} property.
+            One of: "contain", "cover", "fill", "scale-down", or "none" */
+        fit: <ResizeFitOption> "contain"
     };
+    /** Tranformation to apply to this image when drawn. See {@link Transformation} for details. */
+    readonly transform: Transformation;
 
-    constructor(init?: Partial<DynamicImage>) { Object.assign(this, init); }
-    // ILayerElement
-    readonly type: string = "DynamicImage";
-    // returns true if source string is empty
-    get isEmpty(): boolean { return !this.source; }
-
-    loadTransform(state: ParseState) {
-        if (this.transform)
-            this.transform.loadFromActionData(state);
-        else
-            this.transform = new Transformation().loadFromActionData(state);
+    constructor(init?: Partial<DynamicImage & {fit: ResizeFitOption}>) {
+        this.transform = new Transformation(init?.transform);
+        if (init?.resizeOptions)
+            assignExistingProperties(this.resizeOptions, init?.resizeOptions, 0);
+        else if (init?.fit)
+            this.resizeOptions.fit = init.fit;
+        assignExistingProperties(this, init, 0);
     }
 
+    // ILayerElement
+    /** @internal */
+    readonly layerRole: LayerRole = LayerRole.Drawable;
+
+    /** Returns true if source string is empty */
+    get isEmpty(): boolean { return !this.source; }
+
     // IValuedElement
-    // Sets/updates the image source.
+    /** Sets/updates the image source using an evaluated string. */
     setValue(value: string) {
         // Fixup \ in Windows paths to \\, otherwise they're treated as escapes in the following eval.
         // Ignore any value that contains a / to preserve code (eg. regex), since that's not a legal Windows path character anyway.
@@ -41,41 +56,27 @@ export default class DynamicImage implements ILayerElement, IRenderable, IValued
         this.source = isb64Data ? value : evaluateStringValue(value.trim());
     }
 
+    /** @internal Used by plugin action handler for tx update action. */
+    loadTransform(dr: TpActionDataRecord) {
+        this.transform.loadFromDataRecord(dr);
+    }
+
+    /** @internal */
     loadFromActionData(state: ParseState): DynamicImage {
-        let atEnd = false;
-        let txParsed = false;
-        for (let e = state.data.length; state.pos < e && !atEnd;) {
-            const data = state.data[state.pos];
-            const dataType = data.id.split('image_').at(-1);  // last part of the data ID determines its meaning
-            if (!dataType)
-                break;
-            switch (dataType) {
-                case 'src':
-                    this.setValue(data.value);
-                    break;
-                case 'fit':
-                    this.resizeOptions.fit = data.value;
-                    break;
-                default:
-                    // any following fields should be transform data
-                    if (!txParsed && dataType.startsWith('tx_')) {
-                        this.loadTransform(state);
-                        txParsed = true;
-                    }
-                    else {
-                        atEnd = true;
-                    }
-                    continue;  // do not increment position counter
-            }
-            ++state.pos;
-        }
+        const dr = state.dr;
+        if (dr.src != undefined)
+            this.setValue(dr.src);
+        if (dr.fit)
+            this.resizeOptions.fit = <ResizeFitOption>dr.fit;
+        this.loadTransform(dr);
         // console.dir(this);
         return this;
     }
 
-    // Scales `imgRect` to size of `intoRect` based on `fit` strategy. Also centers `imgRect` if it is smaller than `intoRect` in either dimension.
-    // Modifies `imgRect` input.
-    private static scaleImageRect(imgRect: Rectangle, intoRect: Rectangle, fit: CssObjectFit)  {
+    /** Scales `imgRect` to size of `intoRect` based on `fit` strategy. Also centers `imgRect` if it is smaller than `intoRect` in either dimension.
+
+        Modifies `imgRect` input, returns undefined. */
+    static scaleImageRect(imgRect: Rectangle, intoRect: Rectangle, fit: ResizeFitOption)  {
         let scale = 0;
         switch (fit) {
             case 'contain':
@@ -101,14 +102,15 @@ export default class DynamicImage implements ILayerElement, IRenderable, IValued
                 Math.ceil(imgRect.height * scale)
             );
         }
-        // for legacy reasons we don't translate oversize images beyond the top left boundary of drawing rectangle
+        // for legacy reasons we don't translate oversize images beyond (negatively) the top left boundary of drawing rectangle
         imgRect.translate(
             Math.max(0, (intoRect.width - imgRect.width) * .5),
             Math.max(0, (intoRect.height - imgRect.height) * .5)
         );
     }
 
-    // ILayerElement
+    // IRenderable
+    /** Loads and draws source image onto the given `ctx` using all current properties such as resize strategy and transformation steps. */
     async render(ctx: RenderContext2D, rect: Rectangle) : Promise<void> {
         if (!ctx || this.isEmpty)
             return;
@@ -123,7 +125,7 @@ export default class DynamicImage implements ILayerElement, IRenderable, IValued
             DynamicImage.scaleImageRect(imgRect, rect, this.resizeOptions.fit);
 
         // check if any transformation steps are needed, otherwise just draw the image directly
-        if (this.transform && !this.transform.isEmpty) {
+        if (!this.transform.isEmpty) {
             const prevTx = ctx.getTransform();
             this.transform.render(ctx, imgRect);
             ctx.drawImage(img, imgRect.x, imgRect.y, imgRect.width, imgRect.height);
