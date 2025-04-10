@@ -497,13 +497,12 @@ function handleIconUpdateAction(actionId: string, icon: DynamicIcon, parseState:
         // `break` from cases to finish the update process or `return` to cancel.
         case C.Act.IconSetTx:
             // Updates/sets a transformation on an existing icon layer of a type which supports it.
-            parseState.setPos(2)  // set up position for Tx parsing; TODO: convert Tx parser to use named fields instead of positional
             // If layer is a Tx, update it.
             if (el instanceof LE.Transformation)
-                el.loadFromActionData(parseState)
+                el.loadFromDataRecord(dr)
             // Image element types have their own transform property which we can update directly.
             else if (el instanceof LE.DynamicImage)
-                el.loadTransform(parseState)
+                el.loadTransform(dr)
             // If this is a single-layer icon then we actually want to append this Tx (should only happen once per icon).
             // If we already appended a Tx to a single-layer icon (upon last update), then the next layer would already be a Tx.
             else if (!icon.delayGeneration && !layerIdx)
