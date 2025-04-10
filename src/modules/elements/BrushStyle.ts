@@ -1,13 +1,14 @@
 import { assignExistingProperties, } from '../../utils';
-import type { RenderContext2D } from '../';
+import type { CanvasGradient, CanvasPattern, CanvasTexture, ContextFillStrokeType, RenderContext2D } from '../';
 
-// just a convenience string container class for now, maybe extended later for gradients.
-// TODO: Gradients!
-
-/** Class for applying a fill or stroke style to a Canvas. Currently only supports solid color style. */
-export default class BrushStyle {
-    private _color: string = "";
-    private _empty: boolean = true;
+/** Class for storing a fill or stroke style to use on a Canvas context. */
+export default class BrushStyle
+{
+    #color: string = "";
+    #transparent: boolean = true;
+    #gradient: CanvasGradient | null = null;
+    #pattern: CanvasPattern | null = null;
+    #texture: CanvasTexture | null = null;
 
     constructor(init?: Partial<BrushStyle> | string) {
         if (typeof init == 'string')
@@ -16,38 +17,75 @@ export default class BrushStyle {
             assignExistingProperties(this, init, 0);
     }
 
-    /** true if color string is empty OR represents a transparent color. */
-    get isEmpty(): boolean { return this._empty; }
-    /** true if color string is empty. */
-    get isNull(): boolean { return !this._color.length; }
+    /** Returns `true` if color string is empty and gradient/pattern/texture are all `null`. */
+    get isNull(): boolean { return !this.#color && !this.#gradient && !this.#pattern && !this.#texture; }
+    /** Returns `true` if `isNull` is `true` OR a solid color represents a transparent color. */
+    get isEmpty(): boolean { return this.isNull || (!!this.color && this.#transparent); }
 
+    /** Returns any color previously set on the `color` property, if any (default is an empty string). */
+    get color(): string { return this.#color; }
     /** Set brush style as a solid color.
 
-    Input value must be a hex-encoded color in RGB[A] format (3, 4, 6 or 8 hex digits) starting with '#'. `#R[R]G[G]B[B][A[A]]` */
+        Input value must be a format accepted by `CanvasRenderingContext2D` `fillStyle` and `strokeStyle` properties:
+        a CSS named color, `#RGB[A]` hex values, `rgb[a](r g b [/ a])`, `hsl[a](h s l [/ a])`, or `hwb(h w b [/ a])`
+
+         Setting a color will override all other styles (even if it is empty or transparent).
+    */
     set color(v: string) {
-        if (!v) {
-            this._color = "";
-            this._empty = true;
+        if (this.#color === v)
             return;
-        }
+        this.#color = v;
+        this.#gradient = null;
+        this.#pattern = null;
+        this.#texture = null;
 
-        if (!v.startsWith('#'))
-            return;
-
-        this._color = v;
-        this._empty = (v.length == 9 && v.endsWith("00")) || (v.length == 4 && v.endsWith("0"));
+        // pretty weak test for transparency, would be better to actually parse the color but that would also be expensive
+        if (v[0] === '#')
+            this.#transparent = (v.length == 9 && v.endsWith("00")) || (v.length == 4 && v.endsWith("0"));
+        else
+            this.#transparent = !v || v == "transparent" || v.split(/[\s,\/]+/, 4).some((v, i) => i == 3 && parseFloat(v) === 0);
     }
-    /** Returns any color previously set on the `color` property, if any (default is an empty string). */
-    get color(): string { return this._color; }
+
+    /** Specifies a gradient to use for the drawing style. Setting a gradient will override all other styles (even if it is `null`). */
+    get gradient(): CanvasGradient | null { return this.#gradient; }
+    set gradient(v: CanvasGradient | null) {
+        this.#gradient = v;
+        this.#color = "";
+        this.#pattern = null;
+        this.#texture = null;
+    }
+
+    /** Specifies a pattern to use for the drawing style. Setting a pattern will override all other styles (even if it is `null`). */
+    get pattern(): CanvasPattern | null { return this.#pattern; }
+    set pattern(v: CanvasPattern | null) {
+        this.#pattern = v;
+        this.#color = "";
+        this.#gradient = null;
+        this.#texture = null;
+    }
+
+    /** Specifies a texture to use for the drawing style. Setting a texture will override all other styles (even if it is `null`). */
+    get texture(): CanvasTexture | null { return this.#texture; }
+    set texture(v: CanvasTexture | null) {
+        this.#texture = v;
+        this.#color = "";
+        this.#gradient = null;
+        this.#pattern = null;
+    }
 
     /** Returns the current style to apply to canvas context properties `fillStyle` or `strokeStyle`. */
-    get style(): string | CanvasGradient | CanvasPattern {
-        return this._color;
+    get style(): ContextFillStrokeType {
+        return this.#color || this.#gradient || this.#pattern || this.#texture || "";
     }
 
-    /** Applies the current `style` property to the given `ctx` as a `fillStyle` if the current `isNull` property returns `false`. */
-    render(ctx: RenderContext2D): void {
-        if (!this.isNull)
-            ctx.fillStyle = this.style;
+    /** Applies the current `style` property to the given `ctx` as a `fillStyle`, or `strokeStyle` if `asFill` is set to `false`.
+        If the current `isNull` property returns `true` then no styles are applied. */
+    render(ctx: RenderContext2D, asFill: boolean = true): void {
+        if (!this.isNull) {
+            if (asFill)
+                ctx.fillStyle = this.style;
+            else
+                ctx.strokeStyle = this.style;
+        }
     }
 }
