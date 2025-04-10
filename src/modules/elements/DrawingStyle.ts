@@ -69,12 +69,16 @@ export default class DrawingStyle implements ILayerElement, IPathHandler, IColor
                     break;
                 case 'shadow': {
                     // shadow is specified as (blur [,offsetX[,offsetY]])
-                    this.shadow.clear();
                     const s = [];
                     if (parseNumericArrayString(data.value, s, 3)) {
                         this.shadow.blur = Math.max(s[0], 0);
                         if (s.length > 1)
-                            this.shadow.offset.set(s[1], s.length > 2 ? s[2] : s[1]);
+                            this.shadow.offset.set(s[1], s[2]);
+                        else
+                            this.shadow.offset.set(0, 0);
+                    }
+                    else {
+                        this.shadow.resetCoordinates();
                     }
                     break;
                 }
