@@ -3,7 +3,7 @@ import { PluginSettings } from '../../common';
 import { BrushStyle } from './';
 import { assignExistingProperties, clamp, evaluateValue } from '../../utils';
 import type { IColorElement, ILayerElement, IRenderable, IValuedElement } from '../interfaces';
-import type { ContextFillStrokeType, ParseState, Rectangle, RenderContext2D } from '../';
+import type { ContextFillStrokeType, DynamicIcon, ParseState, Rectangle, RenderContext2D } from '../';
 
 /** Draws a values series as a basic vertical bar graph onto a canvas context. */
 export default class BarGraph implements ILayerElement, IRenderable, IValuedElement, IColorElement
@@ -19,8 +19,11 @@ export default class BarGraph implements ILayerElement, IRenderable, IValuedElem
     maxExtent: number = PluginSettings.defaultIconSize.width;
 
     #values: Array<[number, ContextFillStrokeType]> = []
+    #parent: WeakRef<DynamicIcon> | null = null;
 
-    constructor(init?: Partial<BarGraph>) {
+    constructor(init?: Partial<BarGraph & {parentIcon: DynamicIcon}>) {
+        if (init?.parentIcon)
+            this.#parent = new WeakRef(init.parentIcon);
         assignExistingProperties(this, init, 1);
     }
 
@@ -68,31 +71,31 @@ export default class BarGraph implements ILayerElement, IRenderable, IValuedElem
     // ILayerElement
     /** @internal */
     loadFromActionData(state: ParseState): BarGraph {
+        // Automatically update the maxExtent property based on parent icon's size.
+        if (this.#parent)
+            this.maxExtent = this.#parent.deref()?.size.width ?? this.maxExtent;
         // the incoming data IDs should be structured with a naming convention
-        for (let i = state.pos, e = state.data.length; i < e; ++i) {
-            const data = state.data[i];
-            const dataType = data.id.split('bar_graph_').at(-1)  // last part of the data ID determines its meaning
-            switch (dataType) {
+        const dr = state.asRecord(state.pos, 'bar_graph_');
+        for (const [key, value] of Object.entries(dr)) {
+            switch (key) {
                 case 'backround':   // note spelling; keep for BC
-                    this.backgroundColorOn = (data.value === "On")
+                    this.backgroundColorOn = (value === "On")
                     break
                 case 'backround_color':   // note spelling; keep for BC
-                    this.backgroundColor.color = data.value
+                    this.backgroundColor.color = value
                     break
                 case 'color':
-                    this.barColor.color = data.value
+                    this.barColor.color = value
                     break
                 case 'value':
-                    this.setValue(data.value)
+                    this.setValue(value)
                     break
                 case 'width':
-                    this.barWidth = parseInt(data.value) || this.barWidth
+                    this.barWidth = parseInt(value) || this.barWidth
                     break
                 default:
-                    i = e  // end the loop on unknown field
                     continue
             }
-            ++state.pos;
         }
         // console.dir(this);
         return this;
@@ -119,5 +122,9 @@ export default class BarGraph implements ILayerElement, IRenderable, IValuedElem
             })
         }
         ctx.restore()
+
+        // if for some reason instance was created w/out a parent pointer, set max extent based on current drawing area
+        if (!this.#parent)
+            this.maxExtent = rect.width;
     }
 }
