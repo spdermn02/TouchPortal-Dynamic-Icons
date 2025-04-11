@@ -1,48 +1,52 @@
-import sharp, { type CreateRaw } from 'sharp';   // for final result image compression
+import sharp from 'sharp';   // for final result image compression
 import { join as pathJoin, parse as pathParse } from 'path';
 import { PluginSettings, TPClient } from '../common';
+import { parseIntOrDefault } from '../utils';
 import {
     Canvas, LayerRole, logging, Rectangle, Size,
     Transformation, TransformScope
 } from './';
 
 import type {
-    ConstructorType, DOMMatrix,
+    DOMMatrix,
     ILayerElement, IPathHandler, IPathProducer, IRenderable,
     Logger, SizeType, ParseState, PointType, Path2D,
 } from './';
 
 type TxStackRecord = { tx: Transformation, startIdx: number }
 
-// Stores a collection of ILayerElement types as layers and produces a composite image from all the layers when rendered.
+/** Stores a collection of `ILayerElement` types as layers and produces a composite image from all the layers when rendered. */
 export default class DynamicIcon
 {
     /** the icon name is also used for the corresponding TP State ID */
     name: string = "";
-    /** This is the size of one "tile" (see also `actualSize()`); For now these must be square due to TP limitation. */
-    size: SizeType = Size.new(PluginSettings.defaultIconSize);
     /** Specifies an optional grid to split the final image into multiple parts before sending to TP. */
-    tile: PointType = { x: 0, y: 0 };
+    readonly tile: PointType = { x: 0, y: 0 };
     /** `true` if icon was explicitly created with a "New" action, will require a corresponding "Render" action to actually draw it. */
     delayGeneration: boolean = false;
     /** Whether to use GPU for rendering (on supported hardware). Passed to skia-canvas's Canvas::gpu property. */
     gpuRendering: boolean = PluginSettings.defaultGpuRendering;
-    /** Used while building a icon from TP layer actions to keep track of current layer being affected. */
-    nextIndex: number = 0;
-    /** Flag to indicate early v1.2-alpha style tiling where the specified icon size was per tile instead of overall size. TODO: Remove  */
-    sizeIsActual: boolean = true;
-    // Options for the 'sharp' lib image compression. These are passed to sharp() when generating PNG results.
-    // `compressionLevel` of `0` disables compression step entirely (sharp lib is never invoked).
-    // See https://sharp.pixelplumbing.com/api-output#png for option descriptions.
-    readonly outputCompressionOptions: any = {
+    /** Options for the 'sharp' lib image compression. These are passed to `sharp.png()` when generating PNG results.
+        `compressionLevel` of `0` disables compression step entirely (`sharp` lib is never invoked, `skia-canvas` PNG-24 output is used directly).
+        Default `compressionLevel` and `quality` are set in plugin settings and can be overridden in an icon "finalize" action.
+        Default `effort` is set to `1` and `palette` to `true`.
+        See https://sharp.pixelplumbing.com/api-output#png for option descriptions. */
+    readonly outputCompressionOptions: sharp.PngOptions = {
         compressionLevel: PluginSettings.defaultOutputCompressionLevel,
         effort: 1,        // MP: 1 actually uses less CPU time than higher values (contrary to what sharp docs suggest) and gives slightly higher compression.
         palette: true,    // force PNG-8 format output (PNG-24 produces significantly larger file sizes); this is also implied by using `quality` setting.
         quality: PluginSettings.defaultOutputQuality,  // for PNG-8: use the lowest number of colours needed to achieve given quality
     };
 
+    /** This is the size set from TP action data. It is most likely the _actual_ size of the total image, if `#sizeIsActual` is `true`.
+        The `size` property _always_ returns actual size. */
+    readonly #size = new Size(PluginSettings.defaultIconSize);
+    /** If `false`, indicates early v1.2-alpha style tiling where the specified icon size was per tile instead of overall size. TODO: Remove  @internal */
+    #sizeIsActual: boolean = true;
+    /** Used while building a icon from TP layer actions to keep track of current layer being affected. */
+    #nextIndex: number = 0;
     /** The array of elements which will be rendered. */
-    private readonly layers: ILayerElement[] = [];
+    readonly #layers: ILayerElement[] = [];
     private log: Logger;
 
     constructor(init?: Partial<DynamicIcon>) {
@@ -54,56 +58,79 @@ export default class DynamicIcon
     get isTiled() { return this.tile.x > 1 || this.tile.y > 1; }
 
     /** Returns `true` if icon has no layer elements. */
-    get isEmpty() { return !this.layers.length; }
+    get isEmpty() { return !this.#layers.length; }
+
+    /** This is the overall image size to generate. If the image will be delivered tiled, each tile will be a portion of this size. */
+    get size(): SizeType {
+        return this.#sizeIsActual ? this.#size.clone() : { width: this.#size.width * this.tile.x, height: this.#size.height * this.tile.y };
+    }
+    set size(v: SizeType) { this.#size.set(v); }
+
+    /** Width component of overall image size. */
+    get width(): number { return this.#sizeIsActual ? this.#size.width : this.#size.width * this.tile.x; }
+    set width(v: number) { this.#size.width = v; }
+    /** Height component of overall image size. */
+    get height(): number { return this.#sizeIsActual ? this.#size.height : this.#size.height * this.tile.y; }
+    set height(v: number) { this.#size.height = v; }
 
     /** Returns the number of element layers currently defined. */
-    layerCount(): number { return this.layers.length; }
+    layerCount(): number { return this.#layers.length; }
 
     /** Returns element at `index`, if any, or `undefined` otherwise. Negative indexes count from the end, as in `Array.prototype.at()`. */
     elementAt(index: number) : ILayerElement | undefined {
-        return this.layers.at(index);
+        return this.#layers.at(index);
     }
 
-    /** Resets the current layer counter to starting position. Call before adding/updating layers via actions sequence. */
+    /** Sets overall image size from action data strings.
+        If `height` is undefined then it is set to same as `width` and size is treated as being per-tile (if icon is tiled).
+        @internal */
+    setSizeFromStrings(width: string, height?: string) {
+        this.#size.width = parseIntOrDefault(width, PluginSettings.defaultIconSize.width)
+        // Size height parameter added in v1.2-alpha3
+        // use current width as default for height, not the defaultIconSize.height (which is really for non-layered icons)
+        this.#size.height = parseIntOrDefault(height ?? '', this.#size.width)
+        // set flag indicating tiling style is for < v1.2-alpha3. TODO: Remove and log as warning
+        if (!height) {
+            this.#sizeIsActual = false;
+        }
+    }
+
+    /** Resets the current layer counter to starting position. Call before adding/updating layers via actions sequence. @internal */
     resetCurrentIndex() {
-        this.nextIndex = 0;
+        this.#nextIndex = 0;
     }
 
-    /** Finish adding/updating element layers. Call after modifying elements via actions sequence. */
+    /** Finish adding/updating element layers. Call after modifying elements via actions sequence. @internal */
     finalize() {
-        this.layers.length = this.nextIndex;   // trim any old layers
+        this.#layers.length = this.#nextIndex;   // trim any old layers
     }
 
     /** Adds or updates layer element of given type at the current insertion sequence (current index). This advances the sequence count.
         Optional `args` are passed to element constructor if it needs to be created.
-        Call while adding/updating layers via actions sequence (after `resetCurrentIndex()` and before `finalize()`). */
-    setOrUpdateLayerAtCurrentIndex<T extends ILayerElement>(parseState: ParseState, elType: ConstructorType<T>, ...args: any[]) {
-        this.setOrUpdateLayerAtIndex(this.nextIndex++, parseState, elType, ...args);
+        Call while adding/updating layers via actions sequence (after `resetCurrentIndex()` and before `finalize()`).
+        @internal */
+    setOrUpdateLayerAtCurrentIndex<T extends ILayerElement>(parseState: ParseState, elType: ConstructorType<T>) {
+        this.setOrUpdateLayerAtIndex(this.#nextIndex++, parseState, elType);
     }
 
-    /** Adds or updates layer element of given type at the given index. */
-    setOrUpdateLayerAtIndex<T extends ILayerElement>(index: number, parseState: ParseState, elType: ConstructorType<T>, ...args: any[]) {
-        const el = this.layers[index];
+    /** Adds or updates layer element of given type at the given index. @internal */
+    setOrUpdateLayerAtIndex<T extends ILayerElement>(index: number, parseState: ParseState, elType: ConstructorType<T>) {
+        const el = this.#layers[index];
         if (el instanceof elType)
             el.loadFromActionData(parseState)
         else
-            this.layers[index] = new elType(...args).loadFromActionData(parseState);
-    }
-
-    /** Returns actual pixel dimensions of this image, which is either same as the `size` property if `sizeIsActual` is true,
-        or otherwise the `size` property multiplied by the number of grid cells specified in `tile` property for each dimension.
-        TODO: Remove
-    */
-    actualSize() : SizeType {
-        return this.sizeIsActual ? this.size : { width: this.size.width * this.tile.x, height: this.size.height * this.tile.y };
+            this.#layers[index] = new elType({ parentIcon: this }).loadFromActionData(parseState);
     }
 
     /** Formats and returns a TP State ID for a given tile coordinate. Format is '<icon.name>_<column>_<row>'
-        'x' and 'y' of `tile` are assumed to be zero-based; coordinates used in the State ID are 1-based (so, 1 is added to x and y values of `tile`). */
+        'x' and 'y' of `tile` are assumed to be zero-based; coordinates used in the State ID are 1-based (so, 1 is added to x and y values of `tile`).
+        @internal */
     getTileStateId(tile: PointType | any) {
         return `${this.name}_${tile.x+1}_${tile.y+1}`;
     }
 
+    /** Formats and returns a TP State Name for a given tile coordinate. Format is '<icon.name> - Tile col <column>, row <row>'
+        @internal */
     getTileStateName(tile: PointType) {
         return `${this.name} - Tile col. ${tile.x+1}, row ${tile.y+1}`
     }
@@ -139,7 +166,7 @@ export default class DynamicIcon
     // Sends the canvas contents after re-compressing it with Sharp.
     private sendCompressedImage(canvas: Canvas, size: SizeType) {
         canvas
-        .toBuffer("raw" as any)
+        .toBuffer("raw")
         .then((data: Buffer) => {
             sharp(data, { raw : { width: size.width, height: size.height, channels: 4, premultiplied: false } })
             .png(this.outputCompressionOptions)
@@ -170,9 +197,9 @@ export default class DynamicIcon
     // Send the canvas contents by breaking up into tiles using Sharp, with added compression.
     // Much more efficient than using the method in sendCanvasTiles() and then compressing each resulting canvas tile.
     private sendCompressedTiles(canvas: Canvas, size: SizeType) {
-        const raw: CreateRaw = { width: size.width, height: size.height, channels: 4, premultiplied: false };
+        const raw: sharp.CreateRaw = { width: size.width, height: size.height, channels: 4, premultiplied: false };
         canvas
-        .toBuffer("raw" as any)
+        .toBuffer("raw")
         .then((data: Buffer) => {
             this.withTiles(size, (x, y, l, t, w, h) => {
                 // extract image slice, encode PNG, and send the tile
@@ -192,7 +219,7 @@ export default class DynamicIcon
     // Saves the canvas contents to a file using Sharp.
     private saveImage(canvas: Canvas, size: SizeType, file: string, format: string, options?: {}) {
         canvas
-        .toBuffer("raw" as any)
+        .toBuffer("raw")
         .then((data: Buffer) => {
             sharp(data, { raw: { width: size.width, height: size.height, channels: 4, premultiplied: false } })
             .toFormat(format as any, options)
@@ -204,11 +231,11 @@ export default class DynamicIcon
 
     // Saves the canvas contents to a files by breaking up into tiles using Sharp.
     private saveImageTiles(canvas: Canvas, size: SizeType, file: string, format: string, options?: {}) {
-        const raw: CreateRaw = { width: size.width, height: size.height, channels: 4, premultiplied: false };
+        const raw: sharp.CreateRaw = { width: size.width, height: size.height, channels: 4, premultiplied: false };
         const pathInfo = pathParse(file);
         const basePath = pathJoin(pathInfo.dir, pathInfo.name);
         canvas
-        .toBuffer("raw" as any)
+        .toBuffer("raw")
         .then((data: Buffer) => {
             this.withTiles(size, (x, y, l, t, w, h) => {
                 const fn = `${basePath}_c${(x+1).toString().padStart(2, '0')}r${(y+1).toString().padStart(2, '0')}.${pathInfo.ext}`;
@@ -222,9 +249,10 @@ export default class DynamicIcon
         .catch(e => this.log.error(`Error while saving image for icon '${this.name}' to file "${file}": ${e}`) );
     }
 
+    /** @internal */
     async render(options?: Record<string,any>) {
         try {
-            const rect = Rectangle.fromSize(this.actualSize());
+            const rect = Rectangle.fromSize(this.size);
             const canvas = new Canvas(rect.width, rect.height);
             const ctx = canvas.getContext("2d");
             ctx.imageSmoothingEnabled = true;
@@ -239,7 +267,7 @@ export default class DynamicIcon
             let layerResetTx: DOMMatrix | null = null;
 
             // Iterate over a shallow copy of the layers array
-            const layers = this.layers.slice(0);
+            const layers = this.#layers.slice(0);
             for (let i = 0, e = layers.length; i < e; ++i) {
                 layer = layers[i];
                 if (!layer)
@@ -354,7 +382,7 @@ export default class DynamicIcon
             }
 
             if (this.isTiled) {
-                if (this.outputCompressionOptions.compressionLevel > 0)
+                if (this.outputCompressionOptions.compressionLevel! > 0)
                     this.sendCompressedTiles(canvas, rect.size);
                 else
                     this.sendCanvasTiles(canvas, rect.size);
@@ -363,7 +391,7 @@ export default class DynamicIcon
 
             // Not tiled, send whole rendered canvas at once.
 
-            if (this.outputCompressionOptions.compressionLevel > 0)
+            if (this.outputCompressionOptions.compressionLevel! > 0)
                 this.sendCompressedImage(canvas, rect.size);
             else
                 this.sendCanvasImage(this.name, canvas);

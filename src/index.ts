@@ -51,7 +51,6 @@ type LayerElementRecord = Record<string, {
     type: ConstructorType<ILayerElement>,
     layered?: boolean,    // layered icons only
     prev_layer?: boolean, // requires previous (existing) layer(s) (implies `layered`)
-    ctor_arg?: boolean,   // requires argument(s) for constructor
 }>;
 // Used in `handleIconAction()`
 const ACTION_TO_ELEMENT_MAP: LayerElementRecord = {
@@ -66,7 +65,7 @@ const ACTION_TO_ELEMENT_MAP: LayerElementRecord = {
     [C.Act.IconEllipse   ]: { type: LE.EllipsePath },
     [C.Act.IconPath      ]: { type: LE.FreeformPath },
     [C.Act.IconText      ]: { type: LE.StyledText },
-    [C.Act.IconImage     ]: { type: LE.DynamicImage,    ctor_arg: true },
+    [C.Act.IconImage     ]: { type: LE.DynamicImage },
     // Elements which affect other layers in some way.
     [C.Act.IconStyle     ]: { type: LE.DrawingStyle,    prev_layer: true },
     [C.Act.IconClip      ]: { type: LE.ClippingMask,    prev_layer: true },
@@ -222,6 +221,18 @@ function createOrRemoveIconStates(icon: DynamicIcon, newTiles: PointType) {
     }
 }
 
+/** Sets `icon.tile` property to `newTiles` and creates/removes states if needed (via `createOrRemoveIconStates()`).
+    Will also update the icons list state if this is a new icon, meaning current icon.tile.x == 0. */
+function setIconTiles(icon: DynamicIcon, newTiles: PointType) {
+    // Adjust icon states based on current tile property vs. the new one.
+    createOrRemoveIconStates(icon, newTiles)
+    // Update the icons list state if this is a new icon.
+    if (!icon.tile.x)
+        sendIconLists()
+    // Set the tile property after adjusting the states.
+    Point.set(icon.tile, newTiles)
+}
+
 // Deletes icon(s) specified in `iconNames` array.
 function removeIcons(iconNames: string[], removeStates = true) {
     iconNames.forEach((n) => {
@@ -313,24 +324,13 @@ function handleIconAction(actionId: string, data: TpActionDataArrayType)
             icon.resetCurrentIndex();
         }
 
-        let args: any;
-        // image layer type requires icon name property as argument to c'tor
-        if (elTypeMeta.ctor_arg && actionId == C.Act.IconImage)
-            args = { iconName }
-
-        icon.setOrUpdateLayerAtCurrentIndex(parseState, elTypeMeta.type, args)
+        icon.setOrUpdateLayerAtCurrentIndex(parseState, elTypeMeta.type)
 
         // render individual single-layered icon now
         if (!icon.delayGeneration && !icon.isEmpty) {
             // A new icon has tile = {0,0}, which is a way to check if we need to create a new TP State for it
-            if (!icon.tile.x) {
-                const tile: PointType = { x: 1, y: 1 }
-                // Create a new state now.
-                createOrRemoveIconStates(icon, tile)
-                // Set the tile property.
-                Point.set(icon.tile, tile)
-                sendIconLists()
-            }
+            if (!icon.tile.x)
+                setIconTiles(icon, { x: 1, y: 1 })  // single-layer icons are always a single tile
             icon.render()
         }
         return
@@ -358,27 +358,14 @@ function handleIconAction(actionId: string, data: TpActionDataArrayType)
             }
 
             // Parse and set the size property(ies).
-            icon.size.width = parseIntOrDefault(dr.size, PluginSettings.defaultIconSize.width)
-            // Size height parameter added in v1.2-alpha3
-            // use current width as default for height, not the defaultIconSize.height (which is really for non-layered icons)
-            icon.size.height = parseIntOrDefault(dr.h, icon.size.width)
-            // set flag indicating tiling style is for < v1.2-alpha3. TODO: Remove and log as warning
-            if (dr.h == undefined)
-                icon.sizeIsActual = false
+            icon.setSizeFromStrings(dr.size, dr.h)
 
             // Handle tiling parameters, if any;  Added in v1.2.0
             const tile: PointType = Point.new(parseIntOrDefault(dr.x, 1), parseIntOrDefault(dr.y, 1))
             // Create the TP state(s) now if we haven't yet (icon.tile will be 0,0); this way a user can create the new state at any time, separate from the render action.
             // Also check if the tiling settings have changed; we may need to clean up any existing TP states first or create new ones.
-            if (!Point.equals(icon.tile, tile)) {
-                // Adjust icon states based on current tile property vs. the new one.
-                createOrRemoveIconStates(icon, tile)
-                // Update the icons list state if this is a new icon.
-                if (!icon.tile.x)
-                    sendIconLists()
-                // Set the tile property after adjusting the states.
-                Point.set(icon.tile, tile)
-            }
+            if (!Point.equals(icon.tile, tile))
+                setIconTiles(icon, tile)
             return;
         }
 
