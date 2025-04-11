@@ -1,6 +1,6 @@
 
 import { ArcDrawDirection, Point, Path2D } from '../';
-import { evaluateValue, parseArcDirection, round4p, round5p, round6p } from '../../utils';
+import { assignExistingProperties, evaluateValue, parseArcDirection, round4p, round5p, round6p } from '../../utils';
 import { Act, M, Str } from '../../utils/consts'
 import Path from './Path';
 import type { ILayerElement, IPathProducer, IValuedElement } from '../interfaces';
@@ -21,10 +21,10 @@ export default class EllipsePath extends Path implements ILayerElement, IPathPro
     /** Drawing direction, clockwise (0), counter-clockwise (1), or automatic (2) based on value being positive (CW) or negative (CCW). */
     direction: ArcDrawDirection = ArcDrawDirection.CW;
 
-    // constructor(init?: Partial<EllipsePath> | any) { super(init); assignExistingProperties(this, init, 0); }
-
-    // ILayerElement
-    readonly type: string = "EllipsePath";
+    constructor(init?: Partial<EllipsePath>) {
+        super();
+        assignExistingProperties(this, init, 1);
+    }
 
     /** Returns true if the diameter on either axis is empty (width or height are zero) */
     get isEmpty(): boolean {
@@ -54,6 +54,8 @@ export default class EllipsePath extends Path implements ILayerElement, IPathPro
     }
 
     // IPathProducer
+    /** Returns the ellipse as a `Path2D` object, scaled to fit into `rect` bounds (if size units are relative), and combined
+        with any paths in the `pathStack` according to value of the {@link operation} property. */
     getPath(rect: Rectangle, pathStack: Array<Path2D>): Path2D
     {
         if (rect.isEmpty)
