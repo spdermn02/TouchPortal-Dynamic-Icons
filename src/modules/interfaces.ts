@@ -4,7 +4,7 @@ import type { ColorUpdateType, LayerRole, ParseState, Path2D, Rectangle, RenderC
 /** Represents an element of a dynamic image. `DynamicIcon` uses this type for its layers array members. */
 export interface ILayerElement {
     /** @internal */
-    readonly layerRole?: LayerRole;
+    readonly layerRole: LayerRole;
     /** @internal */
     loadFromActionData(state: ParseState) : ILayerElement
  }

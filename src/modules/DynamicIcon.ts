@@ -235,7 +235,6 @@ export default class DynamicIcon
             const activeTxStack: Array<TxStackRecord> = [];
 
             let layer: ILayerElement;
-            let role: LayerRole;
             let tx: Transformation | null = null;
             let layerResetTx: DOMMatrix | null = null;
 
@@ -246,12 +245,9 @@ export default class DynamicIcon
                 if (!layer)
                     continue;
 
-                // The layer "role" determines what we're going to do with it.
-                role = layer.layerRole || LayerRole.Drawable;
-
                 // First handle path producer/consumer and transform type layers.
 
-                if (role & LayerRole.PathProducer) {
+                if (layer.layerRole & LayerRole.PathProducer) {
                     // producers may mutate the path stack by combining with previous path(s)
                     const path = (layer as IPathProducer).getPath(rect, pathStack);
                     pathStack.push(path);
@@ -260,7 +256,7 @@ export default class DynamicIcon
                     //         atx.startIdx == ;
                 }
 
-                if (role & LayerRole.PathConsumer) {
+                if (layer.layerRole & LayerRole.PathConsumer) {
                     // handlers will mutate the path stack
                     // apply any currently active "until reset" scope transforms here before the path is drawn or clipped
                     if (pathStack.length) {
@@ -277,7 +273,7 @@ export default class DynamicIcon
                     //     atx.startIdx = pathStack.length;
                 }
 
-                if (role & LayerRole.Transform) {
+                if (layer.layerRole & LayerRole.Transform) {
                     tx = (layer as Transformation);
                     switch (tx.scope) {
                         case TransformScope.Cumulative:
@@ -319,7 +315,7 @@ export default class DynamicIcon
                 }
 
                 // Anything past here will render directly to the canvas.
-                if (!(role & LayerRole.Drawable))
+                if (!(layer.layerRole & LayerRole.Drawable))
                     continue;
 
                 layerResetTx = null;
