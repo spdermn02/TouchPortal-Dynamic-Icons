@@ -1,8 +1,9 @@
 
 import { Alignment, Point, PointType, Rectangle, SizeType, TpActionDataRecord, UnitValue } from '../';
-import { assignExistingProperties, evaluateValue, parseAlignmentFromValue, round4p } from '../../utils';
+import { ALIGNMENT_ENUM_NAMES } from '../../utils/consts';
+import { assignExistingProperties, evaluateValue, parseAlignmentFromValue, parseAlignmentsFromString, round4p } from '../../utils';
 
-/** Base class for any element needing size, alignement, and offset properties. Not drawable on its own. */
+/** Base class for any element needing size, alignment, and offset properties. Not drawable on its own. */
 export default class SizedElement
 {
     /** A zero width/height (default) indicates to draw into the full available image area (eg. passed to `render()` in `rect` argument). Negative values are not allowed. */
@@ -13,7 +14,7 @@ export default class SizedElement
     /** Extra position offset to apply after alignment. */
     offset: PointType = Point.new();
 
-    constructor(init?: Partial<SizedElement> | any) {
+    constructor(init?: Partial<SizedElement>) {
         assignExistingProperties(this, init, 1);
     }
 
@@ -22,11 +23,62 @@ export default class SizedElement
         return false;
     }
 
+    /** Alignment value as two string values, first for vertical and second for horizontal. Eg. "top left" or "center middle".
+        Setting the property can be done with either a single direction or both (separated by space or comma) in either order. */
+    get align(): string {
+         return ALIGNMENT_ENUM_NAMES[this.alignment & Alignment.V_MASK] + ' ' + ALIGNMENT_ENUM_NAMES[this.alignment & Alignment.H_MASK];
+    }
+    set align(value: string | Alignment) {
+        if (typeof value == 'string')
+            value = parseAlignmentsFromString(value);
+        let mask = (value & Alignment.H_MASK) ? Alignment.H_MASK : Alignment.NONE;
+        if (value & Alignment.V_MASK)
+            mask |= Alignment.V_MASK;
+        this.setAlignment(value, mask);
+    }
+
+    /** Horizontal alignment value as string. One of: 'left', 'center', 'right' */
+    get halign(): string { return ALIGNMENT_ENUM_NAMES[this.alignment & Alignment.H_MASK]; }
+    set halign(value: string | Alignment) {
+        if (typeof value == 'string')
+            value = parseAlignmentFromValue(value, Alignment.H_MASK);
+        this.setAlignment(value, Alignment.H_MASK);
+    }
+
+    /** Vertical alignment value as string. One of: 'top', 'middle', 'bottom' */
+    get valign(): string { return ALIGNMENT_ENUM_NAMES[this.alignment & Alignment.V_MASK]; }
+    set valign(value: string | Alignment) {
+        if (typeof value == 'string')
+            value = parseAlignmentFromValue(value, Alignment.V_MASK);
+        this.setAlignment(value, Alignment.V_MASK);
+    }
+
+    /** Sets element width and height property values with optional unit type specifier to use for both dimensions.
+        If `unit` is undefined then the current unit types for each dimension remain unchanged. */
+    setSize(size: SizeType, unit?: string) {
+        this.width.value = size.width;
+        this.height.value = size.height;
+        if (unit) {
+            this.width.setUnit(unit);
+            this.height.setUnit(unit);
+        }
+    }
+
+    /** Returns true if alignment value was changed, false otherwise. */
+    protected setAlignment(value: Alignment, mask: Alignment): boolean {
+        if ((this.alignment & mask) != value) {
+            this.alignment &= ~mask;
+            this.alignment |= value;
+            return true;
+        }
+        return false;
+    }
+
     /** Returns true if any properties were changed. */
     protected loadFromDataRecord(dr: TpActionDataRecord): boolean
     {
         let dirty: boolean = false;
-        let tmp: number, a: Alignment;
+        let tmp: number;
         for (const [key, value] of Object.entries(dr)) {
             switch (key) {
                 case 'size_w':
@@ -56,20 +108,10 @@ export default class SizedElement
                     }
                     break;
                 case 'alignH':
-                    a = parseAlignmentFromValue(value, Alignment.H_MASK);
-                    if (a != (this.alignment & Alignment.H_MASK)) {
-                        this.alignment &= ~Alignment.H_MASK;
-                        this.alignment |= a;
-                        dirty = true;
-                    }
+                    dirty = this.setAlignment(parseAlignmentFromValue(value, Alignment.H_MASK), Alignment.H_MASK) || dirty;
                     break;
                 case 'alignV':
-                    a = parseAlignmentFromValue(value, Alignment.V_MASK);
-                    if (a != (this.alignment & Alignment.V_MASK)) {
-                        this.alignment &= ~Alignment.V_MASK;
-                        this.alignment |= a;
-                        dirty = true;
-                    }
+                    dirty = this.setAlignment(parseAlignmentFromValue(value, Alignment.V_MASK), Alignment.V_MASK) || dirty;
                     break;
                 case 'ofsH':
                     tmp = evaluateValue(value);
