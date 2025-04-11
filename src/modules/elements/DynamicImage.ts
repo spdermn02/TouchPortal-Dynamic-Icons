@@ -3,7 +3,7 @@ import { Transformation } from './';
 import { globalImageCache, Image, LayerRole, Rectangle } from '../'
 import { assignExistingProperties, evaluateStringValue } from '../../utils';
 import type { ILayerElement, IRenderable, IValuedElement } from '../interfaces';
-import type { ParseState, RenderContext2D, ResizeFitOption, TpActionDataRecord } from '../'
+import type { DynamicIcon, ParseState, RenderContext2D, ResizeFitOption, TpActionDataRecord } from '../'
 
 /**
     This class hold an image source (file path or b64 string) and associated data like processing options and a transformation to apply.
@@ -29,11 +29,16 @@ export default class DynamicImage implements ILayerElement, IRenderable, IValued
     /** Tranformation to apply to this image when drawn. See {@link Transformation} for details. */
     readonly transform: Transformation;
 
-    constructor(init?: Partial<DynamicImage & {fit: ResizeFitOption}>) {
+    /** Constructor argument requires an object with either `iconName: string` or `parentIcon: DynamicIcon` properties. */
+    constructor(init: RequireAtLeastOne<Partial<DynamicImage & {parentIcon: DynamicIcon, fit: ResizeFitOption}>, 'iconName' | 'parentIcon'>) {
+        if (!init?.iconName && !init?.parentIcon)
+            throw new Error("'parentIcon' or 'iconName' properties are required in DynamicImage constructor's init object argument.");
         this.transform = new Transformation(init?.transform);
-        if (init?.resizeOptions)
+        if (init.parentIcon)
+            this.iconName = init.parentIcon.name;
+        if (init.resizeOptions)
             assignExistingProperties(this.resizeOptions, init?.resizeOptions, 0);
-        else if (init?.fit)
+        else if (init.fit)
             this.resizeOptions.fit = init.fit;
         assignExistingProperties(this, init, 0);
     }

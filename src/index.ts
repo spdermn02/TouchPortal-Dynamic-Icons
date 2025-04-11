@@ -1,7 +1,7 @@
 import TP from 'touchportal-api'
 import * as C from './utils/consts'
 import { ColorUpdateType } from './modules/enums';
-import type { ConstructorType, TpActionDataArrayType } from './modules/types'
+import type { TpActionDataArrayType } from './modules/types'
 import type { IColorElement, ILayerElement, IValuedElement } from './modules/interfaces';
 import { Point, type PointType, Size } from './modules/geometry';
 import { DynamicIcon, ParseState, globalImageCache } from "./modules";

@@ -6,9 +6,6 @@ export type TpActionDataArrayType = TpActionDataType[];
 /** @internal */
 export type TpActionDataRecord = Record<string, string>;
 
-/** @internal */
-export type ConstructorType<T> = new(...args:any[])=>T;
-
 /** Defines how to resize images (or other block elements). Equivalent to CSS `object-fit` property. */
 export type ResizeFitOption = "contain" | "cover" | "fill" | "scale-down" | "none";
 
@@ -25,3 +22,17 @@ export {
     Path2D, TextMetrics,
     type CanvasTextAlign, type CanvasTextBaseline, type CanvasRenderingContext2D as RenderContext2D,
 } from 'skia-canvas';
+
+
+/** @internal */
+declare global {
+
+    type ConstructorType<T> = new(...args:any[])=>T;
+
+    // https://stackoverflow.com/a/49725198/3246449
+    type RequireAtLeastOne<T, Keys extends keyof T = keyof T> =
+        Pick<T, Exclude<keyof T, Keys>>  & {
+            [K in Keys]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<Keys, K>>>
+        }[Keys];
+
+}
