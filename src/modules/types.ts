@@ -35,4 +35,12 @@ declare global {
             [K in Keys]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<Keys, K>>>
         }[Keys];
 
+    // https://stackoverflow.com/a/51365037/3246449
+    type PartialDeep<T> = {
+        [P in keyof T]?:
+            T[P] extends (infer U)[] ? PartialDeep<U>[] :
+            T[P] extends object | undefined ? PartialDeep<T[P]> :
+            T[P];
+    };
+
 }

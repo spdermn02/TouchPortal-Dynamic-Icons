@@ -14,7 +14,7 @@ export default class SizedElement
     /** Extra position offset to apply after alignment. */
     offset: PointType = Point.new();
 
-    constructor(init?: Partial<SizedElement>) {
+    constructor(init?: PartialDeep<SizedElement>) {
         assignExistingProperties(this, init, 1);
     }
 

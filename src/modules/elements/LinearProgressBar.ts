@@ -37,7 +37,7 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
         the long edges of the bar, and `height` sets the padding around the endpoints (short edges). */
     padding: SizeType = new Size();
 
-    constructor(init?: Partial<LinearProgressBar>) {
+    constructor(init?: PartialDeep<LinearProgressBar>) {
         super();
         this.valueStyle = new DrawingStyle(init?.valueStyle);
         assignExistingProperties(this, init, 1);

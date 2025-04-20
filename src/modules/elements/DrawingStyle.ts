@@ -20,7 +20,7 @@ export default class DrawingStyle implements ILayerElement, IPathHandler, IColor
         (only half the line width will protrude around the filled area). */
     strokeOver: boolean = true;
 
-    constructor(init?: Partial<DrawingStyle> ) {
+    constructor(init?: PartialDeep<DrawingStyle> ) {
         this.fill = new BrushStyle(init?.fill);
         this.stroke = new StrokeStyle(init?.stroke);
         this.shadow = new ShadowStyle(init?.shadow);

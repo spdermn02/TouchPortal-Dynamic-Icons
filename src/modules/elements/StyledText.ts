@@ -11,7 +11,7 @@ import { Act, Str } from '../../utils/consts';
 import type { IColorElement, ILayerElement, IRenderable, IValuedElement } from '../interfaces';
 import type {
     CanvasTextAlign, CanvasTextBaseline, ColorUpdateType,
-    Path2D, Rectangle, RenderContext2D, TextMetrics,
+    Path2D, PointType, Rectangle, RenderContext2D, TextMetrics,
 } from '../';
 
 /** Draws text on a canvas context with various options. The text can be fully styled with the embedded {@link style} {@link DrawingStyle} property. */
@@ -41,7 +41,7 @@ export default class StyledText implements ILayerElement, IRenderable, IValuedEl
     #hinting: boolean = true;   // looks & aligns better with most fonts
     #tm: TextMetrics | null = null;  // cached as needed
 
-    constructor(init?: Partial<StyledText>) {
+    constructor(init?: PartialDeep<StyledText> & { offset?: number|PointType }) {
         this.offset = new Vect2d(init?.offset);
         this.style = new DrawingStyle(init?.style);
         assignExistingProperties(this, init, 0);

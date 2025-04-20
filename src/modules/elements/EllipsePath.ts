@@ -21,7 +21,7 @@ export default class EllipsePath extends Path implements ILayerElement, IPathPro
     /** Drawing direction, clockwise (0), counter-clockwise (1), or automatic (2) based on value being positive (CW) or negative (CCW). */
     direction: ArcDrawDirection = ArcDrawDirection.CW;
 
-    constructor(init?: Partial<EllipsePath>) {
+    constructor(init?: PartialDeep<EllipsePath>) {
         super();
         assignExistingProperties(this, init, 1);
     }

@@ -22,7 +22,7 @@ export default class FreeformPath extends Path implements ILayerElement, IPathPr
     #svgPath: string | null = null;
     #lastInput: string = "";  // cache to avoid reparsing path if input unchanged
 
-    constructor(init?: Partial<FreeformPath>) {
+    constructor(init?: PartialDeep<FreeformPath>) {
         super({ alignment: Alignment.TOP | Alignment.LEFT });
         if (init?.path) {
             if (init.path instanceof Path2D)

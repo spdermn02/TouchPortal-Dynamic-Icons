@@ -18,7 +18,7 @@ export default class ShadowStyle {
         offsetY: 0
     }
 
-    constructor(init?: Partial<ShadowStyle>) {
+    constructor(init?: PartialDeep<ShadowStyle>) {
         assignExistingProperties(this, init, 1);
     }
 

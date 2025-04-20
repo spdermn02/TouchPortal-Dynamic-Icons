@@ -43,7 +43,7 @@ export default class Transformation implements ILayerElement, IRenderable
         size: <SizeType | null> null,
     }
 
-    constructor(init?: Partial<Transformation>) {
+    constructor(init?: PartialDeep<Transformation>) {
         assignExistingProperties(this, init, 0);
     }
 

@@ -10,7 +10,7 @@ export default class BrushStyle
     #pattern: CanvasPattern | null = null;
     #texture: CanvasTexture | null = null;
 
-    constructor(init?: Partial<BrushStyle> | string) {
+    constructor(init?: PartialDeep<BrushStyle> | string) {
         if (typeof init == 'string')
             this.color = init;
         else

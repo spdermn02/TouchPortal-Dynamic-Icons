@@ -27,7 +27,7 @@ export default class Path extends SizedElement
 
     readonly layerRole: LayerRole = LayerRole.PathProducer;
 
-    constructor(init?: Partial<Path>) {
+    constructor(init?: PartialDeep<Path>) {
         super();
         assignExistingProperties(this, init, 1);
     }

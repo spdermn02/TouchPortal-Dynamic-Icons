@@ -14,7 +14,7 @@ export default class StyledRectangle extends RectanglePath implements ILayerElem
     /** Whether to adjust (reduce) the overall drawing area size to account for shadow offset/blur. */
     adjustSizeForShadow: boolean = true;
 
-    constructor(init?: Partial<StyledRectangle>) {
+    constructor(init?: PartialDeep<StyledRectangle>) {
         super();
         this.style = new DrawingStyle(init?.style);
         assignExistingProperties(this, init, 1);

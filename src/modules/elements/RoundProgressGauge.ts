@@ -29,7 +29,7 @@ export default class RoundProgressGauge implements ILayerElement, IRenderable, I
         cap: "round"
     })
 
-    constructor(init?: Partial<RoundProgressGauge>) {
+    constructor(init?: PartialDeep<RoundProgressGauge>) {
         assignExistingProperties(this, init, 1);
     }
 

@@ -21,7 +21,7 @@ export default class BarGraph implements ILayerElement, IRenderable, IValuedElem
     #values: Array<[number, ContextFillStrokeType]> = []
     #parent: WeakRef<DynamicIcon> | null = null;
 
-    constructor(init?: Partial<BarGraph & {parentIcon: DynamicIcon}>) {
+    constructor(init?: PartialDeep<BarGraph> & {parentIcon?: DynamicIcon}) {
         if (init?.parentIcon)
             this.#parent = new WeakRef(init.parentIcon);
         assignExistingProperties(this, init, 1);

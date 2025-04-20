@@ -16,7 +16,7 @@ export default class RectanglePath extends Path implements IPathProducer
     protected haveRadius: boolean = false;
     #radii: Array<PointType> = [];
 
-    constructor(init?: Partial<RectanglePath>) {
+    constructor(init?: PartialDeep<RectanglePath>) {
         super();
         assignExistingProperties(this, init, 1);
     }

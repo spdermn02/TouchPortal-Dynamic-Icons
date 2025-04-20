@@ -37,7 +37,7 @@ export default class StrokeStyle
     /** If the {@link width} unit type is relative (%) then returns the {@link dashOffset} value multiplied by {@link widthScale}. Otherwise just returns {@link dashOffset} unmodified. */
     get scaledDashOffset(): number { return this.width.isRelative && this.dashOffset ? round4p(this.dashOffset * this.widthScale) : this.dashOffset; }
 
-    constructor(init?: Partial<StrokeStyle | { width?: number|string, color?: string }> ) {
+    constructor(init?: PartialDeep<StrokeStyle | { width?: number|string, color?: string }> ) {
         if (typeof init?.width == 'number') {
             this.width.value = Math.abs(init.width);
         }
