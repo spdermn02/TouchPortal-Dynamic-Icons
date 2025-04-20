@@ -39,7 +39,7 @@ export default class StyledRectangle extends RectanglePath implements ILayerElem
         super.loadFromDataRecord(state.asRecord(state.pos, Act.IconRect + Str.IdSep));
         // Check for shadow and line style changes which may affect cached path.
         if (this.style.loadFromDataRecord(state.asRecord(state.pos, Act.IconRect + Str.IdSep + Act.IconStyle + Str.IdSep)))
-            this.clearCahe();
+            this.clearCache();
         // console.dir(this, {depth: 5});
         return this;
     }

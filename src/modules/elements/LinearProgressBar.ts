@@ -142,7 +142,7 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
         dirty = this.style.loadFromDataRecord(ParseState.splitRecordKeys(dr, 'ctr_' + Act.IconStyle + Str.IdSep)) || dirty;
         // console.dir(this);
         if (dirty)
-            this.clearCahe();
+            this.clearCache();
         return this;
     }
 
@@ -166,7 +166,7 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
         if (this.width.value != newSize.width || this.height.value != newSize.height) {
             this.width.value = newSize.width;
             this.height.value = newSize.height;
-            this.clearCahe();
+            this.clearCache();
         }
 
         // Draw the container area using parent class.

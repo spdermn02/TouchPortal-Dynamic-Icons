@@ -52,7 +52,7 @@ export default class FreeformPath extends Path implements ILayerElement, IPathPr
     get svgPath() { return this.#svgPath ?? ''; }
     set svgPath(path: string) {
         this.#svgPath = path;
-        this.clearCahe();
+        this.clearCache();
     }
 
     /** Set or get the path definition as an array or line coordinates.
@@ -60,19 +60,19 @@ export default class FreeformPath extends Path implements ILayerElement, IPathPr
     get lines(): Array<PointType[]> { return this.#lines; }
     set lines(lines: Array<PointType[]>) {
         this.#lines = lines;
-        this.clearCahe();
+        this.clearCache();
     }
 
     /** Appends an array of points to the current lines array. */
     appendLine(line: Array<PointType>) {
         this.#lines.push(line);
-        this.clearCahe();
+        this.clearCache();
     }
 
     /** Clears all coordinates in the current lines array. */
     clearLines() {
         this.#lines.length = 0;
-        this.clearCahe();
+        this.clearCache();
     }
 
     /** Parses and sets the path from an evaluated string value, with minimal validation.
@@ -147,7 +147,7 @@ export default class FreeformPath extends Path implements ILayerElement, IPathPr
         }
 
         if (dirty)
-            this.clearCahe();
+            this.clearCache();
         return this;
     }
 

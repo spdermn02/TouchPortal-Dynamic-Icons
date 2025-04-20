@@ -61,7 +61,7 @@ export default class RectanglePath extends Path implements IPathProducer
         if (!this.compareRadii(radii)) {
             this.#radii = radii;
             this.haveRadius = radii.some((v) => v.x > 0 || v.y > 0);
-            this.clearCahe();
+            this.clearCache();
         }
     }
 
@@ -96,7 +96,7 @@ export default class RectanglePath extends Path implements IPathProducer
             dirty = true;
         }
         if (dirty)
-            this.clearCahe();
+            this.clearCache();
         // console.dir(this);
         return dirty;
     }

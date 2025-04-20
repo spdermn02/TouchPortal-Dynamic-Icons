@@ -34,7 +34,7 @@ export default class Path extends SizedElement
 
     /** Clears the generated & cached Path2D object (if any). Some `Path` subclasses my not use the cache.
         Typically the cache management is handled automatically when relevant properties are modified. */
-    clearCahe() {
+    clearCache() {
         this.cache.clear();
     }
 
