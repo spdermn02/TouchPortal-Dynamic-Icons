@@ -37,12 +37,12 @@ export default class FreeformPath extends Path implements ILayerElement, IPathPr
         return !this.#svgPath && (!this.#lines?.length || this.#lines[0].length < 2);
     }
 
-    /** Returns the currently cached Path2D object, if any, or an empty Path2D otherwise. */
-    get path(): Path2D { return this.cache.path ?? new Path2D(); }
+    /** Returns the currently cached Path2D object, if any, or `null` otherwise. */
+    get path(): Path2D | null { return this.cache.path; }
     /** Explicitly sets the cached `Path3D` object to `path`.
-        A new path will not be re-generated unless `svgPath` or `lines` properties are set, or cache explicitly is cleared with `clearCache()`.
+        A new path will not be re-generated unless `svgPath` or `lines` properties are set, or cache is explicitly cleared with `clearCache()`.
         The path will still be scaled and aligned in {@link getPath()}, if needed, and the new scaled/aligned path will then be cached. */
-    set path(path: Path2D) {
+    set path(path: Path2D | null) {
         this.cache.path = path;
         this.cache.size = null;
     }
