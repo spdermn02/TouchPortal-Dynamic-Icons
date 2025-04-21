@@ -55,12 +55,12 @@ export default class SizedElement
 
     /** Sets element width and height property values with optional unit type specifier to use for both dimensions.
         If `unit` is undefined then the current unit types for each dimension remain unchanged. */
-    setSize(size: SizeType, unit?: string) {
+    setSize(size: SizeType, unit?: string, unitY?: string) {
         this.width.value = size.width;
         this.height.value = size.height;
         if (unit) {
             this.width.setUnit(unit);
-            this.height.setUnit(unit);
+            this.height.setUnit(unitY || unit);
         }
     }
 
@@ -137,35 +137,46 @@ export default class SizedElement
         return dirty;
     }
 
-    protected computeAlignmentHOffset(width: number, rect: Rectangle): number
+    protected computeAlignmentHOffset(bounds: Rectangle, rect: Rectangle, adjustLeft: boolean = false): number
     {
-        if (width < rect.width) {
+        if (bounds.width != rect.width) {
             switch (this.alignment & Alignment.H_MASK) {
                 case Alignment.HCENTER:
-                    return round4p((rect.width - width) * .5);
+                    return rect.center.x - bounds.center.x;
                 case Alignment.RIGHT:
-                    return rect.width - width;
+                    return rect.right - bounds.right;
+                case Alignment.LEFT:
+                    if (adjustLeft)
+                        return rect.left - bounds.left;
+                    break;
             }
         }
         return 0;
     }
 
-    protected computeAlignmentVOffset(height: number, rect: Rectangle): number
+    protected computeAlignmentVOffset(bounds: Rectangle, rect: Rectangle, adjustTop: boolean = false): number
     {
-        if (height < rect.height) {
+        if (bounds.height != rect.height) {
             switch (this.alignment & Alignment.V_MASK) {
                 case Alignment.VCENTER:
-                    return round4p((rect.height - height) * .5);
+                    return rect.center.y - bounds.center.y;
                 case Alignment.BOTTOM:
-                    return rect.height - height;
+                    return rect.bottom - bounds.bottom;
+                case Alignment.TOP:
+                    if (adjustTop)
+                        return rect.top - bounds.top;
+                    break;
             }
         }
         return 0;
     }
 
-    protected computeOffset(bounds: SizeType, rect: Rectangle): PointType
+    protected computeOffset(bounds: Rectangle, rect: Rectangle, adjustTopLeft: boolean = false): PointType
     {
-        const ret = Point.new(this.computeAlignmentHOffset(bounds.width, rect), this.computeAlignmentVOffset(bounds.height, rect));
+        const ret = Point.new(
+            this.computeAlignmentHOffset(bounds, rect, adjustTopLeft),
+            this.computeAlignmentVOffset(bounds, rect, adjustTopLeft)
+        );
         if (this.offset.x)
             ret.x += round4p(this.offset.x * .01 * rect.width);
         if (this.offset.y)
@@ -178,7 +189,7 @@ export default class SizedElement
         if (rect.isEmpty)
             return rect;
 
-        let bounds: Rectangle = rect.clone();  // the area to draw into, may need to be adjusted
+        const bounds: Rectangle = rect.clone();  // the area to draw into, may need to be adjusted
 
         // If this instance specifies a size in either dimension, these override the drawing area size.
         // We can also adjust the alignment within the drawing area if one of the final dimensions is smaller.
@@ -187,7 +198,6 @@ export default class SizedElement
         if (this.height.value && !(this.height.isRelative && this.height.value == 100))
             bounds.height = this.height.isRelative ? round4p(this.height.value * .01 * rect.size.height) : this.height.value;
 
-        bounds.origin.plus_eq(this.computeOffset(bounds.size, rect));
-        return bounds;
+        return bounds.translate(this.computeOffset(bounds, rect));
     }
 }

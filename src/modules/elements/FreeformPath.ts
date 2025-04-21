@@ -1,5 +1,5 @@
 import { ILayerElement, IPathProducer, IValuedElement } from '../interfaces';
-import { Alignment, logging, ParseState, Path2D, Point, PointType, Rectangle, Size, UnitValue } from '..';
+import { Alignment, logging, ParseState, Path2D, Point, PointType, Rectangle, UnitValue } from '..';
 import { assignExistingProperties, evaluateStringValue, evaluateValueAsArray, parseBoolFromValue, round4p } from '../../utils';
 import { Str } from '../../utils/consts';
 import Path from './Path';
@@ -211,9 +211,8 @@ export default class FreeformPath extends Path implements ILayerElement, IPathPr
                     sclY = round4p(this.cache.size ? rect.height / this.cache.size.height : rect.height * 0.01);
                 this.cache.path = this.cache.path!.transform(sclX, 0, 0, sclY, 0, 0);
             }
-            const b = this.cache.path!.bounds;
-            const offset = super.computeOffset(Size.new(b.width, b.height), rect);
-            if (!Point.isNull(offset))
+            const offset = super.computeOffset(Rectangle.fromBounds(this.cache.path!.bounds), rect);
+            if (!Point.fuzzyIsNull(offset))
                 this.cache.path = this.cache.path!.offset(offset.x, offset.y);
             this.cache.size = rect.size;
             // logging().getLogger('plugin').debug('size:\n%O\ncacheSize:\n%O\npath:\n%O', rect.size, this.cache.size, this.cache.path!.edges);
