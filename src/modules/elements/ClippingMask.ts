@@ -4,7 +4,15 @@ import { Canvas, LayerRole, ParseState, Path2D, Rectangle, RenderContext2D } fro
 import { Act, DataValue, Str } from '../../utils/consts';
 import { assignExistingProperties } from '../../utils';
 
-const enum ClipAction { Normal, Inverse, Release }
+/** The type of clipping to apply when using {@link ClippingMask} element. */
+export const enum ClipAction {
+    /** Apply clip using path fill area as the mask (clips out anything outside the path area). */
+    Normal,
+    /** Apply clip using inverse of path fill area as mask (clips out everything inside the path area). */
+    Inverse,
+    /** Reset any previously applied clipping. */
+    Release,
+}
 
 /** Applies a `clip(path)` operation to the current canvas context using given path(s).
     The mask can optionally be inverted against a given rectangle (eg. the drawing area).
@@ -12,17 +20,20 @@ const enum ClipAction { Normal, Inverse, Release }
  */
 export default class ClippingMask implements IPathHandler
 {
+    /** Type of clip to apply, or `ClipAction.Release` to remove clipping. */
     action: ClipAction = ClipAction.Normal;
+    /** Fill rule to use when clipping using intersecting paths. One of: "evenodd" or "nonzero" */
     fillRule: CanvasFillRule = 'nonzero';
 
-    constructor(init?: Partial<ClippingMask> | any ) {
+    constructor(init?: Partial<ClippingMask> ) {
         assignExistingProperties(this, init, 0);
     }
 
     // ILayerElement
-    readonly type: string = "ClippingMask";
+    /** @internal */
     readonly layerRole: LayerRole = LayerRole.PathConsumer;
 
+    /** @internal */
     loadFromActionData(state: ParseState): ClippingMask {
         let atEnd = false;
         // the incoming data IDs should be structured with a naming convention
@@ -58,6 +69,9 @@ export default class ClippingMask implements IPathHandler
     }
 
     // IPathHandler
+    /** Applies clipping mask to `ctx` using all paths in `paths` array if {@link action} property is `ClipAction.Normal` or `ClipAction.Inverse`.
+        `rect` area is used to calculate an inverse clip.
+        If {@link action} is `ClipAction.Release` then will remove any clipping on the `ctx` by redrawing it onto a fresh canvas of same size as `ctx.canvas`. */
     renderPaths(paths: Path2D[], ctx: RenderContext2D, rect: Rectangle): void
     {
         if (this.action == ClipAction.Release) {

@@ -1,0 +1,90 @@
+diff --git a/node_modules/skia-canvas/lib/classes/context.js b/node_modules/skia-canvas/lib/classes/context.js
+index 22bc9c8..8db0a1e 100644
+--- a/node_modules/skia-canvas/lib/classes/context.js
++++ b/node_modules/skia-canvas/lib/classes/context.js
+@@ -67,8 +67,8 @@ class CanvasRenderingContext2D extends RustClass{
+     let radii = css.radii(r)
+     if (radii){
+       if (w < 0) radii = [radii[1], radii[0], radii[3], radii[2]]
+-      if (h < 0) radii = [radii[3], radii[2], radii[1], radii[0]]
+-      this.ƒ("roundRect", x, y, w, h, ...radii.map(({x, y}) => [x, y]).flat())
++      if (h < 0) radii.reverse()
++      this.ƒ("roundRect", x, y, w, h, ...radii.flat())
+     }
+   }
+ 
+diff --git a/node_modules/skia-canvas/lib/classes/css.js b/node_modules/skia-canvas/lib/classes/css.js
+index 2af9927..19d74aa 100644
+--- a/node_modules/skia-canvas/lib/classes/css.js
++++ b/node_modules/skia-canvas/lib/classes/css.js
+@@ -224,21 +224,32 @@ function parseFit(mode){
+ //    https://github.com/fserb/canvas2D/blob/master/spec/roundrect.md
+ 
+ function parseCornerRadii(r){
+-  r = [r].flat()
+-         .map(n => n instanceof DOMPoint ? n : new DOMPoint(n, n))
+-         .slice(0, 4)
+-
+-  if (r.some(pt => !Number.isFinite(pt.x) || !Number.isFinite(pt.y))){
+-    return null // silently abort
+-  }else if (r.some(pt => pt.x < 0 || pt.y < 0)){
+-    throw new Error("Corner radius cannot be negative")
++  if (r == undefined)
++    return [[0,0],[0,0],[0,0],[0,0]];
++
++  r = [r].flat().slice(0, 4)
++  for (let [i, v] of Object.entries(r)) {
++    if (typeof v == 'number') {
++      if (!Number.isFinite(v))
++        return null // silently abort
++      if (v < 0)
++        throw new Error("Corner radius cannot be negative")
++      r[i] = [v, v]
++      continue;
++    }
++    // assume value is an object with {x,y} properties, the isFinite() checks will return false if it isn't
++    if (!Number.isFinite(v?.x) || !Number.isFinite(v?.y))
++      return null // silently abort
++    if (v.x < 0 || v.y < 0)
++      throw new Error("Corner radius cannot be negative")
++    r[i] = [v.x, v.y]
+   }
+ 
+   return r.length == 1 ? [r[0], r[0], r[0], r[0]]
+        : r.length == 2 ? [r[0], r[1], r[0], r[1]]
+        : r.length == 3 ? [r[0], r[1], r[2], r[1]]
+-       : r.length == 4 ? [r[0], r[1], r[2], r[3]]
+-       : [0, 0, 0, 0].map(n => new DOMPoint(n, n))
++       : r.length == 4 ? r
++       : [[0,0],[0,0],[0,0],[0,0]]
+ }
+ 
+ // -- Image Filters -----------------------------------------------------------------------
+diff --git a/node_modules/skia-canvas/lib/classes/path.js b/node_modules/skia-canvas/lib/classes/path.js
+index 043ed0f..212387b 100644
+--- a/node_modules/skia-canvas/lib/classes/path.js
++++ b/node_modules/skia-canvas/lib/classes/path.js
+@@ -65,8 +65,8 @@ class Path2D extends RustClass{
+     let radii = css.radii(r)
+     if (radii){
+       if (w < 0) radii = [radii[1], radii[0], radii[3], radii[2]]
+-      if (h < 0) radii = [radii[3], radii[2], radii[1], radii[0]]
+-      this.ƒ("roundRect", x, y, w, h, ...radii.map(({x, y}) => [x, y]).flat())
++      if (h < 0) radii.reverse()
++      this.ƒ("roundRect", x, y, w, h, ...radii.flat())
+     }
+   }
+ 
+diff --git a/node_modules/skia-canvas/lib/index.d.ts b/node_modules/skia-canvas/lib/index.d.ts
+index 01f977a..33a8558 100644
+--- a/node_modules/skia-canvas/lib/index.d.ts
++++ b/node_modules/skia-canvas/lib/index.d.ts
+@@ -249,7 +249,7 @@ declare var DOMMatrix: {
+ // Canvas
+ //
+ 
+-export type ExportFormat = "png" | "jpg" | "jpeg" | "webp" | "pdf" | "svg";
++export type ExportFormat = "png" | "jpg" | "jpeg" | "webp" | "pdf" | "svg" | "raw";
+ 
+ export interface RenderOptions {
+   /** Page to export: Defaults to 1 (i.e., first page) */

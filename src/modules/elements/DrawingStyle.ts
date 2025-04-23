@@ -1,33 +1,41 @@
-import { assignExistingProperties, parseNumericArrayString, } from '../../utils';
+import { arraysMatchExactly, assignExistingProperties, parseNumericArrayString, } from '../../utils';
 import { IColorElement, ILayerElement, IPathHandler } from '../interfaces';
-import { ColorUpdateType, LayerRole, ParseState, Path2D, Rectangle, RenderContext2D } from '../';
+import { ColorUpdateType, LayerRole, ParseState } from '../';
 import { BrushStyle, StrokeStyle, ShadowStyle } from './';
 import { Act, Str } from '../../utils/consts';
+import type { Path2D, Rectangle, RenderContext2D, TpActionDataRecord } from '..';
 
-// Applies a drawing style to a canvas context, which includes all fill, stroke, and shadow attributes.
+/** Applies a drawing style to a canvas context or `Path2D` objects, which includes all fill, stroke, and shadow attributes. */
 export default class DrawingStyle implements ILayerElement, IPathHandler, IColorElement
 {
+    /** Style to apply as context `fillStyle` property. */
     fill: BrushStyle;
+    /** Defines how to apply the fill style when filling `Path2D` paths. One of: "evenodd" or "nonzero" */
     fillRule: CanvasFillRule = 'nonzero';
-    line: StrokeStyle;
+    /** Styles to apply as context `strokeStyle`, `line*`, and `miterLimit` properties (and `setLineDash()` method). */
+    stroke: StrokeStyle;
+    /** Styles to apply as context `shadow*` properties. */
     shadow: ShadowStyle;
-    strokeOver: boolean = true;  // the stroke is to be drawn on top of the fill if `true`, otherwise under the fill
+    /** When styling `Path2D` paths, the stroke is to be drawn on top of the fill if this property is `true`, otherwise it will draw under the fill
+        (only half the line width will protrude around the filled area). */
+    strokeOver: boolean = true;
 
-    constructor(init?: Partial<DrawingStyle> | any ) {
-        assignExistingProperties(this, init, 0);
-        this.fill = new BrushStyle(init?.color);
-        this.line = new StrokeStyle(init?.stroke);
+    constructor(init?: PartialDeep<DrawingStyle> ) {
+        this.fill = new BrushStyle(init?.fill);
+        this.stroke = new StrokeStyle(init?.stroke);
         this.shadow = new ShadowStyle(init?.shadow);
+        assignExistingProperties(this, init, 0);
     }
 
     // ILayerElement
-    readonly type: string = "DrawingStyle";
+    /** @internal */
     readonly layerRole: LayerRole = LayerRole.PathConsumer;
 
     /** Returns true if there is nothing at all to draw for this style: fill is transparent, stroke is zero size, and there is no shadow.  */
-    get isEmpty(): boolean { return this.fill.isEmpty && this.line.isEmpty && this.shadow.isEmpty; }
+    get isEmpty(): boolean { return this.fill.isEmpty && this.stroke.isEmpty && this.shadow.isEmpty; }
 
     // IColorElement
+    /** @internal */
     setColor(value: string, type: ColorUpdateType): void {
         // Even though ColorUpdateType is a bitfield flag, currently nothing is going to
         // update multiple properties at once, so we can shortcut here.
@@ -36,7 +44,7 @@ export default class DrawingStyle implements ILayerElement, IPathHandler, IColor
                 this.fill.color = value;
                 break;
             case ColorUpdateType.Stroke:
-                this.line.pen.color = value;
+                this.stroke.pen.color = value;
                 break;
             case ColorUpdateType.Shadow:
                 this.shadow.color = value;
@@ -44,63 +52,67 @@ export default class DrawingStyle implements ILayerElement, IPathHandler, IColor
         }
     }
 
-    loadFromActionData(state: ParseState, dataIdPrefix:string = ""): DrawingStyle {
-        dataIdPrefix += Act.IconStyle + Str.IdSep;
-        let lineParsed = false;
-        let atEnd = false;
-        // the incoming data IDs should be structured with a naming convention
-        for (let e = state.data.length; state.pos < e && !atEnd; ) {
-            const data = state.data[state.pos];
-            const dataType = data?.id.split(dataIdPrefix).at(-1);  // last part of the data ID determines its meaning
-            //console.log(state.pos, dataType);
-            switch (dataType) {
+    /** @internal Returns `true` if stroke line width/unit or shadow properties have changed. */
+    loadFromDataRecord(dr: TpActionDataRecord): boolean {
+        let dirty = false;
+        for (const [key, value] of Object.entries(dr)) {
+            switch (key) {
                 case 'fillColor':
-                    this.fill.color = data.value;
+                    this.fill.color = value;
                     break;
                 case 'fillRule':
-                    this.fillRule = data.value as CanvasFillRule;
+                    this.fillRule = <CanvasFillRule>value;
                     break;
                 case 'strokeOver':
                     // "Stroke over", "Stroke under"
-                    this.strokeOver = data.value.endsWith("over");
+                    this.strokeOver = value.endsWith("over");
                     break;
                 case 'shadowColor':
-                    this.shadow.color = data.value;
+                    this.shadow.color = value;
                     break;
                 case 'shadow': {
                     // shadow is specified as (blur [,offsetX[,offsetY]])
-                    this.shadow.clear();
-                    const s = [];
-                    if (parseNumericArrayString(data.value, s, 3)) {
+                    const s = [],
+                        shadow = [this.shadow.blur, this.shadow.offset.x, this.shadow.offset.y];
+                    if (parseNumericArrayString(value, s, 3)) {
                         this.shadow.blur = Math.max(s[0], 0);
                         if (s.length > 1)
-                            this.shadow.offset.set(s[1], s.length > 2 ? s[2] : s[1]);
+                            this.shadow.offset.set(s[1], s[2]);
+                        else
+                            this.shadow.offset.set(0, 0);
                     }
+                    else {
+                        this.shadow.resetCoordinates();
+                    }
+                    dirty = !arraysMatchExactly(shadow, [this.shadow.blur, this.shadow.offset.x, this.shadow.offset.y])
                     break;
                 }
                 default:
-                    if (!lineParsed && dataType?.startsWith('line_')) {
-                        this.line.loadFromActionData(state, dataIdPrefix);
-                        lineParsed = true;
-                    }
-                    else {
-                        atEnd = true;
-                    }
-                    continue;  // do not increment position counter
+                    continue;
             }
-            ++state.pos;
+            delete dr[key];
         }
+        dirty = this.stroke.loadFromDataRecord(ParseState.splitRecordKeys(dr, "line_")) || dirty;
         // console.dir(this);
+        return dirty;
+    }
+
+    // ILayerElement
+    /** @internal */
+    loadFromActionData(state: ParseState, dataIdPrefix:string = ""): DrawingStyle {
+        this.loadFromDataRecord(state.asRecord(state.pos, dataIdPrefix + Act.IconStyle + Str.IdSep));
         return this;
     }
 
+    /** Applies current fill, stroke, and shadow styling properties to the given canvas `ctx`. `rect` size is used to scale relative-sized stroke width. */
     render(ctx: RenderContext2D, rect?: Rectangle): void {
         this.shadow.render(ctx);
-        this.line.render(ctx, rect);
+        this.stroke.render(ctx, rect);
         this.fill.render(ctx);
     }
 
     // IPathHandler
+    /** Fills and strokes each path in the given array using `DrawingStyle.renderPath()` method. **The given `paths` array is cleared.** */
     renderPaths(paths: Path2D[], ctx: RenderContext2D, rect: Rectangle): void {
         while (paths.length)
             this.renderPath(ctx, paths.shift()!, rect);
@@ -148,9 +160,9 @@ export default class DrawingStyle implements ILayerElement, IPathHandler, IColor
      */
     strokePath(ctx: RenderContext2D, path: Path2D, withShadow: boolean = false, rect?: Rectangle)
     {
-        if (this.line.isEmpty)
+        if (this.stroke.isEmpty)
             return;
-        this.line.render(ctx, rect);
+        this.stroke.render(ctx, rect);
         if (withShadow) {
             this.shadow.saveContext(ctx);
             this.shadow.render(ctx);

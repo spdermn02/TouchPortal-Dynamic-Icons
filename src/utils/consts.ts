@@ -1,4 +1,4 @@
-import { PathBoolOperation, TransformOpType } from "../modules/enums";
+import { Alignment, PathBoolOperation, TransformOpType } from "../modules/enums";
 
 // Note: Const enums get replaced with actual values in the final "compiled" JS code.
 // They are _also_ exported for use in entry.tp generator (due to 'preserveConstEnums' setting in tsconfig).
@@ -100,6 +100,18 @@ export const enum SettingName {
     MaxImageProcThreads = "Maximum Image Compression Threads",
     MaxImageGenThreads = "Maximum Image Generator Threads",
 };
+
+export const ALIGNMENT_ENUM_NAMES = {
+    [Alignment.NONE]:     '',
+    [Alignment.LEFT]:     'left',
+    [Alignment.RIGHT]:    'right',
+    [Alignment.HCENTER]:  'center',
+    [Alignment.JUSTIFY]:  'justify',
+    [Alignment.TOP]:      'top',
+    [Alignment.BOTTOM]:   'bottom',
+    [Alignment.VCENTER]:  'middle',
+    [Alignment.BASELINE]: 'baseline',
+} as const;
 
 // Math constants
 export const enum M {

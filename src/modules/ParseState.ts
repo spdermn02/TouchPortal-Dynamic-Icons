@@ -1,7 +1,9 @@
 import { Str } from "../utils/consts";
 import type { TpActionDataArrayType, TpActionDataRecord } from "./types";
 
-/** A struct to pass meta data as reference to chained action data parsing methods (eg. the various elements' loadFromActionData() methods) */
+/** A struct to pass meta data as reference to chained action data parsing methods (eg. the various elements' loadFromActionData() methods).
+@internal
+*/
 export default class ParseState {
     readonly data: TpActionDataArrayType; // [in] data array to parse
     pos: number;                          // [in/out] index into data array of current parsing position; incremented for every data field "consumed" by a parser
@@ -28,7 +30,24 @@ export default class ParseState {
         let ret: TpActionDataRecord = {};
         for (const e = this.data.length; start < e; ++start) {
             const d = this.data[start];
-            ret[d.id.split(separator).at(-1) as string] = d.value;
+            const newKey = d.id.split(separator);
+            if (newKey.length > 1)
+                ret[newKey.at(-1)!] = d.value;
+        }
+        return ret;
+    }
+
+    /** Removes everything up to `separator` from key names of `dr` object and returns a new object with new key names and values copied from `dr`.
+        if `removeFromSource` is `true` then the original key is deleted from `dr`. Otherwise `dr` is not modified. */
+    static splitRecordKeys(dr: TpActionDataRecord, separator: string, removeFromSource: boolean = false): TpActionDataRecord {
+        let ret: TpActionDataRecord = {};
+        for (const [key,val] of Object.entries(dr)) {
+            const newKey = key.split(separator, 2);
+            if (newKey.length > 1) {
+                ret[newKey.at(-1)!] = val;
+                if (removeFromSource)
+                    delete dr[key];
+            }
         }
         return ret;
     }

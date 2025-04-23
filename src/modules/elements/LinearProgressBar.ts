@@ -1,34 +1,58 @@
 
-import { IColorElement, ILayerElement, IValuedElement } from '../interfaces';
-import { Orientation, ParseState, Path2D, Rectangle, RenderContext2D, SizeType, Size, UnitValue, ColorUpdateType } from '../';
-import { arraysMatchExactly, evaluateValue, round3p } from '../../utils'
+import { LayerRole, Orientation, ParseState, Path2D, Size, UnitValue, ColorUpdateType } from '../';
+import { assignExistingProperties, clamp, evaluateValue, round3p } from '../../utils'
+import { Act, Str } from '../../utils/consts'
 import { DrawingStyle } from './';
 import StyledRectangle from './StyledRectangle';
+import type { IColorElement, ILayerElement, IValuedElement } from '../interfaces';
+import type { Rectangle, RenderContext2D, SizeType } from '../';
 
-const enum DrawDirection { Normal, Reverse, Center };
+const enum DrawDirection {
+    /** Left to right or bottom to top. */
+    Normal,
+    /** Right to left or top to bottom. */
+    Reverse,
+    /** Draw from center in both directions at the same time. */
+    Center,
+    /** Draw from center with direction depending on current value's sign,
+        towards left/bottom for negative values or to right/top for positive ones. TODO */
+    CenterAuto,
+};
 
-// Draws a rectangle shape on a canvas context with optional radii applied to any/all of the 4 corners (like CSS). The shape can be fully styled with the embedded DrawingStyle property.
+/** A progress bar is essentially two rectangles, one inside the other, with the inner one changing length to represent a percentage value.
+    The outer container and inner value boxes can be fully styled with the embedded `DrawingStyle` properties.
+    This class inherits from `StyledRectangle` which is used for the outer container box, and holds additional properties to control the
+    inner value part.  Any corner radius set on the outer container box will also be applied to the inner value part (after some adjustments for size).
+*/
 export default class LinearProgressBar extends StyledRectangle implements ILayerElement, IValuedElement, IColorElement
 {
     orientation: Orientation = Orientation.H;
     direction: DrawDirection = DrawDirection.Normal;
-    valueStyle: DrawingStyle = new DrawingStyle();
-    value: number = 0;  // % of extents, 0 - 100 range only
+    /** Styling properties for the inner value part of the progress bar. The outer container is styled by the parent's {@link StyledRectangle#style} property. */
+    valueStyle: DrawingStyle;
+    /** Progress bar value in percent, 0-100. */
+    value: number = 0;
+    /** Padding controls how much space to leave around the outside of the progress bar relative to the total drawing area.
+        It determines the final size of the progress bar based on orientation. With `width` value determines padding along
+        the long edges of the bar, and `height` sets the padding around the endpoints (short edges). */
+    padding: SizeType = new Size();
 
-    private padding: SizeType = Size.new();  // width = sides, height = endpoints
-
-    constructor(init?: Partial<LinearProgressBar>) {
+    constructor(init?: PartialDeep<LinearProgressBar>) {
         super();
-        Object.assign(this, init);
+        this.valueStyle = new DrawingStyle(init?.valueStyle);
+        assignExistingProperties(this, init, 1);
     }
 
     // ILayerElement
-    readonly type: string = "LinearProgressBar";
+    /** @internal */
+    readonly layerRole: LayerRole = LayerRole.Drawable;
 
     // IValuedElement
-    setValue(value: string) { this.value = Math.min(Math.max(evaluateValue(value), 0), 100); }
+    /** Sets current {@link LinearProgressBar#value} property using an evaluated string. */
+    setValue(value: string) { this.value = clamp(evaluateValue(value), 0, 100); }
 
     // IColorElement
+    /** @internal */
     setColor(value: string, type: ColorUpdateType): void {
         if (type & ColorUpdateType.Foreground)
             this.valueStyle.setColor(value, ColorUpdateType.Fill);
@@ -41,22 +65,18 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
         return super.isEmpty && this.valueStyle.isEmpty;
     }
 
-    loadFromActionData(state: ParseState): LinearProgressBar
-    {
-        let atEnd = false,
-            ctrStyleParsed = false,
-            valStyleParsed = false,
-            dirty = false;
-        for (const e = state.data.length; state.pos < e && !atEnd; ) {
-            const data = state.data[state.pos];
-            const dataType = data?.id.split('pbar_').at(-1);  // last part of the data ID determines its meaning
-            switch (dataType)
+    /** @internal */
+    loadFromActionData(state: ParseState): LinearProgressBar {
+        const dr = state.asRecord(state.pos, "pbar_");
+        let dirty = false;
+        for (const [key, value] of Object.entries(dr)) {
+            switch (key)
             {
                 case 'dir':
                     // defaults
                     this.orientation = Orientation.H;  // horizontal
                     this.direction = DrawDirection.Normal;    // LR/BT/CTR
-                    switch (data.value.charAt(0)) {
+                    switch (value.charAt(0)) {
                         case '⬅':
                             this.direction = DrawDirection.Reverse;
                             break;
@@ -82,64 +102,47 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
                 // note that these size properties are not used the same way as the parent's size --
                 // here they control padding, and the parent's actual size is set at render time.
                 case 'size_w': {
-                    const sz = evaluateValue(data.value);
+                    const sz = evaluateValue(value);
                     if (sz > 0)
                         this.padding.width = sz * 2;
                     break;
                 }
                 case 'size_w_unit':
-                    this.width.setUnit(data.value);
+                    this.width.setUnit(value);
                     break;
-
                 case 'size_h': {
-                    const sz = evaluateValue(data.value);
+                    const sz = evaluateValue(value);
                     if (sz > 0)
                         this.padding.height = sz * 2;
                     break;
                 }
                 case 'size_h_unit':
-                    this.height.setUnit(data.value);
+                    this.height.setUnit(value);
                     break;
-
                 case 'radius':
-                    dirty = super.parseRadius(data.value) || dirty;
+                    dirty = super.parseRadius(value) || dirty;
                     break;
                 case 'radius_unit':
-                    if (UnitValue.isRelativeUnit(data.value) != this.radiusIsRelative) {
+                    if (UnitValue.isRelativeUnit(value) != this.radiusIsRelative) {
                         this.radiusIsRelative = !this.radiusIsRelative;
                         dirty = true;
                     }
                     break;
-
                 case 'value':
-                    this.setValue(data.value);
+                    this.setValue(value);
                     break;
 
                 default:
-                    if (!ctrStyleParsed && dataType?.startsWith('ctr_')) {
-                        // Check for shadow and line style changes which may affect cached path.
-                        const sarry = this.adjustSizeForShadow ? [this.style.shadow.blur, this.style.shadow.offset.x, this.style.shadow.offset.y] : null;
-                        const lw = this.style.line.width;
-                        this.style.loadFromActionData(state, 'ctr_');
-                        dirty = dirty || (lw.value != this.style.line.width.value ||
-                                lw.isRelative != this.style.line.width.isRelative ||
-                                (sarry! && !arraysMatchExactly(sarry, [this.style.shadow.blur, this.style.shadow.offset.x, this.style.shadow.offset.y])))
-                        ctrStyleParsed = true;
-                    }
-                    else if (!valStyleParsed && dataType?.startsWith('val_')) {
-                        this.valueStyle.loadFromActionData(state, 'val_');
-                        valStyleParsed = true;
-                    }
-                    else {
-                        atEnd = true;
-                    }
                     continue;
             }
-            ++state.pos;
+            delete dr[key];  // remove handled property for quicker downstream operation
         }
+        this.valueStyle.loadFromDataRecord(ParseState.splitRecordKeys(dr, 'val_' + Act.IconStyle + Str.IdSep, true));
+        // check shadow dimensions and line width for changes
+        dirty = this.style.loadFromDataRecord(ParseState.splitRecordKeys(dr, 'ctr_' + Act.IconStyle + Str.IdSep)) || dirty;
+        // console.dir(this);
         if (dirty)
-            this.cache.clear();
-        //console.dir(this);
+            this.clearCache();
         return this;
     }
 
@@ -163,7 +166,7 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
         if (this.width.value != newSize.width || this.height.value != newSize.height) {
             this.width.value = newSize.width;
             this.height.value = newSize.height;
-            this.cache.clear();
+            this.clearCache();
         }
 
         // Draw the container area using parent class.
@@ -179,11 +182,11 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
         const ctrRect = window.clone();
 
         let penW: number = 0;
-        if (!this.valueStyle.line.isEmpty) {
+        if (!this.valueStyle.stroke.isEmpty) {
             // adjust for pen size
-            if (this.valueStyle.line.width.isRelative)
-                this.valueStyle.line.widthScale = Math.min(window.width, window.height) * .005 /* penScale */;
-            penW = this.valueStyle.line.scaledWidth;
+            if (this.valueStyle.stroke.width.isRelative)
+                this.valueStyle.stroke.widthScale = Math.min(window.width, window.height) * .005 /* penScale */;
+            penW = this.valueStyle.stroke.scaledWidth;
             window.adjust(round3p(penW * .5), -penW);
         }
         // set value part length (width/height) and offset position for drawing
@@ -214,8 +217,8 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
         if (this.haveRadius) {
             // if the container has a border then expand the value drawing area by a portion of it, or at least one pixel,
             // to slightly overlap the content area... looks better this way because the radii will never quite match up perfectly.
-            if (penW && !this.valueStyle.line.pen.isEmpty) {
-                const ctrPenW = this.style.line.scaledWidth,
+            if (penW && !this.valueStyle.stroke.isEmpty) {
+                const ctrPenW = this.style.stroke.scaledWidth,
                     d = Math.max(round3p(ctrPenW * .2), .5);
                 window.adjust(-d, d * 2);
                 penW += ctrPenW;  // we use this below to scale the radius
@@ -231,8 +234,7 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
                 ratio = Math.max((window.height - penW * 4) / ctrRect.height, 0);
             else
                 ratio = Math.max((window.width - penW * 4) / ctrRect.width, 0);
-            const radii = this.radii.map(r => round3p(r * ratio));
-            path.roundRect(window.x, window.y, window.width, window.height, radii);
+            path.roundRect(window.x, window.y, window.width, window.height, this.scaledRadii(ratio));
         }
         // no radius
         else {

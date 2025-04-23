@@ -1,8 +1,9 @@
 
 import { Alignment, Point, PointType, Rectangle, SizeType, TpActionDataRecord, UnitValue } from '../';
-import { assignExistingProperties, evaluateValue, parseAlignmentFromValue, round4p } from '../../utils';
+import { ALIGNMENT_ENUM_NAMES } from '../../utils/consts';
+import { assignExistingProperties, evaluateValue, parseAlignmentFromValue, parseAlignmentsFromString, round4p } from '../../utils';
 
-/** Base class for any element needing size, alignement, and offset properties. Not drawable on its own. */
+/** Base class for any element needing size, alignment, and offset properties. Not drawable on its own. */
 export default class SizedElement
 {
     /** A zero width/height (default) indicates to draw into the full available image area (eg. passed to `render()` in `rect` argument). Negative values are not allowed. */
@@ -13,7 +14,7 @@ export default class SizedElement
     /** Extra position offset to apply after alignment. */
     offset: PointType = Point.new();
 
-    constructor(init?: Partial<SizedElement> | any) {
+    constructor(init?: PartialDeep<SizedElement>) {
         assignExistingProperties(this, init, 1);
     }
 
@@ -22,11 +23,62 @@ export default class SizedElement
         return false;
     }
 
+    /** Alignment value as two string values, first for vertical and second for horizontal. Eg. "top left" or "center middle".
+        Setting the property can be done with either a single direction or both (separated by space or comma) in either order. */
+    get align(): string {
+         return ALIGNMENT_ENUM_NAMES[this.alignment & Alignment.V_MASK] + ' ' + ALIGNMENT_ENUM_NAMES[this.alignment & Alignment.H_MASK];
+    }
+    set align(value: string | Alignment) {
+        if (typeof value == 'string')
+            value = parseAlignmentsFromString(value);
+        let mask = (value & Alignment.H_MASK) ? Alignment.H_MASK : Alignment.NONE;
+        if (value & Alignment.V_MASK)
+            mask |= Alignment.V_MASK;
+        this.setAlignment(value, mask);
+    }
+
+    /** Horizontal alignment value as string. One of: 'left', 'center', 'right' */
+    get halign(): string { return ALIGNMENT_ENUM_NAMES[this.alignment & Alignment.H_MASK]; }
+    set halign(value: string | Alignment) {
+        if (typeof value == 'string')
+            value = parseAlignmentFromValue(value, Alignment.H_MASK);
+        this.setAlignment(value, Alignment.H_MASK);
+    }
+
+    /** Vertical alignment value as string. One of: 'top', 'middle', 'bottom' */
+    get valign(): string { return ALIGNMENT_ENUM_NAMES[this.alignment & Alignment.V_MASK]; }
+    set valign(value: string | Alignment) {
+        if (typeof value == 'string')
+            value = parseAlignmentFromValue(value, Alignment.V_MASK);
+        this.setAlignment(value, Alignment.V_MASK);
+    }
+
+    /** Sets element width and height property values with optional unit type specifier to use for both dimensions.
+        If `unit` is undefined then the current unit types for each dimension remain unchanged. */
+    setSize(size: SizeType, unit?: string, unitY?: string) {
+        this.width.value = size.width;
+        this.height.value = size.height;
+        if (unit) {
+            this.width.setUnit(unit);
+            this.height.setUnit(unitY || unit);
+        }
+    }
+
+    /** Returns true if alignment value was changed, false otherwise. */
+    protected setAlignment(value: Alignment, mask: Alignment): boolean {
+        if ((this.alignment & mask) != value) {
+            this.alignment &= ~mask;
+            this.alignment |= value;
+            return true;
+        }
+        return false;
+    }
+
     /** Returns true if any properties were changed. */
     protected loadFromDataRecord(dr: TpActionDataRecord): boolean
     {
         let dirty: boolean = false;
-        let tmp: number, a: Alignment;
+        let tmp: number;
         for (const [key, value] of Object.entries(dr)) {
             switch (key) {
                 case 'size_w':
@@ -56,20 +108,10 @@ export default class SizedElement
                     }
                     break;
                 case 'alignH':
-                    a = parseAlignmentFromValue(value, Alignment.H_MASK);
-                    if (a != (this.alignment & Alignment.H_MASK)) {
-                        this.alignment &= ~Alignment.H_MASK;
-                        this.alignment |= a;
-                        dirty = true;
-                    }
+                    dirty = this.setAlignment(parseAlignmentFromValue(value, Alignment.H_MASK), Alignment.H_MASK) || dirty;
                     break;
                 case 'alignV':
-                    a = parseAlignmentFromValue(value, Alignment.V_MASK);
-                    if (a != (this.alignment & Alignment.V_MASK)) {
-                        this.alignment &= ~Alignment.V_MASK;
-                        this.alignment |= a;
-                        dirty = true;
-                    }
+                    dirty = this.setAlignment(parseAlignmentFromValue(value, Alignment.V_MASK), Alignment.V_MASK) || dirty;
                     break;
                 case 'ofsH':
                     tmp = evaluateValue(value);
@@ -95,35 +137,46 @@ export default class SizedElement
         return dirty;
     }
 
-    protected computeAlignmentHOffset(width: number, rect: Rectangle): number
+    protected computeAlignmentHOffset(bounds: Rectangle, rect: Rectangle, adjustLeft: boolean = false): number
     {
-        if (width < rect.width) {
+        if (bounds.width != rect.width) {
             switch (this.alignment & Alignment.H_MASK) {
                 case Alignment.HCENTER:
-                    return round4p((rect.width - width) * .5);
+                    return rect.center.x - bounds.center.x;
                 case Alignment.RIGHT:
-                    return rect.width - width;
+                    return rect.right - bounds.right;
+                case Alignment.LEFT:
+                    if (adjustLeft)
+                        return rect.left - bounds.left;
+                    break;
             }
         }
         return 0;
     }
 
-    protected computeAlignmentVOffset(height: number, rect: Rectangle): number
+    protected computeAlignmentVOffset(bounds: Rectangle, rect: Rectangle, adjustTop: boolean = false): number
     {
-        if (height < rect.height) {
+        if (bounds.height != rect.height) {
             switch (this.alignment & Alignment.V_MASK) {
                 case Alignment.VCENTER:
-                    return round4p((rect.height - height) * .5);
+                    return rect.center.y - bounds.center.y;
                 case Alignment.BOTTOM:
-                    return rect.height - height;
+                    return rect.bottom - bounds.bottom;
+                case Alignment.TOP:
+                    if (adjustTop)
+                        return rect.top - bounds.top;
+                    break;
             }
         }
         return 0;
     }
 
-    protected computeOffset(bounds: SizeType, rect: Rectangle): PointType
+    protected computeOffset(bounds: Rectangle, rect: Rectangle, adjustTopLeft: boolean = false): PointType
     {
-        const ret = Point.new(this.computeAlignmentHOffset(bounds.width, rect), this.computeAlignmentVOffset(bounds.height, rect));
+        const ret = Point.new(
+            this.computeAlignmentHOffset(bounds, rect, adjustTopLeft),
+            this.computeAlignmentVOffset(bounds, rect, adjustTopLeft)
+        );
         if (this.offset.x)
             ret.x += round4p(this.offset.x * .01 * rect.width);
         if (this.offset.y)
@@ -136,7 +189,7 @@ export default class SizedElement
         if (rect.isEmpty)
             return rect;
 
-        let bounds: Rectangle = rect.clone();  // the area to draw into, may need to be adjusted
+        const bounds: Rectangle = rect.clone();  // the area to draw into, may need to be adjusted
 
         // If this instance specifies a size in either dimension, these override the drawing area size.
         // We can also adjust the alignment within the drawing area if one of the final dimensions is smaller.
@@ -145,7 +198,6 @@ export default class SizedElement
         if (this.height.value && !(this.height.isRelative && this.height.value == 100))
             bounds.height = this.height.isRelative ? round4p(this.height.value * .01 * rect.size.height) : this.height.value;
 
-        bounds.origin.plus_eq(this.computeOffset(bounds.size, rect));
-        return bounds;
+        return bounds.translate(this.computeOffset(bounds, rect));
     }
 }
