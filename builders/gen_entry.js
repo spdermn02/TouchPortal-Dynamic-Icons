@@ -54,6 +54,7 @@ for (const part of [...VERSION.split('-', 1)[0].split('.', 3), BUILD_NUM])
 const ID_PREFIX = C.Str.IdPrefix;
 const PLUG_PATH = `%TP_PLUGIN_FOLDER%${pkgConfig.name}`;
 const ICON_PATH = `${PLUG_PATH}/icons/`;
+const ACTION_NAME_PREFIX = "Dynamic Icons: ";  // prepended to action descriptions to identify the plugin they belong to
 
 // some useful characters for forcing spacing in action texts
 const NBSP = " ";   // non-breaking narrow space U+202F (TP ignores "no-break space" U+00AD)
@@ -242,7 +243,7 @@ function jid(...args) {
 function addAction(id, name, descript, format, data, subcat = null, hold = false) {
     const action = {
         id: ID_PREFIX + id,
-        prefix: "Dynamic Icons:",
+        prefix: ACTION_NAME_PREFIX,
         name: name,
         subCategoryId: subcat?.id,
         type: "communicate",
@@ -251,6 +252,54 @@ function addAction(id, name, descript, format, data, subcat = null, hold = false
         format: String(format).format(data.map(d => `{$${d.id}$}`)),
         hasHoldFunctionality: hold,
         data: data
+    }
+    entry_base.categories[0].actions.push(action);
+}
+
+function makeActionLinesObj(lines, hold = false) {
+  const key = hold ? "onhold" : "action";
+  return {
+    [key]: [
+      {
+        language: "default",
+        data: lines.map(l => ({ lineFormat: l })),
+        // suggestions: { lineIndentation: 20, firstLineItemLabelWidth: 0 }
+      },
+    ]
+  };
+}
+
+/** Adds an action using the TP v7 API `lines` property for the text formatting layout. These actions only work with TP v4+.
+`descript`, if not empty, gets used as the first line, followed by a line for each member of `format`,
+which can be an array (or null for no format, or a single format string which gets converted to a one-member array).
+Data ID placeholders ("{N}") in `format` string(s) get replaced with corresponding member IDs of `data` array.
+*/
+function addActionV7(id, name, descript, format = null, data = null, subcat = null, hold = false)
+{
+    if (format != null && !Array.isArray(format))
+        format = [format];
+    const dataMapArry = data?.map(d => `{$${d.id}$}`) ?? [];
+    const lines = format?.map(f => String(f).format(dataMapArry)) ?? [];
+    if (descript)
+        lines.unshift(ACTION_NAME_PREFIX + descript);
+    const linesObj = makeActionLinesObj(lines);
+
+    // NOTE: As of TP 4.4 the documented `lines.onhold` specific formatting doesn't actually work to enable use in "on hold" setup.
+    // `hasHoldFunctionality` still has to be `true` and the contents of `lines.action` will be used even if `lines.onhold` exists.
+    // Undocumented `formatOnHold` can be set for an action to use separate format spec in "on hold" setup area, but this is limited
+    // to a single line. Currently none of our actions need different layout/data for holdable actions, so this is a moot point.
+    // Anyway, we'll still add the `lines.onhold` property here so the output complies with API spec... in case it gets "fixed" later, I guess.
+    if (hold)
+        Object.assign(linesObj, makeActionLinesObj(lines, true));
+
+    const action = {
+        id: ID_PREFIX + id,
+        name: name,
+        subCategoryId: subcat?.id,
+        type: "communicate",
+        lines: linesObj,
+        hasHoldFunctionality: hold,
+        data: data ?? []
     }
     entry_base.categories[0].actions.push(action);
 }
@@ -419,10 +468,10 @@ function makeTransformData(opsList, id, /* out */ data) {
     return f;
 }
 
-function makeStrokeStyleData(id, /* out */ data, { withUnitType=true, withCap, withJoin, withMiterLimit, withLineDash, all } = {}) {
+function makeStrokeStyleData(id, /* out */ data, { withUnitType=true, width=0, color="#00000000", withCap, withJoin, withMiterLimit, withLineDash, all } = {}) {
     let i = data.length;
     let format = `Stroke\nWidth {${i++}}`;
-    data.push(makeTextData(jid(id, "line_width"), "Stroke Width", "0"));
+    data.push(makeTextData(jid(id, "line_width"), "Stroke Width", width.toString()));
 
     if (all || withUnitType) {
         format += `{${i++}}`;
@@ -430,7 +479,7 @@ function makeStrokeStyleData(id, /* out */ data, { withUnitType=true, withCap, w
     }
 
     format += ` Stroke\nColor {${i++}}`;
-    data.push(makeColorData(jid(id, "line_color"), "Stroke"));
+    data.push(makeColorData(jid(id, "line_color"), "Stroke", color));
 
     if (all || withCap) {
         format += ` Cap\nStyle {${i++}}`;
@@ -454,11 +503,11 @@ function makeStrokeStyleData(id, /* out */ data, { withUnitType=true, withCap, w
     return format;
 }
 
-function makeDrawStyleData(id, /* out */ data, { withShadow=true, withDrawOrder, withFillRule, all } = {}) {
+function makeDrawStyleData(id, /* out */ data, { withShadow=true, fillColor="#00000000", withDrawOrder, withFillRule, all } = {}) {
     id = jid(id, "style");
     i = data.length;
     let format = `Fill\nColor {${i++}} `;
-    data.push(makeColorData(jid(id, "fillColor"), "Fill"));
+    data.push(makeColorData(jid(id, "fillColor"), "Fill", fillColor));
     if (all || withFillRule) {
         format += ` Fill\nRule {${i++}}`
         data.push(makeChoiceData(jid(id, "fillRule"), "Fill Rule", C.STYLE_FILL_RULE_CHOICES));
@@ -513,7 +562,7 @@ function makeAlignmentData(id, /* out */ data) {
 
 function makeOffsetData(id, /* out */ data) {
     let i = data.length;
-    const format = `Offset\n (%) H {${i++}}${NBSP}\n V{${i++}}`;
+    const format = `Offset\n(±%) H {${i++}}${NBSP}\n V{${i++}}`;
     data.push(
         makeTextData(jid(id, "ofsH"), "Horizontal Offset", "0"),
         makeTextData(jid(id, "ofsV"), "Vertical Offset", "0"),
@@ -679,9 +728,9 @@ function addRectanglePathAction(id, name, subcat) {
 function addEllipsePathAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         `Create an full or partial elliptical shape which can then be styled or used as a clip area. An ${layerInfoText('')}\n` +
-        "Size can be specified in percent of icon size or fixed pixels. Angles are in degrees, with zero being North/up. " +
-        "A complete circle is created by using 0 and 360 degrees as start/end angles. Rotation is applied to the final shape, from center. " +
-        "Alignment & Offset control the shape's position within the overall drawing area.";
+        "With and Height control the radius of the arc and can be specified as percent of icon size or fixed pixels. Angles are in degrees, with 0° pointing north. " +
+        "Use a 0 - 360 degree range for a complete circle. Rotation is applied to the final shape, from center. " +
+        "Alignment & Offset adjust the shape's position within the overall drawing area.";
     let [format, data] = makeIconLayerCommonData(id);
     format += makeRectSizeData(id, data) + " ";
     let i = data.length;
@@ -848,8 +897,9 @@ function addTransformAction(id, name, subcat, withIndex = false) {
             makeChoiceData(jid(id, "scope"), "Scope", [C.DataValue.TxScopePreviousOne, C.DataValue.TxScopeCumulative, C.DataValue.TxScopeUntilReset, C.DataValue.TxScopeReset])
         );
     }
-    addAction(id, name, descript, format, data, subcat);
+    addAction(id, name, descript, format, data, subcat, withIndex);
 }
+
 function addTransformUpdtAction(id, name, subcat) { addTransformAction(id, name, subcat, true); }
 
 function addValueUpdateAction(id, name, subcat) {
@@ -865,7 +915,7 @@ function addValueUpdateAction(id, name, subcat) {
         makeActionData(jid(id, "value"), "text", "Value", ""),
         makeRenderChoiceData(id),
     );
-    addAction(id, name, descript, format, data, subcat);
+    addAction(id, name, descript, format, data, subcat, true);
 }
 
 function addColorUpdateAction(id, name, subcat) {
