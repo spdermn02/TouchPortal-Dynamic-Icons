@@ -15,8 +15,8 @@ export default class Rectangle
     constructor(rect: Rectangle);
     constructor(origin: PointType, size: SizeType);
     constructor(origin: PointType, width: number, height: number);
-    constructor(top: number, left: number, size: SizeType);
-    constructor(top: number, left: number, width: number, height: number);
+    constructor(top: number, left?: number, size?: SizeType);
+    constructor(top: number, left: number, width?: number, height?: number);
     // implementation
     constructor(...args: any[]) {
         // @ts-ignore
@@ -24,10 +24,10 @@ export default class Rectangle
     }
 
     set(rect: Rectangle): this;
-    set(origin: PointType, size: SizeType): this;
-    set(origin: PointType, width: number, height: number): this;
-    set(top: number, left: number, size: SizeType): this;
-    set(top: number, left: number, width: number, height: number): this;
+    set(origin: PointType, size?: SizeType): this;
+    set(origin: PointType, width?: number, height?: number): this;
+    set(top: number, left: number, size?: SizeType): this;
+    set(top?: number, left?: number, width?: number, height?: number): this;
     // implementation
     set(...args: any[]): this {
         // (0?: number | PointType | Rectangle, 1?: number | SizeType, 2?: number | SizeType, 3?: number)
@@ -41,7 +41,7 @@ export default class Rectangle
             Point.set(this.origin, args[0]);
         }
         else if (typeof args[0] == 'number') {
-            Point.set(this.origin, args[0], args[1]);
+            this.origin.set(args[0], args[1]);
             arg1notObj = true;
         }
 
@@ -61,7 +61,7 @@ export default class Rectangle
     }
 
     toString(): string {
-        return `${this.constructor.name}(${this.x},${this.y} ${this.width}x${this.height})`;
+        return `${this.constructor.name}(${this.x},${this.y} ${this.width}x${this.height}; L:${this.left} R:${this.right} T:${this.top} B:${this.bottom})`;
     }
 
     /** Creates a new instance of Rectangle with origin(0,0) and the given size for width and height. */
@@ -69,7 +69,9 @@ export default class Rectangle
         return new Rectangle(Point.new(), size);
     }
     /** Creates a new instance of Rectangle from a "bounds" type object where origin coordinate properties are left/top instead of x/y. */
-    static fromBounds(bounds: {left: number, top: number, width: number, height: number}): Rectangle {
+    static fromBounds(bounds?: {left: number, top: number, width: number, height: number}): Rectangle {
+        if (!bounds)
+            return new Rectangle();
         return new Rectangle(bounds.left, bounds.top, bounds.width, bounds.height);
     }
 
@@ -117,6 +119,11 @@ export default class Rectangle
         return this;
     }
 
+    /** Resets origin and size of this Rectangle instance to `0`s and returns itself. */
+    clear(): this {
+        return this.setOrigin(0,0).setSize(0,0);
+    }
+
     /** Returns true if this rectangle's origin and size are equal to `other` rectangle's origin and size. */
     equals(other: Rectangle): boolean {
         return this.origin.equals(other.origin) && this.size.equals(other.size);
@@ -150,15 +157,34 @@ export default class Rectangle
         return Rectangle.adjust(this, ...args) as this;
     }
 
-    /** Moves the x,y origin of the rectangle by the given offset. */
+    /** Combines the bounding area of this rectangle with that of the given rectangle(s) and returns itself. */
+    unite(...args: Array<Rectangle>) { return Rectangle.unite(this, ...args); }
+    /** Returns the bounding area of this rectangle and the given rectangle(s) as a new `Rectangle` instance. Doesn't modify the original. */
+    united(...args: Array<Rectangle>) { return Rectangle.united(this, ...args); }
+
+    /** Moves the x,y origin of the rectangle by the given offset. Returns itself. */
     translate(offset: PointType): this
-    /** Moves the x,y origin of the rectangle by the given amounts. If `y` is undefined then `x` value is added to both dimensions. */
+    /** Moves the x,y origin of the rectangle by the given amounts. If `y` is undefined then `x` value is added to both dimensions. Returns itself. */
     translate(x: number, y?: number): this;
     // implementation
     translate(xOrOffs: number | PointType, y?: number): this {
-        this.origin.plus_eq(xOrOffs, y);
-        return this;
+        // @ts-ignore
+        return Rectangle.translate(this, xOrOffs, y);
     }
+
+    /** Scales this rectangle's `origin.x` and `size.width` by `factor.x` and `origin.y` and `size.height` by `factor.y` values. Returns itself. */
+    scale(factor: PointType): this;
+    /** Scales this rectangle's `origin` and `size` by `factor`. Returns itself. */
+    scale(factor: number): this;
+    /** Scales this rectangle's `origin.x` and `size.width` by `factorX` and `origin.y` and `size.height` by `factorY` values. */
+    scale(factorX:number, factorY:number): this;
+    // implementation
+    scale(factor: PointType|number, factorY?:number): this {
+        // @ts-ignore
+        return Rectangle.scale(this, factor, factorY);
+    }
+
+    // Static operation methods
 
     /** Adds given offsets to a copy of the `rect` Rectangle and returns the copied & adjusted Rectangle. */
     static adjusted(rect: Rectangle, origin: number | PointType, size: number | SizeType): Rectangle;
@@ -194,6 +220,54 @@ export default class Rectangle
         const szIsObj = typeof topOrSz != "number";
         rect.width += rtOrBot ?? (szIsObj ? topOrSz.width : topOrSz);
         rect.height += bottom ?? rtOrBot ?? (szIsObj ? topOrSz.height : topOrSz);
+        return rect;
+    }
+
+    /** Returns the bounding area of the given rectangle(s) as a new `Rectangle` instance. Doesn't modify inputs. */
+    static united(...args: Array<Rectangle>) {
+        let left = Infinity, right = -Infinity,
+            top = Infinity, bot = -Infinity;
+        for (const rect of args) {
+            if (!rect || rect.isNull)
+                continue;
+            if (!!rect.width) {
+                left = Math.min(left, rect.left);
+                right = Math.max(right, rect.right);
+            }
+            if (!!rect.height) {
+                top = Math.min(top, rect.top);
+                bot = Math.max(bot, rect.bottom);
+            }
+        }
+        right -= left;
+        bot -= top;
+        return new Rectangle(left || 0, top || 0, right || 0, bot || 0);
+    }
+    /** Combines the bounding area of `rect` rectangle and the given rectangle(s). The input rectangle is modified and returned. */
+    static unite(rect: Rectangle, ...args: Array<Rectangle>) {
+        return rect.set(Rectangle.united(rect, ...args));
+    }
+
+    /** Moves the x,y origin of the rectangle `rect` by the given offset. The input rectangle is modified and returned. */
+    static translate(rect: Rectangle, offset: PointType): Rectangle
+    /** Moves the x,y origin of the rectangle `rect` by the given amounts. If `y` is undefined then `x` value is added to both dimensions. The input rectangle is modified and returned. */
+    static translate(rect: Rectangle, x: number, y?: number): Rectangle;
+    // implementation
+    static translate(rect: Rectangle, xOrOffs: number | PointType, y?: number): Rectangle {
+        rect.origin.plus_eq(xOrOffs, y);
+        return rect;
+    }
+
+    /** Scales `rect` rectangle's `origin.x` and `size.width` by `factor.x` and `origin.y` and `size.height` by `factor.y` values. The input rectangle is modified and returned. */
+    static scale(rect: Rectangle, factor: PointType): Rectangle;
+    /** Scales `rect` rectangle's `origin` and `size` by `factor`. The input rectangle is modified and returned. */
+    static scale(rect: Rectangle, factor: number): Rectangle;
+    /** Scales `rect` rectangle's `origin.x` and `size.width` by `factorX` and `origin.y` and `size.height` by `factorY` values. The input rectangle is modified and returned. */
+    static scale(rect: Rectangle, factorX:number, factorY:number): Rectangle;
+    // implementation
+    static scale(rect: Rectangle, factor: PointType|number, factorY?:number): Rectangle {
+        rect.origin.times_eq(factor, factorY);
+        rect.size.times_eq(factor, factorY)
         return rect;
     }
 
