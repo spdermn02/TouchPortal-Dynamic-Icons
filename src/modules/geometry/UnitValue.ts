@@ -51,7 +51,7 @@ export default class UnitValue extends Object {
         let v:any = parseFloat(value);
         if (v != Number.NaN)
             this.value = v;
-        v = value.replace(/\W/g, '');
+        v = value.replace(/[\W\d]/g, '');
         if (v)
             this.setUnit(v);
         return this;
