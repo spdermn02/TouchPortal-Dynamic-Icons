@@ -1,5 +1,5 @@
 import { Str } from './consts'
-import { Alignment, logging, PointType, ArcDrawDirection } from '../modules';
+import { Alignment, logging, Placement, PointType, ArcDrawDirection } from '../modules';
 import { PluginSettings } from '../common';
 import { isAbsolute as pathIsAbs, join as pathJoin } from 'path';
 
@@ -42,6 +42,12 @@ export function fuzzyEquals5p(value1: number, value2: number): boolean { return 
 /** Returns true if 2 numbers are equal within 6 decimal places of precision. */
 export function fuzzyEquals6p(value1: number, value2: number): boolean { return fuzzyEquals(value1, value2, 0.000_001); }
 
+export function normalizeAngle(degrees: number): number {
+    degrees %= 360;
+    if (degrees < 0)
+        return degrees + 360;
+    return degrees;
+}
 
 // ------------------------
 // String utils.
@@ -265,6 +271,20 @@ export function parseArcDirection(value: string, defaultValue: ArcDrawDirection 
             return ArcDrawDirection.Auto;
         default:
             return defaultValue;
+    }
+}
+
+export function parsePlacement(v: string, defaultValue: Placement = Placement.NoPlace): Placement {
+    if (!v)
+        return defaultValue;
+    // possible values: "Inside" | "Top/Left", "Outside" | "Bottom/Right", "Center", "Same as ..."
+    switch (v[0].toUpperCase()) {
+        case 'I': return Placement.Inside;
+        case 'O': return Placement.Outside;
+        case 'C': return Placement.Center;
+        case 'T': return Placement.TopLeft;
+        case 'B': return Placement.BottomRight;
+        default: return defaultValue;
     }
 }
 

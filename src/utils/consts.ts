@@ -36,6 +36,8 @@ export const enum Act {
     IconProgGauge = "progGauge",
     IconProgBar = "progBar",
     IconBarGraph = "barGraph",
+    IconCircularTicks = "circularTicks",
+    IconLinearTicks = "linearTicks",
     IconRect = "rect",
     IconText = "text",
     IconImage = "image",
@@ -88,6 +90,14 @@ export const enum DataValue {
     // Yes/No options on various actions
     YesValue           = "Yes",
     NoValue            = "No",
+    // Mapped to Placement enum types
+    PlaceInside        = "Inside",
+    PlaceOutside       = "Outside",
+    PlaceInward        = "Inward",
+    PlaceOutward       = "Outward",
+    PlaceTopLeft       = "Top/Left",
+    PlaceBotRight      = "Bottom/Right",
+    PlaceCenter        = "Center",
 }
 
 // Full names of plugin settings used in TP UI and messages.

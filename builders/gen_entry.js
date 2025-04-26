@@ -710,6 +710,90 @@ function addProgressBarAction(id, name, subcat) {
     addAction(id, name, descript, format, data, subcat, true);
 }
 
+function addGaugeTicksAction(id, name, subcat, linear = false) {
+    let descript = "Draw " + (linear ? "Linear" : "Circular") + " Gauge Tick Marks. " + layerInfoText("element", false);
+    if (linear)
+        descript += " Length is the total area from first to last tick/label. ";
+    else
+        descript += " Start and End angles are in ± degrees with 0° pointing north. Width and Height determine the curve radius.";
+    descript += "\nMinor Tick Count is how many to draw between each major tick (not total). Tick Placement determines direction the ticks are drawn in relative to baseline. " +
+        "Label Values can be a numeric range and count, a comma-separated list, or empty.";
+
+    let [format, data] = makeIconLayerCommonData(id);
+    let i = data.length;
+
+    // Dimensions/orientation, alignment and offset line
+    if (linear) {
+        format += ` Orientation {${i++}} Length {${i++}}{${i++}} `;
+        data.push(
+            makeChoiceData(jid(id, "orientation"), "Orientation", ["Horizontal", "Vertical"]),
+            makeTextData(jid(id, "size_w"), "Length", "100"),
+            makeSizeTypeData(jid(id, "size_w")),
+        );
+    }
+    else {
+        format += ` Start\nAngle {${i++}} End\nAngle {${i++}} `;
+        data.push(
+            makeTextData(jid(id, "start"), "Start Angle", "0"),
+            makeTextData(jid(id, "end"), "End Angle", "360"),
+        );
+        format += makeRectSizeData(id, data) + " ";
+    }
+    format += makeAlignmentData(id, data) + " ";
+    format += makeOffsetData(id, data) + " ";
+    format = [format];
+
+    const placeOpts = linear ? [C.DataValue.PlaceTopLeft, C.DataValue.PlaceBotRight] : [C.DataValue.PlaceInside, C.DataValue.PlaceOutside];
+    i = data.length;
+
+    // Major and minor tick mark lines
+    const makeTickFields = (n, pfx, {cnt = 8, len = 8, w = 3, place = []} = {}) => {
+        format.push(`${n} Ticks:${SP_EN} Count {${i++}} Length {${i++}}{${i++}} Placement {${i++}} Line\nWidth {${i++}}{${i++}} Color {${i++}} Cap {${i++}}`);
+        data.push(
+            makeTextData(jid(id, pfx, "count"), "Tick Count", `${cnt}`),
+            makeTextData(jid(id, pfx, "len"), "Tick Length", `${len}`),
+            makeSizeTypeData(jid(id, pfx, "len")),
+            makeChoiceData(jid(id, pfx, "place"), "Placement", [...place, ...placeOpts, C.DataValue.PlaceCenter]),
+        );
+        makeStrokeStyleData(jid(id, pfx), data, { width: w, color: "#FFFFFF", withCap: true });
+    }
+    makeTickFields("Major", "maj");
+    makeTickFields("Minor", "min", {cnt: 1, len: 4, w: 2, place: ["Same"]});
+
+    // Labels line
+    let labelFmt = `Labels:${SP_EN} First-Last/Count\n ${SP_EM}${SP_EM}${SP_EM}${SP_EN} or List of Values {${i++}} Placement {${i++}} `;
+    const labelDeflt = linear ? "0 - 3 / 4 or 0,1,2,3" : "0 - 270 / 4 or N,E,S,W";
+    data.push(
+        makeTextData(jid(id, "label_value"), "Label Values", labelDeflt),
+        makeChoiceData(jid(id, "label_place"), "Placement", placeOpts),
+    );
+
+    if (linear) {
+        labelFmt += `Rotate\n${SP_EN}${SP_EN}(±°) {${i++}} Align {${i++}} `;
+        data.push(
+            makeTextData(jid(id, "label_rotate"), "Rotate", "0"),
+            makeChoiceData(jid(id, "label_align"), "Alignment", ["auto", "left", "center", "right"]),
+        );
+    }
+    else {
+        labelFmt += `Rotation {${i++}} ±° {${i++}} `;
+        data.push(
+            makeChoiceData(jid(id, "label_angled"), "Angled", ["None", C.DataValue.PlaceInward, C.DataValue.PlaceOutward]),
+            makeTextData(jid(id, "label_rotate"), "Rotate", "0"),
+        );
+    }
+    labelFmt += `Offset\n${SP_EN} (±%) {${i++}} Font\n(CSS) {${i++}} Letter\nSpacing {${i++}} Color {${i++}}`;
+    format.push(labelFmt);
+    data.push(
+        makeTextData(jid(id, "label_padding"), "Padding", "0"),
+        makeTextData(jid(id, "label_font"), "Font", "10vmin monospace"),
+        makeTextData(jid(id, "label_spacing"), "Spacing", "0px"),
+        makeColorData(jid(id, "label_color"), "Color", "#FFFFFF"),
+    );
+
+    addActionV7(id, name, descript, format, data, subcat);
+}
+
 // Paths and path handlers
 
 function addRectanglePathAction(id, name, subcat) {
@@ -955,6 +1039,8 @@ const iid = C.ActHandler.Icon;
 addProgressGaugeAction(  jid(iid, C.Act.IconProgGauge), "Draw - Simple Round Gauge",          ACTION_CATS.gauge );
 addBarGraphAction(       jid(iid, C.Act.IconBarGraph),  "Draw - Simple Bar Graph",            ACTION_CATS.gauge );
 addProgressBarAction(    jid(iid, C.Act.IconProgBar),   "Draw - Linear Progress Bar",         ACTION_CATS.gauge );
+addGaugeTicksAction(     jid(iid, C.Act.IconCircularTicks), "Draw - Circular Tick Marks",     ACTION_CATS.gauge, false );
+addGaugeTicksAction(     jid(iid, C.Act.IconLinearTicks),   "Draw - Linear Tick Marks",       ACTION_CATS.gauge, true );
 addTextAction(           jid(iid, C.Act.IconText),      "Draw - Text",                        ACTION_CATS.basic );
 addImageAction(          jid(iid, C.Act.IconImage),     "Draw - Image",                       ACTION_CATS.basic );
 addRectangleAction(      jid(iid, C.Act.IconRect),      "Draw - Styled Rectangle",            ACTION_CATS.basic );

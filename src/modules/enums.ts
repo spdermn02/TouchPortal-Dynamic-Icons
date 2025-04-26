@@ -11,6 +11,12 @@ export const enum Orientation { H, V };
 
 export const enum ArcDrawDirection { CW, CCW, Auto }
 
+export const enum Placement {
+    NoPlace, Inside, Outside, Center,
+    TopLeft = Inside,
+    BottomRight = Outside,
+}
+
 export const enum Alignment {
     NONE     = 0,
     LEFT     = 0x01,
@@ -43,7 +49,6 @@ export const enum TransformOpType {
     Skew = 'SK',
 }
 
-// Flags type for possible future use. No element currently supports setting multple properties at once.
 export const enum ColorUpdateType {
     None      = 0,
     Stroke    = 0x01,
