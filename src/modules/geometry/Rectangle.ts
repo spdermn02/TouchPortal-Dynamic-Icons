@@ -61,7 +61,7 @@ export default class Rectangle
     }
 
     toString(): string {
-        return `${this.constructor.name}(${this.x},${this.y} ${this.width}x${this.height}; L:${this.left} R:${this.right} T:${this.top} B:${this.bottom})`;
+        return `${this.constructor.name}(\n\tx: ${this.x} y: ${this.y} width: ${this.width} height: ${this.height}\n\tleft: ${this.left} right: ${this.right} top: ${this.top} bot: ${this.bottom} ctr: ${this.center.x},${this.center.y}\n)`;
     }
 
     /** Creates a new instance of Rectangle with origin(0,0) and the given size for width and height. */
