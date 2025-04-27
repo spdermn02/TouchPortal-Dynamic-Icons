@@ -66,6 +66,7 @@ const ACTION_TO_ELEMENT_MAP: LayerElementRecord = {
     [C.Act.IconPath      ]: { type: LE.FreeformPath },
     [C.Act.IconText      ]: { type: LE.StyledText },
     [C.Act.IconImage     ]: { type: LE.DynamicImage },
+    [C.Act.IconScript    ]: { type: LE.Script },
     [C.Act.IconCircularTicks]: { type: LE.CircularTicks },
     [C.Act.IconLinearTicks]:   { type: LE.LinearTicks },
     // Elements which affect other layers in some way.

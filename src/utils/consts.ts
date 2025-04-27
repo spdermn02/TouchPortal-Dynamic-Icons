@@ -41,6 +41,7 @@ export const enum Act {
     IconRect = "rect",
     IconText = "text",
     IconImage = "image",
+    IconScript = "script",
     IconFilter = "filter",
     IconCompMode = "compMode",
     IconTx = "tx",

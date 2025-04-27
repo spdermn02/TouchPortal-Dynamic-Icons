@@ -794,6 +794,20 @@ function addGaugeTicksAction(id, name, subcat, linear = false) {
     addActionV7(id, name, descript, format, data, subcat);
 }
 
+function addScriptAction(id, name, subcat) {
+    const descript = "Run a Custom Script for drawing. Use JavaScript with standard Canvas API & additions. See plugin documentation for details.\n" +
+        "When Cache is On, Script File is only loaded & parsed once, improving efficiency. Arguments will be available in the script as a global 'scriptArgs' string variable.";
+    let [format, data] = makeIconLayerCommonData(id);
+    let i = data.length;
+    format += `Load Script from File {${i++}} with Cache {${i++}} and run with Arguments {${i++}}`;
+    data.push(
+        makeFileData(jid(id, "src"), ["*.js,*.*"]),
+        makeActionData(jid(id, "cache"), "switch", "Cache", true),
+        makeTextData(jid(id, "args")),
+    );
+    addAction(id, name, descript, format, data, subcat, true);
+}
+
 // Paths and path handlers
 
 function addRectanglePathAction(id, name, subcat) {
@@ -989,7 +1003,7 @@ function addTransformUpdtAction(id, name, subcat) { addTransformAction(id, name,
 function addValueUpdateAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         "Update a value on an element in an existing icon. " +
-        "Elements which can be updated: Gauge, Graph and Bar values, Text content, Image source, and Effect Filter. " +
+        "Elements which can be updated: Gauge, Graph and Bar values, Text content, Image source, Effect Filter and Script arguments. " +
         "Value type must match the element type (numeric/string), and may contain math and other JS expressions.\n" +
         "Icon with same Name must already exist and contain a supported element type at the specified position. " +
         "Position indexes start at 1 (non-layered icons have only one position). Specify a negative index to count from the bottom of a layer stack.";
@@ -1044,6 +1058,7 @@ addGaugeTicksAction(     jid(iid, C.Act.IconLinearTicks),   "Draw - Linear Tick 
 addTextAction(           jid(iid, C.Act.IconText),      "Draw - Text",                        ACTION_CATS.basic );
 addImageAction(          jid(iid, C.Act.IconImage),     "Draw - Image",                       ACTION_CATS.basic );
 addRectangleAction(      jid(iid, C.Act.IconRect),      "Draw - Styled Rectangle",            ACTION_CATS.basic );
+addScriptAction(         jid(iid, C.Act.IconScript),    "Draw - Run Custom Script",           ACTION_CATS.basic );
 addStartLayersAction(    jid(iid, C.Act.IconDeclare),   "Layer - New Layered Icon",           ACTION_CATS.layer );
 addTransformAction(      jid(iid, C.Act.IconTx),        "Layer - Add Transformation",         ACTION_CATS.layer );
 addFilterAction(         jid(iid, C.Act.IconFilter),    "Layer - Set Effect Filter",          ACTION_CATS.layer );

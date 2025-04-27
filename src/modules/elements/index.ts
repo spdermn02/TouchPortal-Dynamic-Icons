@@ -16,6 +16,7 @@ export { default as GaugeTicks } from './GaugeTicks'                // inherits 
 export { default as CircularTicks } from './CircularTicks'          // inherits GaugeTicks
 export { default as LinearTicks } from './LinearTicks'              // inherits GaugeTicks
 export { default as RoundProgressGauge } from './RoundProgressGauge'
+export { default as Script } from './Script'
 export { default as ShadowStyle } from './ShadowStyle'
 export { default as SizedElement } from './SizedElement'
 export { default as StrokeStyle } from './StrokeStyle'
