@@ -9,10 +9,7 @@ import {
 import { Act, Str } from '../../utils/consts';
 
 import type { IColorElement, ILayerElement, IRenderable, IValuedElement } from '../interfaces';
-import type {
-    CanvasTextAlign, CanvasTextBaseline, ColorUpdateType,
-    Path2D, PointType, Rectangle, RenderContext2D, TextMetrics,
-} from '../';
+import type { ColorUpdateType, Path2D, Rectangle, } from '../';
 
 /** Draws text on a canvas context with various options. The text can be fully styled with the embedded {@link style} {@link DrawingStyle} property. */
 export default class StyledText implements ILayerElement, IRenderable, IValuedElement, IColorElement

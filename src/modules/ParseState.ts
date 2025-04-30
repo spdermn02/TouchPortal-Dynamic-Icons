@@ -1,5 +1,4 @@
 import { Str } from "../utils/consts";
-import type { TpActionDataArrayType, TpActionDataRecord } from "./types";
 
 /** A struct to pass meta data as reference to chained action data parsing methods (eg. the various elements' loadFromActionData() methods).
 @internal

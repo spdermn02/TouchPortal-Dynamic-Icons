@@ -3,7 +3,7 @@ import { PluginSettings } from '../../common';
 import { BrushStyle } from './';
 import { assignExistingProperties, clamp, evaluateValue } from '../../utils';
 import type { IColorElement, ILayerElement, IRenderable, IValuedElement } from '../interfaces';
-import type { ContextFillStrokeType, DynamicIcon, ParseState, Rectangle, RenderContext2D } from '../';
+import type { DynamicIcon, ParseState, Rectangle } from '../';
 
 /** Draws a values series as a basic vertical bar graph onto a canvas context. */
 export default class BarGraph implements ILayerElement, IRenderable, IValuedElement, IColorElement

@@ -1,5 +1,4 @@
 import { assignExistingProperties, } from '../../utils';
-import type { CanvasGradient, CanvasPattern, CanvasTexture, ContextFillStrokeType, RenderContext2D } from '../';
 
 /** Class for storing a fill or stroke style to use on a Canvas context. */
 export default class BrushStyle

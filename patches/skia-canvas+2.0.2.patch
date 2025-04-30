@@ -392,10 +392,52 @@ index 043ed0f..212387b 100644
    }
  
 diff --git a/node_modules/skia-canvas/lib/index.d.ts b/node_modules/skia-canvas/lib/index.d.ts
-index 01f977a..33a8558 100644
+index 01f977a..0fd5a1b 100644
 --- a/node_modules/skia-canvas/lib/index.d.ts
 +++ b/node_modules/skia-canvas/lib/index.d.ts
-@@ -249,7 +249,7 @@ declare var DOMMatrix: {
+@@ -59,6 +59,13 @@ interface DOMRect extends DOMRectReadOnly {
+   y: number;
+ }
+ 
++interface DOMRectInit {
++  height?: number;
++  width?: number;
++  x?: number;
++  y?: number;
++}
++
+ declare var DOMRect: {
+   prototype: DOMRect;
+   new(x?: number, y?: number, width?: number, height?: number): DOMRect;
+@@ -110,8 +117,11 @@ declare var DOMRectReadOnly: {
+ // Images
+ //
+ 
++/** [Skia Canvas Docs](http://skia-canvas.org/api/image#loadimage) */
+ export function loadImage(src: string | Buffer): Promise<Image>
++/** [Skia Canvas Docs](http://skia-canvas.org/api/imagedata#loadimagedata) */
+ export function loadImageData(src: string | Buffer, width: number, height?:number): Promise<ImageData>
++/** [Skia Canvas Docs](http://skia-canvas.org/api/imagedata#loadimagedata) */
+ export function loadImageData(src: string | Buffer, width: number, height:number, settings?:ImageDataSettings): Promise<ImageData>
+ 
+ export type ColorSpace = "srgb" // add "display-p3" when skia_safe supports it
+@@ -127,6 +137,7 @@ interface ImageDataSettings {
+   colorType?: ColorType
+ }
+ 
++/** [Skia Canvas Docs](https://skia-canvas.org/api/imagedata) */
+ export class ImageData {
+   prototype: ImageData
+   constructor(sw: number, sh: number, settings?: ImageDataSettings)
+@@ -141,6 +152,7 @@ export class ImageData {
+   readonly width: number
+ }
+ 
++/** [Skia Canvas Docs](https://skia-canvas.org/api/image) */
+ export class Image extends EventEmitter {
+   constructor()
+   get src(): string
+@@ -249,7 +261,7 @@ declare var DOMMatrix: {
  // Canvas
  //
  

@@ -2,7 +2,6 @@
 const { CanvasRenderingContext2D } = require('skia-canvas');  // for some reason get a "CanvasRenderingContext2D is not defined" error if using "import" instead
 import { DOMMatrix } from 'skia-canvas';
 import { M } from './consts';
-import type { PointType, CanvasRenderingContext2D } from '../modules';
 
 // Extends `DOMMatrix` and `CanvasRenderingContext2D` with `rotate*()` method
 // overloads which accept an optional origin point around which to rotate.
