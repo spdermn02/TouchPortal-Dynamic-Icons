@@ -536,9 +536,9 @@ function makeDrawStyleData(id, /* out */ data, { withShadow=true, fillColor="#00
     return format;
 }
 
-function makeRectSizeData(id, /* out */ data, w = 100, h = 100, label = "Size", wLabel = "W", hLabel = "H") {
+function makeRectSizeData(id, /* out */ data, w = 100, h = 100, label = "Size", wLabel = `${SP_EM}W`, hLabel = "H") {
     let i = data.length;
-    const format = `${label}\n${SP_EM}${wLabel} {${i++}}{${i++}}${NBSP}\n${hLabel} {${i++}}{${i++}}`;
+    const format = `${label}\n${wLabel} {${i++}}{${i++}}${NBSP}\n${hLabel} {${i++}}{${i++}}`;
     data.push(
         makeTextData(jid(id, "size_w"), "Width", w.toString()),
         makeSizeTypeData(jid(id, "size_w")),
@@ -707,7 +707,7 @@ function addProgressBarAction(id, name, subcat) {
     data.push(
         makeChoiceData("pbar_dir", "Direction", ["➡\tL to R", "⬅\tR to L", "⟺\tL & R", "⬆\tB to T", "⬇\tT to B", "↕\tT & B"]),
     );
-    format += makeRectSizeData("pbar", data, 25, 0, "Padding", "Sides", "Ends") + " ";
+    format += makeRectSizeData("pbar", data, 25, 0, "Padding", `${SP_EM}Sides`, "Ends") + " ";
     format += makeBorderRadiusData("pbar", data);
     format += " Container:\n" + makeDrawStyleData("pbar_ctr", data).replace("Fill\n", "");
     format += " Value:\n" + makeDrawStyleData("pbar_val", data, { withShadow: false }).replace("Fill\n", "");
@@ -745,8 +745,10 @@ function addGaugeTicksAction(id, name, subcat, linear = false) {
             makeTextData(jid(id, "start"), "Start Angle", "0"),
             makeTextData(jid(id, "end"), "End Angle", "360"),
         );
-        format += makeRectSizeData(id, data) + " ";
+        format += makeRectSizeData(id, data, 100, 100, "Diam-", `eter H`, "V") + " ";
     }
+    format += `Scale\nto Fit {${data.length}} `;
+    data.push(makeYesNoSwitchData(jid(id, "scaleToFit"), true));
     format += makeAlignmentData(id, data) + " ";
     format += makeOffsetData(id, data) + " ";
     format = [format];

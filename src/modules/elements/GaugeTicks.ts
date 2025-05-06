@@ -21,7 +21,7 @@ export type LabelMetrics = PathMetrics & {offset: number, position: 1|-1};
 
 class Cache {
     rect = new Rectangle();    // dimensions that the current paths were last scaled/aligned into
-    bounds = new Rectangle();  // last calculated path bounds after scaling and alignment
+    offset = {x: 0, y: 0};     // last calculated path offset after scaling and alignment
     scale = 1;                 // last calculated scaling factor for `rect` to `bounds` difference, to be applied to canvas context
     lastLabelsValue = "";      // the last parsed "values" action data string, to know if it needs re-parsing into new labels array
     get isNull() { return this.rect.isNull; }
@@ -49,6 +49,7 @@ export default abstract class GaugeTicks extends SizedElement
         labels: <Array<string>> [],  // label values, if any; length is used to determine spacings
         path: <Path2D | null> null,  // generated Path2D for the labels, if any
     };
+    #scaleToFit = true;
 
     /** The constructor doesn't call `super.init(init)`, subclasses should do that. */
     protected constructor(init?: GaugeTicksInit) {
@@ -92,6 +93,15 @@ export default abstract class GaugeTicks extends SizedElement
     protected get majTicks() { return this.#ticks[0]; }
     protected get minTicks() { return this.#ticks[1]; }
 
+    /** If `true` (default), scale down the overall size of the generated path (all ticks and labels together) to fit within the available canvas size if it would otherwise overflow. */
+    get scaleToFit() { return this.#scaleToFit; }
+    set scaleToFit(v: boolean) {
+        if (this.#scaleToFit != v) {
+            this.#scaleToFit = v;
+            this.clearCache();
+        }
+    }
+
     /** Total number of major tick marks to draw along the curve. This will also determine the spacing (number of degrees) between ticks. */
     get majTicksCount() { return this.majTicks.count; }
     set majTicksCount(v: number) { this.setTickCount(this.majTicks, v); }
@@ -110,6 +120,9 @@ export default abstract class GaugeTicks extends SizedElement
     /** Major tick marks stroke color. */
     get majTicksColor() { return this.majTicksStroke.pen.color; }
     set majTicksColor(v: string) { this.majTicksStroke.pen.color = v; }
+    /** Major tick marks stroke size and unit. */
+    get majTicksWidth() { return this.majTicksStroke.width.toString(); }
+    set majTicksWidth(v: string) { this.majTicksStroke.width.setFromString(v); }
     /** Gets or sets the `Path2D` object representing the major ticks marks to be drawn. */
     get majTicksPath() { return this.majTicks.path; }
     set majTicksPath(v: Path2D | null) { this.majTicks.path = v; }
@@ -131,10 +144,11 @@ export default abstract class GaugeTicks extends SizedElement
     /** Minor tick marks `StrokeStyle` object. Read-only. */
     get minTicksStroke(): StrokeStyle { return this.minTicks.stroke; };
     /** Minor tick marks stroke color. */
-    get minTicksColor() { return this.minTicks.stroke.pen.color; }
-    set minTicksColor(v: string) {
-        this.minTicks.stroke.pen.color = v;
-    }
+    get minTicksColor() { return this.minTicksStroke.pen.color; }
+    set minTicksColor(v: string) { this.minTicksStroke.pen.color = v; }
+    /** Minor tick marks stroke size and unit. */
+    get minTicksWidth() { return this.minTicksStroke.width.toString(); }
+    set minTicksWidth(v: string) { this.minTicksStroke.width.setFromString(v); }
     /** Gets or sets the `Path2D` object representing the minor ticks marks to be drawn. */
     get minTicksPath() { return this.minTicks.path; }
     set minTicksPath(v: Path2D | null) { this.minTicks.path = v; }
@@ -313,6 +327,8 @@ export default abstract class GaugeTicks extends SizedElement
             this.labelsSpacing = dr.label_spacing?.trim();
             this.labelsColor = dr.label_color;
         }
+        if (dr.scaleToFit != undefined)
+            this.scaleToFit = parseBoolFromValue(dr.scaleToFit)
         return this.#cache.isNull;
     }
 
@@ -443,13 +459,14 @@ export default abstract class GaugeTicks extends SizedElement
         const majB = Rectangle.fromBounds(this.majTicksPath?.bounds),
             minB = Rectangle.fromBounds(this.minTicksPath?.bounds),
             lblB = Rectangle.fromBounds(this.labelsPath?.bounds),
-            b = Rectangle.united(majB, minB, lblB),
-            w = this.width.isRelative ? this.width.value * .01 * rect.width : b.width,
-            h = this.height.isRelative ? this.height.value * .01 * rect.height : b.height,
-            scale = Math.min(1, w / b.width, h / b.height);
-        // console.log(rect, b, w, h, scale)
-        b.scale(scale);
+            b = Rectangle.united(majB, minB, lblB);
 
+        let scale = 1;
+        if (this.#scaleToFit && (b.width > rect.width || b.height > rect.height))
+            scale = Math.min(1, rect.width / b.width, rect.height / b.height);
+        // console.log(rect, b, w, h, scale)
+
+        let offset: PointType;
         // Calculate offset to match alignment settings.
         // When we have both ticks and labels with a center/middle alignment we actually want to calculate
         // the offset w/out the labels. This will propertly align the tick marks w/out offsetting for extra
@@ -462,32 +479,33 @@ export default abstract class GaugeTicks extends SizedElement
             if (!(this.alignment & Alignment.VCENTER))
                 oB.unite(new Rectangle(0, b.top, 0, b.height));
             // console.log(`${b}\n${oB}\n`, lB);
-            b.setOrigin(super.computeOffset(oB, rect, true));
+            offset = super.computeOffset(oB, rect, true);
         }
         else {
             // If there's only ticks _or_ labels, or both alignment values are at the edges,
             // then just offset based on overall bounds, which will make sure no parts are drawn off-canvas.
-            b.setOrigin(super.computeOffset(b, rect, true));
+            offset = super.computeOffset(b.scale(scale), rect, true);
         }
-        return { bounds: b, scale };
+        return { offset, scale };
     }
 
     // IRenderable
     /** Draws the gauge marks with all styling and positioning options applied onto `ctx` using `rect` dimensions for scaling and alignment. */
     render(ctx: RenderContext2D, rect: Rectangle): void {
+        // console.log(require('node:util').inspect(this, { showHidden: true, depth: null, getters: true }));
         if (this.isEmpty)
             return;
 
         if (this.#cache.isDirty(rect)) {
-            const {bounds, scale} = this.generatePaths(ctx, rect);
+            const {offset, scale} = this.generatePaths(ctx, rect);
             // cache the calculated bounds and offset
-            this.#cache.bounds.set(bounds);
+            this.#cache.offset = offset;
             this.#cache.scale = scale;
             this.#cache.rect.set(rect);
         }
 
         ctx.save();
-        ctx.translate(this.#cache.bounds.x, this.#cache.bounds.y);
+        ctx.translate(this.#cache.offset.x, this.#cache.offset.y);
         ctx.scale(this.#cache.scale, this.#cache.scale);
 
         if (this.majTicksPath) {
