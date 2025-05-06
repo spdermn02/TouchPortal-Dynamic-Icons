@@ -88,9 +88,11 @@ export const enum DataValue {
     ArcDrawCW          = "Clockwise",
     ArcDrawCCW         = "Counter CW",
     ArcDrawAuto        = "Automatic",
-    // Yes/No options on various actions
+    // Boolean options on various actions
     YesValue           = "Yes",
     NoValue            = "No",
+    OnValue            = "On",
+    OffValue           = "Off",
     // Mapped to Placement enum types
     PlaceInside        = "Inside",
     PlaceOutside       = "Outside",

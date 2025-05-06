@@ -342,6 +342,14 @@ function makeFileData(id, extensions = [], dflt = "") {
     return d;
 }
 
+function makeOnOffSwitchData(id, dflt = true) {
+    return makeChoiceData(id, "", [C.DataValue.OnValue, C.DataValue.OffValue], dflt ? 0 : 1);
+}
+
+function makeYesNoSwitchData(id, dflt = true) {
+    return makeChoiceData(id, "", [C.DataValue.YesValue, C.DataValue.NoValue], dflt ? 0 : 1);
+}
+
 // Specific action data types
 
 function makeSizeTypeData(id, dflt = undefined) {
@@ -349,7 +357,7 @@ function makeSizeTypeData(id, dflt = undefined) {
 }
 
 function makeRenderChoiceData(id) {
-    return makeChoiceData(jid(id, "render"), "Render?", [C.DataValue.NoValue, C.DataValue.YesValue]);
+    return makeYesNoSwitchData(jid(id, "render"), false);
 }
 
 // Shared functions which create both a format string and data array.
@@ -659,7 +667,7 @@ function addProgressGaugeAction(id, name, subcat) {
         `background\n${SP_EM}${SP_EM}${SP_EM}color {${i++}} shadow\n${SP_EM}color {${i++}}`;
     data.push(
         makeActionData("gauge_color", "color", "Gauge Color", "#FFA500FF"),
-        makeChoiceData("gauge_highlight", "Gauge Highlight", ["On", "Off"]),
+        makeOnOffSwitchData("gauge_highlight"),
         makeTextData("gauge_start_degree", "Gauge Start Degree", "180"),
         makeActionData("gauge_value", "text", "Gauge Value", "0"),
         makeTextData("gauge_line_width", "Line Width", "12"),
@@ -680,7 +688,7 @@ function addBarGraphAction(id, name, subcat) {
     let i = data.length;
     format += `with background {${i++}} of color {${i++}} using bar color {${i++}} add value {${i++}} with bar width {${i++}}`;
     data.push(
-        makeChoiceData("bar_graph_backround", "Bar Graph Background", ["On", "Off"]),
+        makeOnOffSwitchData("bar_graph_backround"),
         makeActionData("bar_graph_backround_color", "color", "Bar Graph Background Color", "#FFFFFFFF"),
         makeActionData("bar_graph_color", "color", "Bar Graph Color", "#FFA500FF"),
         makeActionData("bar_graph_value", "text", "Bar Graph Value", "0"),
@@ -802,7 +810,7 @@ function addScriptAction(id, name, subcat) {
     format += `Load Script from File {${i++}} with Cache {${i++}} and run with Arguments {${i++}}`;
     data.push(
         makeFileData(jid(id, "src"), ["*.js,*.*"]),
-        makeActionData(jid(id, "cache"), "switch", "Cache", true),
+        makeOnOffSwitchData(jid(id, "cache")),
         makeTextData(jid(id, "args")),
     );
     addAction(id, name, descript, format, data, subcat, true);
@@ -858,7 +866,7 @@ function addFreeformPathAction(id, name, subcat) {
     data.push(
         makeTextData(jid(id, "path"), "Coordinate List", "[0, 0] [50, 50], [100, 0]"),
         makeSizeTypeData(id),
-        makeChoiceData(jid(id, "close"), "Close Path", [C.DataValue.NoValue, C.DataValue.YesValue]),
+        makeYesNoSwitchData(jid(id, "close"), false),
     );
     format += makeAlignmentData(id, data) + " ";
     format += makeOffsetData(id, data) + " ";
