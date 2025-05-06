@@ -1,9 +1,11 @@
 
-import { Alignment, Point, PointType, Rectangle, SizeType, TpActionDataRecord, UnitValue } from '../';
+import { Alignment, Point, PointType, Rectangle, SizeType, TpActionDataRecord, UnitValue, Vect2d } from '../';
 import { ALIGNMENT_ENUM_NAMES } from '../../utils/consts';
 import { assignExistingProperties, evaluateValue, parseAlignmentFromValue, parseAlignmentsFromString, round4p } from '../../utils';
 
-/** Base class for any element needing size, alignment, and offset properties. Not drawable on its own. */
+export type SizedElementInit = PartialDeep<SizedElement> & { width?: number|string, height?: number|string };
+
+/** Base class for any element needing size, alignment, and offset properties. Not drawable on its own and cannot be created directly. */
 export default class SizedElement
 {
     /** A zero width/height (default) indicates to draw into the full available image area (eg. passed to `render()` in `rect` argument). Negative values are not allowed. */
@@ -11,11 +13,24 @@ export default class SizedElement
     height: UnitValue = new UnitValue(0, "%");
     /** How to align within drawing area if/when `width`/`height` doesn't fill it completely. */
     alignment: Alignment = Alignment.CENTER;
-    /** Extra position offset to apply after alignment. */
-    offset: PointType = Point.new();
+    /** Extra position offset to apply after alignment. Expressed as a percentage of overall drawing area size. */
+    offset = new Vect2d();
 
-    constructor(init?: PartialDeep<SizedElement>) {
-        assignExistingProperties(this, init, 1);
+    protected constructor(init?: SizedElementInit) {
+        if (!!init)
+            this.init(init);
+    }
+
+    protected init(init?: SizedElementInit, depth = 1) {
+        if (typeof init?.width == 'number')
+            this.width.value = Math.abs(init.width);
+        else if (typeof init?.width == 'string')
+            this.width.setFromString(init.width);
+        if (typeof init?.height == 'number')
+            this.height.value = Math.abs(init.height);
+        else if (typeof init?.height == 'string')
+            this.height.setFromString(init.height);
+        assignExistingProperties(this, init, depth, true);
     }
 
     /** Always returns false since a zero size will actually fill a drawing area. */
@@ -38,16 +53,16 @@ export default class SizedElement
     }
 
     /** Horizontal alignment value as string. One of: 'left', 'center', 'right' */
-    get halign(): string { return ALIGNMENT_ENUM_NAMES[this.alignment & Alignment.H_MASK]; }
-    set halign(value: string | Alignment) {
+    get halign(): CanvasTextAlign { return ALIGNMENT_ENUM_NAMES[this.alignment & Alignment.H_MASK]; }
+    set halign(value: CanvasTextAlign | Alignment) {
         if (typeof value == 'string')
             value = parseAlignmentFromValue(value, Alignment.H_MASK);
         this.setAlignment(value, Alignment.H_MASK);
     }
 
     /** Vertical alignment value as string. One of: 'top', 'middle', 'bottom' */
-    get valign(): string { return ALIGNMENT_ENUM_NAMES[this.alignment & Alignment.V_MASK]; }
-    set valign(value: string | Alignment) {
+    get valign(): CanvasTextBaseline { return ALIGNMENT_ENUM_NAMES[this.alignment & Alignment.V_MASK]; }
+    set valign(value: CanvasTextBaseline | Alignment) {
         if (typeof value == 'string')
             value = parseAlignmentFromValue(value, Alignment.V_MASK);
         this.setAlignment(value, Alignment.V_MASK);
@@ -62,6 +77,32 @@ export default class SizedElement
             this.width.setUnit(unit);
             this.height.setUnit(unitY || unit);
         }
+    }
+
+    /** Returns actual pixel width of this element, either scaled to `viewWidth` if width unit is `%`
+        or actual width value if it is in pixels already. If this element's width value is zero then return `viewWidth`. */
+    actualWidth(viewWidth: number) {
+        if (!this.width.value || (this.width.isRelative && this.width.value == 100))
+            return viewWidth;
+        if (!this.width.isRelative)
+            return this.width.value;
+        return round4p(this.width.value * .01 * viewWidth);
+    }
+
+    /** Returns actual pixel height of this element, either scaled to `viewHeight` if height unit is `%`
+        or actual height value if it is in pixels already. If this element's height value is zero then return `viewHeight`. */
+    actualHeight(viewHeight: number) {
+        if (!this.height.value || (this.height.isRelative && this.height.value == 100))
+            return viewHeight;
+        if (!this.height.isRelative)
+            return this.height.value;
+        return round4p(this.height.value * .01 * viewHeight);
+    }
+
+    /** Returns actual pixel width and height of this element, potentially scaled to `viewSize`.
+        See {@link actualWidth} and {@link actualHeight} for details on returned values. */
+    actualSize(viewSize: SizeType): SizeType {
+        return { width: this.actualWidth(viewSize.width), height: this.actualHeight(viewSize.height) };
     }
 
     /** Returns true if alignment value was changed, false otherwise. */
@@ -189,15 +230,9 @@ export default class SizedElement
         if (rect.isEmpty)
             return rect;
 
-        const bounds: Rectangle = rect.clone();  // the area to draw into, may need to be adjusted
-
         // If this instance specifies a size in either dimension, these override the drawing area size.
         // We can also adjust the alignment within the drawing area if one of the final dimensions is smaller.
-        if (this.width.value && !(this.width.isRelative && this.width.value == 100))
-            bounds.width = this.width.isRelative ? round4p(this.width.value * .01 * rect.size.width) : this.width.value;
-        if (this.height.value && !(this.height.isRelative && this.height.value == 100))
-            bounds.height = this.height.isRelative ? round4p(this.height.value * .01 * rect.size.height) : this.height.value;
-
+        const bounds = new Rectangle(rect.origin, this.actualSize(rect.size));
         return bounds.translate(this.computeOffset(bounds, rect));
     }
 }
