@@ -1,10 +1,11 @@
 
 import { IPathProducer } from '../interfaces';
 import { ParseState, Path2D, Point, Rectangle, UnitValue } from '../';
-import { assignExistingProperties, parseNumericArrayString } from '../../utils';
+import { parseNumericArrayString } from '../../utils';
 import { Act, Str } from '../../utils/consts'
-import Path from './Path';
-import type { PointType, TpActionDataRecord } from '../';
+import Path, { type PathInit } from './Path';
+
+export type RectanglePathInit = PathInit & PartialDeep<RectanglePath>;
 
 /** Creates a rectangle path with optional radii applied to any/all of the 4 corners (like CSS). */
 export default class RectanglePath extends Path implements IPathProducer
@@ -16,9 +17,9 @@ export default class RectanglePath extends Path implements IPathProducer
     protected haveRadius: boolean = false;
     #radii: Array<PointType> = [];
 
-    constructor(init?: PartialDeep<RectanglePath>) {
+    constructor(init?: RectanglePathInit) {
         super();
-        assignExistingProperties(this, init, 1);
+        super.init(init);
     }
 
     /** Validates the value types in given array and that none of the values are `< 0`;

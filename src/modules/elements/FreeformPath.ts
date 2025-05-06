@@ -1,8 +1,10 @@
-import { ILayerElement, IPathProducer, IValuedElement } from '../interfaces';
-import { Alignment, logging, ParseState, Path2D, Point, PointType, Rectangle, UnitValue } from '..';
-import { assignExistingProperties, evaluateStringValue, evaluateValueAsArray, parseBoolFromValue, round4p } from '../../utils';
+import { Alignment, logging, type ParseState, Path2D, Point, Rectangle, UnitValue } from '..';
+import { evaluateStringValue, evaluateValueAsArray, parseBoolFromValue, round4p } from '../../utils';
 import { Str } from '../../utils/consts';
-import Path from './Path';
+import Path, { type PathInit } from './Path';
+import type { ILayerElement, IPathProducer, IValuedElement } from '../interfaces';
+
+export type FreeformPathInit = PathInit & PartialDeep<FreeformPath>;
 
 /**
     An element for drawing paths/shapes, eg. for styled drawing or for clipping.
@@ -22,14 +24,14 @@ export default class FreeformPath extends Path implements ILayerElement, IPathPr
     #svgPath: string | null = null;
     #lastInput: string = "";  // cache to avoid reparsing path if input unchanged
 
-    constructor(init?: PartialDeep<FreeformPath>) {
+    constructor(init?: FreeformPathInit) {
         super({ alignment: Alignment.TOP | Alignment.LEFT });
         if (init?.path) {
             if (init.path instanceof Path2D)
                 this.path = init.path;
             delete init.path;
         }
-        assignExistingProperties(this, init, 1);
+        super.init(init);
     }
 
     /** Returns `true` if there are fewer than 2 points to draw and has no SVG path. */

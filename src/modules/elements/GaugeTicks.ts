@@ -1,9 +1,10 @@
 import { Alignment, ColorUpdateType, LayerRole, ParseState, Path2D, Placement, Rectangle, UnitValue } from '../';
-import { arraysMatchExactly, assignExistingProperties, evaluateStringValue, evaluateValue, parseAlignmentFromValue, parsePlacement } from '../../utils';
+import { arraysMatchExactly, evaluateStringValue, evaluateValue, parseAlignmentFromValue, parseBoolFromValue, parsePlacement } from '../../utils';
 import { ALIGNMENT_ENUM_NAMES, Str } from '../../utils/consts';
 import { BrushStyle, StrokeStyle, StyledText } from './';
-import SizedElement from './SizedElement';  // must be direct import for subclass
-import type { RenderContext2D, TpActionDataRecord,  } from '../';
+import SizedElement, {type  SizedElementInit} from './SizedElement';  // must be direct import for subclass
+
+export type GaugeTicksInit = SizedElementInit & PartialDeep<GaugeTicks>;
 
 export type TickProperties = {
     type: 0|1
@@ -49,14 +50,15 @@ export default abstract class GaugeTicks extends SizedElement
         path: <Path2D | null> null,  // generated Path2D for the labels, if any
     };
 
-    constructor(init?: PartialDeep<GaugeTicks>) {
+    /** The constructor doesn't call `super.init(init)`, subclasses should do that. */
+    protected constructor(init?: GaugeTicksInit) {
         super();
         this.#ticks = [
             this.#initTickRecord(0, init?.majTicksStroke),
             this.#initTickRecord(1, init?.minTicksStroke),
         ];
         this.#labels.fill = new BrushStyle(init?.labelsStyle);
-        assignExistingProperties(this, init, 0);
+        // super.init(init);
     }
 
     #initTickRecord(type: 0|1, strokeInit?: PartialDeep<StrokeStyle>): TickProperties {

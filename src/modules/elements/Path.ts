@@ -1,7 +1,7 @@
-import { LayerRole, Path2D, PathBoolOperation, Size, TpActionDataRecord } from '..';
-import { assignExistingProperties } from '../../utils';
+import { LayerRole, PathBoolOperation } from '..';
 import { PATH_BOOL_OPERATION_CHOICES } from '../../utils/consts';
-import SizedElement from './SizedElement'
+import SizedElement, {type  SizedElementInit} from './SizedElement'
+import type { Size, Path2D } from '..';
 
 export class PathCache {
     path: Path2D | null = null;
@@ -15,6 +15,8 @@ export class PathCache {
     }
 }
 
+export type PathInit = SizedElementInit & PartialDeep<Path>;
+
 /** Base class for Path elements. Extends {@link SizedElement} with {@link operation} property and provides helper methods. */
 export default class Path extends SizedElement
 {
@@ -27,9 +29,9 @@ export default class Path extends SizedElement
 
     readonly layerRole: LayerRole = LayerRole.PathProducer;
 
-    constructor(init?: PartialDeep<Path>) {
+    protected constructor(init?: PathInit) {
         super();
-        assignExistingProperties(this, init, 1);
+        super.init(init);
     }
 
     /** Clears the generated & cached Path2D object (if any). Some `Path` subclasses my not use the cache.

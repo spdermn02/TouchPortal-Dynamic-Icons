@@ -1,13 +1,14 @@
 
-import { LayerRole, Orientation, ParseState, Path2D, Size, UnitValue, ColorUpdateType } from '../';
-import { assignExistingProperties, clamp, evaluateValue, round3p } from '../../utils'
+import { ColorUpdateType, LayerRole, Orientation, ParseState, Path2D, Size, UnitValue, } from '../';
+import { clamp, evaluateValue, round3p } from '../../utils'
 import { Act, Str } from '../../utils/consts'
 import { DrawingStyle } from './';
-import StyledRectangle from './StyledRectangle';
+import StyledRectangle, { type StyledRectangleInit } from './StyledRectangle';
 import type { IColorElement, ILayerElement, IValuedElement } from '../interfaces';
-import type { Rectangle, RenderContext2D, SizeType } from '../';
+import type { Rectangle, } from '../';
 
-const enum DrawDirection {
+/** Progress bar incremental direction. */
+export const enum DrawDirection {
     /** Left to right or bottom to top. */
     Normal,
     /** Right to left or top to bottom. */
@@ -37,10 +38,10 @@ export default class LinearProgressBar extends StyledRectangle implements ILayer
         the long edges of the bar, and `height` sets the padding around the endpoints (short edges). */
     padding: SizeType = new Size();
 
-    constructor(init?: PartialDeep<LinearProgressBar>) {
+    constructor(init?: StyledRectangleInit & PartialDeep<LinearProgressBar>) {
         super();
         this.valueStyle = new DrawingStyle(init?.valueStyle);
-        assignExistingProperties(this, init, 1);
+        super.init(init);
     }
 
     // ILayerElement

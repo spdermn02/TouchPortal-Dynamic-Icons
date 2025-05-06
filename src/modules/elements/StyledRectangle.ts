@@ -1,10 +1,12 @@
 
-import { IColorElement, ILayerElement, IRenderable } from '../interfaces';
-import { ColorUpdateType, LayerRole, ParseState, Rectangle, RenderContext2D } from '../';
+import { ColorUpdateType, LayerRole, Rectangle, type ParseState } from '../';
 import { DrawingStyle } from './';
-import { assignExistingProperties, round3p } from '../../utils';
+import { round3p } from '../../utils';
 import { Act, Str } from '../../utils/consts';
-import RectanglePath from './RectanglePath';  // must be direct import for subclass
+import RectanglePath, { type RectanglePathInit } from './RectanglePath';  // must be direct import for subclass
+import type { IColorElement, ILayerElement, IRenderable } from '../interfaces';
+
+export type StyledRectangleInit = RectanglePathInit & PartialDeep<StyledRectangle>;
 
 /** Draws a rectangle shape on a canvas context with optional radii applied to any/all of the 4 corners (like CSS). The shape can be fully styled with the embedded `DrawingStyle` property. */
 export default class StyledRectangle extends RectanglePath implements ILayerElement, IRenderable, IColorElement
@@ -14,10 +16,10 @@ export default class StyledRectangle extends RectanglePath implements ILayerElem
     /** Whether to adjust (reduce) the overall drawing area size to account for shadow offset/blur. */
     adjustSizeForShadow: boolean = true;
 
-    constructor(init?: PartialDeep<StyledRectangle>) {
+    constructor(init?: StyledRectangleInit) {
         super();
         this.style = new DrawingStyle(init?.style);
-        assignExistingProperties(this, init, 1);
+        super.init(init);
     }
 
     // ILayerElement

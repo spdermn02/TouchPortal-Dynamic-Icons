@@ -1,9 +1,10 @@
 import { Alignment, ParseState, Placement, } from '../';
-import { assignExistingProperties, evaluateValue, circularLabelsPath, cirularGaugeTicksPath, parsePlacement, } from '../../utils';
-import { Act, /* DataValue, */ Str } from '../../utils/consts';
-import GaugeTicks, { type LabelMetrics, type TickMetrics, type TickProperties } from './GaugeTicks';  // must be direct import for subclass
+import { evaluateValue, circularLabelsPath, cirularGaugeTicksPath, parsePlacement, } from '../../utils';
+import { Act, Str } from '../../utils/consts';
+import GaugeTicks, { type GaugeTicksInit, type LabelMetrics, type TickMetrics, type TickProperties } from './GaugeTicks';  // must be direct import for subclass
 import type { IColorElement, ILayerElement, IRenderable } from '../interfaces';
-import type { RenderContext2D,  } from '../';
+
+export type CircularTicksInit = GaugeTicksInit & PartialDeep<CircularTicks>;
 
 /** Implementation of GaugeTicks for drawing ticks/labels along a circular/curved path. */
 export default class CircularTicks extends GaugeTicks implements ILayerElement, IRenderable, IColorElement
@@ -12,10 +13,10 @@ export default class CircularTicks extends GaugeTicks implements ILayerElement, 
     #end: number = 0;
     #angled: Placement = Placement.NoPlace;
 
-    constructor(init?: PartialDeep<CircularTicks>) {
+    constructor(init?: CircularTicksInit) {
         super(init);
         this.labelsAlign = Alignment.HCENTER;  // always align center by default
-        assignExistingProperties(this, init, 0);
+        super.init(init);
     }
 
     /** Returns true if there is nothing to draw: Start angle == end, zero ticks or labels, or all styling would be invisible. */

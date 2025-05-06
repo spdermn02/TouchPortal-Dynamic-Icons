@@ -1,10 +1,12 @@
 
 import { ArcDrawDirection, Point, Path2D } from '../';
-import { assignExistingProperties, evaluateValue, parseArcDirection, round4p, round5p, round6p } from '../../utils';
+import { evaluateValue, parseArcDirection, round4p, round5p, round6p } from '../../utils';
 import { Act, M, Str } from '../../utils/consts'
-import Path from './Path';
+import Path, { type PathInit } from './Path';
 import type { ILayerElement, IPathProducer, IValuedElement } from '../interfaces';
 import type { ParseState, Rectangle } from '../';
+
+export type EllipsePathInit = PathInit & PartialDeep<EllipsePath>;
 
 /** Creates a full or partial ellipse/circle/arc path of given diameter, start and end angle values,
     draw direction, and optional rotation around center. Essentially a proxy for `Path2D.ellipse()` method.
@@ -21,9 +23,9 @@ export default class EllipsePath extends Path implements ILayerElement, IPathPro
     /** Drawing direction, clockwise (0), counter-clockwise (1), or automatic (2) based on value being positive (CW) or negative (CCW). */
     direction: ArcDrawDirection = ArcDrawDirection.CW;
 
-    constructor(init?: PartialDeep<EllipsePath>) {
+    constructor(init?: EllipsePathInit) {
         super();
-        assignExistingProperties(this, init, 1);
+        super.init(init);
     }
 
     /** Returns true if the diameter on either axis is empty (width or height are zero) */
