@@ -1,28 +1,38 @@
 
-import { Alignment, LayerRole, ParseState, Point, UnitValue, Vect2d } from '../';
+import { Alignment, LayerRole, ParseState, Rectangle, UnitValue } from '../';
+import { evaluateStringValue } from '../../utils'
+import { Act, ALIGNMENT_ENUM_NAMES, Str } from '../../utils/consts';
 import { DrawingStyle } from './';
-import {
-    ALIGNMENT_ENUM_NAMES,
-    assignExistingProperties, evaluateValue, evaluateStringValue,
-    parseAlignmentFromValue, parseAlignmentsFromString,
-} from '../../utils'
-import { Act, Str } from '../../utils/consts';
+import SizedElement, {type  SizedElementInit} from './SizedElement';
 
 import type { IColorElement, ILayerElement, IRenderable, IValuedElement } from '../interfaces';
-import type { ColorUpdateType, Path2D, Rectangle, } from '../';
+import type { ColorUpdateType, Path2D, } from '../';
 
-/** Draws text on a canvas context with various options. The text can be fully styled with the embedded {@link style} {@link DrawingStyle} property. */
-export default class StyledText implements ILayerElement, IRenderable, IValuedElement, IColorElement
+/** Draws text on a canvas context with various options. The text can be fully styled with the embedded {@link style} {@link DrawingStyle} property.
+
+    @property width The width property can set the maximum width of the text for automatic wrapping.
+        If width value is greater than zero and {@link wrap} is `true` then text will be automatically wrapped if it doesn't already fit into the specified width.
+        The default width is `0` and no automatic wrapping will occur.
+    @property height The height property is not used in the `StyledText` element.
+    @property alignment  How to align the text within given drawing area. See also {@link align}, {@link valign}, {@link halign} properties.
+*/
+export default class StyledText extends SizedElement implements ILayerElement, IRenderable, IValuedElement, IColorElement
 {
     /** The default font variant ensures ligature support, especially useful for named symbol fonts. */
     static readonly defaultFontVariant = 'common-ligatures discretionary-ligatures contextual';
 
-    /** How to align the text within given drawing area. See also {@link align}, {@link valign}, {@link halign} properties. */
-    alignment: Alignment = Alignment.CENTER;
-    /** Extra position offset to apply after alignment. Expressed as a percentage of overall drawing area size. */
-    readonly offset: Vect2d;
     /** All visual styling options to apply when drawing the text. */
     readonly style: DrawingStyle;
+
+    /** Horizontal text alignment, if different from overall block {@link halign}.
+        If value is `Alignment.NONE` (default) then block alignment is used. Otherwise can be one of the horizontal alignment types.
+
+        Note that this is really only relevant for multi-line text blocks since it will determine how the lines align in
+        relation to each other. With a single line of text the horizontal alignment will always appear to follow the overall
+        block alignment anyway (eg. if `halign` is 'left' and `textAlign` is 'right' the text will still be aligned with the left
+        side of the image).
+    */
+    textAlign: Alignment = Alignment.NONE;
 
     // These are all private because changing them will affect the cached text metrics.
     #text: string = "";
@@ -38,10 +48,10 @@ export default class StyledText implements ILayerElement, IRenderable, IValuedEl
     #hinting: boolean = true;   // looks & aligns better with most fonts
     #tm: TextMetrics | null = null;  // cached as needed
 
-    constructor(init?: PartialDeep<StyledText> & { offset?: number|PointType }) {
-        this.offset = new Vect2d(init?.offset);
+    constructor(init?: PartialDeep<StyledText> & SizedElementInit) {
+        super();
         this.style = new DrawingStyle(init?.style);
-        assignExistingProperties(this, init, 0);
+        super.init(init);
     }
 
     // ILayerElement
@@ -49,7 +59,7 @@ export default class StyledText implements ILayerElement, IRenderable, IValuedEl
     readonly layerRole: LayerRole = LayerRole.Drawable;
 
     /** Returns `true` if there is nothing to draw: text is empty, colors are blank or transparent, or there is no fill and stroke width is zero */
-    get isEmpty(): boolean {
+    override get isEmpty(): boolean {
         return !this.#text || (this.style.fill.isEmpty && this.style.stroke.isEmpty);
     }
 
@@ -170,46 +180,6 @@ export default class StyledText implements ILayerElement, IRenderable, IValuedEl
         }
     }
 
-    /** Alignment value as two string values, one for each direction. Eg. "left top" or "middle center".
-    Setting the property can be done with either a single direction or both (separated by space or comma) in either order. */
-    get align(): string {
-         return ALIGNMENT_ENUM_NAMES[this.alignment & Alignment.H_MASK] + ' ' + ALIGNMENT_ENUM_NAMES[this.alignment & Alignment.V_MASK];
-    }
-    set align(value: string | Alignment) {
-        if (typeof value == 'string')
-            value = parseAlignmentsFromString(value);
-        let mask = (value & Alignment.H_MASK) ? Alignment.H_MASK : Alignment.NONE;
-        if (value & Alignment.V_MASK)
-            mask |= Alignment.V_MASK;
-        this.setAlignment(value, mask);
-    }
-
-    /** Horizontal alignment value as string. One of: 'left', 'center', 'right' */
-    get halign(): CanvasTextAlign { return ALIGNMENT_ENUM_NAMES[this.alignment & Alignment.H_MASK]; }
-    set halign(value: CanvasTextAlign | Alignment) {
-        if (typeof value == 'string')
-            value = parseAlignmentFromValue(value, Alignment.H_MASK);
-        this.setAlignment(value, Alignment.H_MASK);
-    }
-
-    /** Vertical alignment value as string. One of: 'top', 'middle', 'bottom', 'baseline' */
-    get valign(): CanvasTextBaseline { return ALIGNMENT_ENUM_NAMES[this.alignment & Alignment.V_MASK]; }
-    set valign(value: CanvasTextBaseline | Alignment) {
-        if (typeof value == 'string')
-            value = parseAlignmentFromValue(value, Alignment.V_MASK);
-        this.setAlignment(value, Alignment.V_MASK);
-    }
-
-    /** Returns true if alignment value was changed, false otherwise. Direction to set can be limited by `mask` argument. */
-    setAlignment(value: Alignment, mask: Alignment = Alignment.H_MASK | Alignment.V_MASK): boolean {
-        if ((this.alignment & mask) != value) {
-            this.alignment &= ~mask;
-            this.alignment |= value;
-            return true;
-        }
-        return false;
-    }
-
     // IValuedElement
     /** Sets the current {@link StyledText#text} property from an evaluated input string (embedded JS is resolved). */
     setValue(text: string): void {
@@ -224,35 +194,16 @@ export default class StyledText implements ILayerElement, IRenderable, IValuedEl
     /** @internal */
     loadFromActionData(state: ParseState): StyledText {
         const dr = state.asRecord(state.pos, Act.IconText + Str.IdSep);
-        for (const [key, value] of Object.entries(dr)) {
-            switch (key) {
-                case 'str':
-                    this.setValue(value);
-                    break;
-                case 'font':
-                    this.font = value.trim();
-                    break;
-                case 'alignH':
-                    this.halign = <CanvasTextAlign>value;
-                    break;
-                case 'alignV':
-                    this.valign = <CanvasTextBaseline>value;
-                    break;
-                case 'ofsH':
-                    this.offset.x = evaluateValue(value);
-                    break;
-                case 'ofsV':
-                    this.offset.y = evaluateValue(value);
-                    break;
-                case 'tracking':
-                    // the deprecated skia-canvas textTracking value was a signed int representing 1/1000 of an 'em'
-                    this.letterSpacing = (parseFloat(value) || 0) / 1000 + 'em';
-                    break;
-                default:
-                    continue;
-            }
-            delete dr[key];
-        }
+        super.loadFromDataRecord(dr);
+        if (dr.str != undefined)
+            this.setValue(dr.str);
+        if (dr.font != undefined)
+            this.font = dr.font;
+        if (dr.tracking != undefined)
+            // the deprecated skia-canvas textTracking value was a signed int representing 1/1000 of an 'em'
+            this.letterSpacing = (parseFloat(dr.tracking) || 0) / 1000 + 'em';
+        else if (dr.letterSpacing != undefined)
+            this.letterSpacing = dr.letterSpacing;
         this.style.loadFromDataRecord(ParseState.splitRecordKeys(dr, Act.IconStyle + Str.IdSep));
         // console.dir(this);
         return this;
@@ -268,7 +219,7 @@ export default class StyledText implements ILayerElement, IRenderable, IValuedEl
         ctx.fontVariant = this.#variant + this.#smallCaps as any;  // FontVariantSetting
         ctx.direction = this.#direction;
         ctx.textWrap = this.#wrap;
-        ctx.textAlign = this.halign;
+        ctx.textAlign = !(this.textAlign & Alignment.H_MASK) ? this.halign : ALIGNMENT_ENUM_NAMES[this.textAlign & Alignment.H_MASK];
         ctx.fontHinting = this.#hinting;
         if (!!this.#letterSpacing.value)
             ctx.letterSpacing = this.letterSpacing;
@@ -317,67 +268,41 @@ export default class StyledText implements ILayerElement, IRenderable, IValuedEl
             this.style.shadow.saveContext(ctx);
         }
 
-        // Set vertical default text alignment before getting text metrics (below, if we need them). "middle" gets the right metrics for all our cases.
+        // Auto-wrap text to max. set width unless it is set to <= 0.
+        const maxWidth = this.width.value > 0 ? this.actualWidth(rect.width) : undefined;
+
+        // Set vertical default text alignment before getting text metrics. "middle" gets the right metrics for all our cases.
         ctx.textBaseline = 'middle';
+        if (!this.#tm)
+            this.#tm = ctx.measureText(this.#text, maxWidth);
 
-        // Calculate the draw offset based on alignment settings.
-        const offset = Point.new();
-        // horizontal
-        switch (this.alignment & Alignment.H_MASK) {
-            case Alignment.HCENTER:
-            case Alignment.JUSTIFY:
-                if (!this.#tm)
-                    this.#tm = ctx.measureText(this.#text);
-                offset.x = (rect.width * 0.5 - this.#tm.actualBoundingBoxLeft + this.#tm.actualBoundingBoxRight);
-                break;
-            case Alignment.LEFT:
-                // add some left padding
-                offset.x = rect.width * .015 + penAdjust;
-                break;
-            case Alignment.RIGHT:
-                // add some right padding
-                offset.x = rect.width - rect.width * .015 - penAdjust;
-                break;
-        }
-        // vertical
-        switch (this.alignment & Alignment.V_MASK) {
-            case Alignment.VCENTER:
-                if (!this.#tm)
-                    this.#tm = ctx.measureText(this.#text);
-                offset.y = (rect.height - this.#tm.actualBoundingBoxAscent - this.#tm.actualBoundingBoxDescent) * 0.5 + this.#tm.actualBoundingBoxAscent;
-                break;
-            case Alignment.TOP:
-                // no extra padding needed here since using "top" as baseline adds some already
-                ctx.textBaseline = 'top';
-                offset.y = penAdjust;
-                break;
-            case Alignment.BOTTOM:
-            case Alignment.BASELINE:
-                if (!this.#tm)
-                    this.#tm = ctx.measureText(this.#text);
-                // needs a little bottom padding to match spacing of top aligned text
-                offset.y = rect.height - this.#tm.actualBoundingBoxDescent - penAdjust - rect.height * .015;
-                break;
-        }
-        // console.log(this.text, this.font, rect.size, offset, penAdjust, this.tm);
+        // Calculate the draw offset based on calculated text bounds, alignment settings and user-specified offset.
+        // Add padding around actual text bounds for pen width plus 1.5% of drawing area to match how previous versions were padded.
+        const
+            padX = penAdjust + rect.width * .015,
+            padY = penAdjust + rect.height * .015,
+            bounds = new Rectangle(
+                -this.#tm.actualBoundingBoxLeft - padX,
+                -this.#tm.actualBoundingBoxAscent - padY,
+                this.#tm.width + padX * 2,
+                this.#tm.actualBoundingBoxAscent + this.#tm.actualBoundingBoxDescent + padY * 2
+            ),
+            offset = super.computeOffset(bounds, rect, true);
+        // console.log(this.text, this.font, penAdjust, rect.size, bounds.toString(), offset, this.#tm);
 
-        // add any user-specified offset as percent of canvas size
-        if (!Point.isNull(this.offset))
-            Point.plus_eq(offset, Point.times(this.offset, rect.width * .01, rect.height * .01));
         // move to position before drawing
         ctx.translate(offset.x, offset.y);
-
         // set canvas drawing style properties
         this.style.render(ctx);
 
         if (!this.style.fill.isEmpty) {
-            ctx.fillText(this.#text, rect.x, rect.y);
+            ctx.fillText(this.#text, rect.x, rect.y, maxWidth);
             // prevent shadow from being drawn on the stroke as well
             if (penAdjust)
                 this.style.shadow.restoreContext(ctx);
         }
         if (penAdjust) // will be non-zero if we have a stroke to draw
-            ctx.strokeText(this.#text, rect.x, rect.y);
+            ctx.strokeText(this.#text, rect.x, rect.y, maxWidth);
 
         ctx.restore();
     }

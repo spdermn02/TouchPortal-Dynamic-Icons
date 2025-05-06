@@ -621,20 +621,20 @@ function addRectangleAction(id, name, subcat) {
 function addTextAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         `Generate or layer styled text. ${layerInfoText('text')}\n` +
-        "Font is specified like the CSS 'font' shorthand property. Offset is percent of icon size, positive for right/down, negative for left/up. Stroke width in % is based on half the font size.";
+        "Font is specified like the CSS 'font' shorthand property. Set Wrap Width to zero or empty to disable automatic wrapping. Offset is percent of icon size, positive for right/down, negative for left/up. Stroke width in % is based on half the font size.";
     let [format, data] = makeIconLayerCommonData(id);
     let i = data.length;
-    format += `Text {${i++}} Font {${i++}} `;  // Baseline {${i++}}
+    format += `Text {${i++}} Font {${i++}} Letter\nSpacing {${i++}} Wrap\nWidth {${i++}}{${i++}} `;
     data.push(
-        makeActionData("text_str", "text", "Text", ""),
-        makeActionData("text_font", "text", "Font", "1.5em sans-serif"),
-        // makeChoiceData("text_baseline", "Baseline", ["alphabetic", "top", "middle", "bottom", "hanging", "ideographic"]),
+        makeTextData(jid(id, "str"), "Text"),
+        makeTextData(jid(id, "font"), "Font", "10vmin sans-serif"),
+        makeTextData(jid(id, "letterSpacing"), "Letter Spacing", "0px"),
+        makeTextData(jid(id, "size_w"), "Width", "100"),
+        makeSizeTypeData(jid(id, "size_w")),
     );
-    format += makeAlignmentData("text", data)
-    format += makeOffsetData("text", data)
-    format += ` Tracking {${data.length}}`;  // Baseline{${i++}}
-    data.push(makeNumericData("text_tracking", "Tracking", 0, -999999, 999999, true))
-    format += makeDrawStyleData("text", data);
+    format += makeAlignmentData(id, data);
+    format += makeOffsetData(id, data);
+    format += makeDrawStyleData(id, data);
     addAction(id, name, descript, format, data, subcat);
 }
 
