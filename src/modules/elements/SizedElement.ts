@@ -1,5 +1,5 @@
 
-import { Alignment, Point, PointType, Rectangle, SizeType, TpActionDataRecord, UnitValue, Vect2d } from '../';
+import { Alignment, Point, Rectangle, UnitValue, Vect2d } from '../';
 import { ALIGNMENT_ENUM_NAMES } from '../../utils/consts';
 import { assignExistingProperties, evaluateValue, parseAlignmentFromValue, parseAlignmentsFromString, round4p } from '../../utils';
 

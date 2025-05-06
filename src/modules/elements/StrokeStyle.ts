@@ -2,7 +2,7 @@
 import { UnitValue } from '..';
 import { BrushStyle } from '.';
 import { assignExistingProperties, evaluateValue, parseNumericArrayString, round4p } from '../../utils';
-import type { Rectangle, RenderContext2D, TpActionDataRecord } from '..';
+import type { Rectangle } from '..';
 
 /** Stores stroke (line) canvas context property definitions, which includes stroke ("pen") style, line width, cap, join, miter, and dash array properties.
 Line width can be defined as a relative % and scaled automatically in the {@link render} method.

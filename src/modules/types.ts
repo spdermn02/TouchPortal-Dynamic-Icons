@@ -76,5 +76,3 @@ declare global {
 
 // TODO: Update all code to rely on global declarations and remove these. Maybe declare creatable canvas/geo types as global also?
 export type RenderContext2D = canvas.CanvasRenderingContext2D;
-/** @internal */
-export type TpActionDataRecord = globalThis.TpActionDataRecord;

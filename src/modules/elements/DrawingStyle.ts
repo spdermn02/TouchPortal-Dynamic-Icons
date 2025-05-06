@@ -1,9 +1,9 @@
 import { arraysMatchExactly, assignExistingProperties, parseNumericArrayString, } from '../../utils';
-import { IColorElement, ILayerElement, IPathHandler } from '../interfaces';
 import { ColorUpdateType, LayerRole, ParseState } from '../';
 import { BrushStyle, StrokeStyle, ShadowStyle } from './';
 import { Act, Str } from '../../utils/consts';
-import type { Path2D, Rectangle, RenderContext2D, TpActionDataRecord } from '..';
+import type { IColorElement, ILayerElement, IPathHandler } from '../interfaces';
+import type { Path2D, Rectangle } from '..';
 
 /** Applies a drawing style to a canvas context or `Path2D` objects, which includes all fill, stroke, and shadow attributes. */
 export default class DrawingStyle implements ILayerElement, IPathHandler, IColorElement

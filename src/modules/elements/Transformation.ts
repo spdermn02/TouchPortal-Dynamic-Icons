@@ -1,9 +1,9 @@
 
-import { ILayerElement, IRenderable } from '../interfaces';
 import { Canvas, DOMMatrix, LayerRole, Point, Size, TransformOpType, Vect2d } from '../';
 import { DEFAULT_TRANSFORM_OP_ORDER } from '../../utils/consts';
 import { assignExistingProperties, arraysMatchExactly, evaluateValue, fuzzyEquals4p, round4p } from '../../utils';
-import type { ParseState, Path2D, PointType, Rectangle, RenderContext2D, SizeType, TpActionDataRecord } from '../';
+import type { ILayerElement, IRenderable } from '../interfaces';
+import type { ParseState, Path2D, Rectangle, } from '../';
 
 export const enum TransformScope {
     /** affects only the layer before the transform */
