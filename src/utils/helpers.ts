@@ -77,13 +77,15 @@ export function qualifyFilepath(path: string): string {
 
 /** Assigns property values in `from` object to values in the `to` object, but _only_ if they already exist in `to` _and_ have a matching `typeof` type.
     Recurses up to `recurseLevel` nested objects, and skips assigning object-type properties beyond the recursion level. Arrays are copied by value.
+    If `strToNum` is `true` then source string types are considered compatible with destination numeric types (destination is responsible for conversion).
 */
-export function assignExistingProperties(to: {}, from?: {}, recurseLevel = 0) {
+export function assignExistingProperties(to: {}, from?: {}, recurseLevel = 0, strToNum = false) {
     if (!to || !from)
         return;
     for (const key in from) {
-        if (key in to && typeof to[key] == typeof from[key]) {
-            if (typeof to[key] == 'object' && !Array.isArray(to[key])) {
+        const toType = typeof to[key], fromType = typeof from[key];
+        if (key in to && (toType == fromType || (strToNum && toType == 'number' && fromType == 'string'))) {
+            if (toType == 'object' && !Array.isArray(to[key])) {
                 if (recurseLevel > 0)
                     assignExistingProperties(to[key], from[key], recurseLevel - 1);
             }
