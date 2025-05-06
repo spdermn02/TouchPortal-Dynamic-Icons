@@ -2,6 +2,7 @@
 import * as vm from 'vm';
 import * as canvas from '../types';
 import * as elements from "./";
+import * as enums from "../enums";
 import * as geometry from '../geometry';
 import * as utils from '../../utils';
 import { Logger, logging } from '../logging';
@@ -101,7 +102,7 @@ export default class Script implements ILayerElement, IRenderable, IValuedElemen
         this.#contextObj = {
             require, console,
             ...canvas, ...geometry,
-            DI: { ...elements, ...utils },
+            DI: { ...elements, ...utils, ...enums },
             logger: this.log,
             parentIcon: null,
             canvasContext: null,
