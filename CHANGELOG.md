@@ -1,6 +1,54 @@
 
 # Touch Portal Dynamic Icons - Change Log
 
+## v1.3.0
+
+### New Features
+- Added "Circular Tick Marks" and "Linear Tick Marks" actions for drawing gauge "ticks" and/or labels with multiple options (TP v4+ only).
+- Added "Run Custom Script" action to run user-provided JavaScript code with access to current Canvas context for custom drawing (see [Custom Scripts] wiki page for details).
+- Added "Save Icon to File" action to export generated images to files in various formats. This can be found in the "Layer Actions" group.
+  - Available export formats: AVIF, GIF, JPEG, PNG, TIFF, & WebP.
+  - Each export format has various options (such as compression level, quality, etc) that can be specified in a "option=value, ..." list and have been documented in the wiki: [File Output Options].
+- Added `vw`, `vh`, `vmin` & `vmax` relative size unit types for use in font sizing and other CSS-like properties. These correspond to the [standard CSS](https://developer.mozilla.org/en-US/docs/Web/CSS/length#vh) versions and represent 1 percent of the current icon size ("viewport") width & height, or minium/maximum of the width or height, respectively. E.g. `5vh` is 5% of the icon height, or `5vmin` is 5% of the smaller of icon width or height.
+- Added new "Wrap Width" option to "Draw - Text" action which will automatically wrap long text to the specified width if it won't fit on one line.
+- Added option to control color quality (number of colors) of generated images to help further reduce image data size. Default value is available as a new plugin setting and the quality can also be set per layered icon in the "Generate" action.
+- Added new plugin setting to control the maximum number of threads used by `skia-canvas` for drawing images.
+
+### Changes
+- SVG images are now kept as scalable vector graphics instead of being rasterized at a fixed size during initial loading. This prevents any pixelation due to scaling, including when manipulating the image with transformations. However, it comes with some caveats:
+  - The new SVG parser is more strict about syntax and may fail to load some documents. In such cases the plugin will fall back to using the previous method of loading SVGs to raster images.
+    If your SVGs appear pixelated, check the plugin's log file for warnings about this, and validate/simplify your SVG syntax if you find loading errors.
+  - The new parser may also log warnings about element(s) it doesn't "like" but which don't prevent loading the image. These will show up in the TP log since unfortunately there's no way for us
+    to intercept them. If you see messages like "cannot append child nodes to an SVG shape" being logged, ignore them or check your SVGs.
+- "Draw - Text" action now properly supports `serif`, `sans-serif`, `monospace`, and `system-ui` generic font families. Existing icons which were using generic font names will likely change as a result.
+- Replaced "Tracking" option with "Letter Spacing" on "Draw - Text" action.
+- Improved text rendering and alignment (may have slight alignment differences with some fonts vs. previous version).
+- Converted the layer "position" field in all "Animate & Update" actions to "text" type which allows TP variables to be used.
+- Added "Auto" as a choice for "Draw Direction" setting in "Paths - Add Ellipse / Arc" action. This automatically draws in the counterclockwise direction if the specified ending angle value is lower than the starting angle.
+- A message is now written to the log file whenever deleting an icon instance.
+- Moved the plugin's actions to Touch Portal "Tools" category.
+
+### Fixes
+- Improved stability with multi-layered images to ensure elements are applied in the correct order, especially when using elements like complex paths or generating many images at once.
+  In some (rare) cases the actions could not be parsed in time before the next action's data came in, leading to elements being assigned to the wrong layers.
+- Fixed rendering issues with some combinations of drop-shadow effects and rotation transformations (upstream in `skia-canvas`).
+- Fixed clearing the image cache for an icon instance which shares the cached image with other icon instances but wasn't the first to use that image.
+- Fixed skew transformation not working properly except with very large values (wasn't scaled correctly).
+- Fixed that "Simple Bar Graph" used as a standalone (non-layered) icon didn't respect the default icon size from plugin settings when calculating how many bars can fit on one image.
+- Fixed that "small-caps" font variant was not being respected in the "Draw - Text" action font specification.
+
+### Other Updates
+- Updated `skia-canvas` drawing library to v2.0.2 (includes all related upstream libraries and the underlying _Skia Graphics_ itself).
+- Updated `sharp` image loading and compression library to v0.33.5.
+- Releases now use NodeJS v22 (LTS) runtime, up from v18.
+- Added separate release builds for MacOS Intel (x64) and ARM64 (Mn) architectures.
+
+**Full log:** [v1.2.0-beta1...v1.3.0](https://github.com/spdermn02/TouchPortal-Dynamic-Icons/compare/v1.2.0-beta1...v1.3.0)
+
+[File Output Options]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/wiki/File-Output-Options
+[Custom Scripts]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/wiki/Custom-Scripts
+
+---
 ## v1.2.0-beta1 - Path Operations, Dynamic Colors, Enhanced Round Gauge, & More
 
 ### New Features
@@ -39,7 +87,6 @@
 - Concurrent system thread usage changes: ([ee62e201])
   - The number of simultaneous image rendering threads is now set to use half the logical cores available on the host system. Previously this was always fixed to 4 threads.
   - The default number of simultaneous image compression threads has been reduced to using half the logical cores available (controllable via new Setting mentioned above). Previously this used as many threads as there were logical cores.
-- Prevent layer updates while icon is actively rendering (warnings are logged to file). ([ab60b03b])
 - Optimized data transfer between the drawing canvas ('skia-canvas') and final compression step ('sharp') by ~400% using updated custom version of 'skia-canvas' to export raw pixel data. ([cc4717e2], [skia-canvas@8cbc8910])
 - Slightly optimized image file loading (before cache) by creating canvas images using raw pixel data instead of encoded/decoded PNG format. ([72b907d5], [skia-canvas@1e7e09b7])
 - Fixed upstream issue in 'skia-canvas' which sometimes caused full circles to not be drawn at all. ([skia-canvas@bb99a3ad])
@@ -61,7 +108,6 @@
 [e7a467b5]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/e7a467b55464e098435ba4cfdaa327c8cc3738d8
 [14449c23]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/14449c23a4165dd15c9d26ba11749ccab48e0858
 [ee62e201]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/ee62e201f4a87e80e29a2f852da71d81ab19f9aa
-[ab60b03b]: ab60b03b11001ac339e76d02c400fc5f916b2559
 [cc4717e2]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/cc4717e2de6f0db11c8e4a4acd77b66f0ba173b2
 [72b907d5]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/72b907d5b63c0817c33e76efe5ec5325b893ec8d
 [4b69a8d9]: https://github.com/spdermn02/TouchPortal-Dynamic-Icons/commit/4b69a8d9533dae7e3fed012a204da8d270277189
