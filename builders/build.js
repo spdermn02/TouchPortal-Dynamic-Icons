@@ -67,7 +67,11 @@ const build = async(platform) =>
         process.exit(1)
     }
 
-    if (platform != "win32") {
+    if (platform == "win32") {
+        // We need to copy updated MSVC runtime DLLs into the skia-canvas binary directory to avoid TP's outdated versions being loaded (which crashes the plugin)
+        copyFiles("c:/Windows/System32", "./node_modules/skia-canvas/lib/v8", ["msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"])
+    }
+    else {
         // Copy the startup script
         copyFileSync(`${BASE_SRC}/start.sh`, STAGING)
     }
@@ -118,6 +122,12 @@ const cleanInstallers  = () => {
 
 const copyFileSync = function(filePath, destDir) {
     return fse.copySync(filePath, path.join(destDir, path.basename(filePath)))
+}
+
+function copyFiles(srcDir, destDir, files) {
+    files.map((f) =>
+        fs.copyFileSync(path.join(srcDir, f), path.join(destDir, f))
+    );
 }
 
 const executeBuilds = function() {
