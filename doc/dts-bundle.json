@@ -1,0 +1,20 @@
+{
+    "compilationOptions": {
+        "preferredConfigPath": "./dts-tsconfig.json"
+    },
+    "entries": [
+        {
+            "filePath": "./dts-definitions.ts",
+            "noCheck": true,
+            "libraries": {
+                "inlinedLibraries": ["skia-canvas"]
+            },
+            "output": {
+                "inlineDeclareGlobals": true,
+                "inlineDeclareExternals": true,
+                "exportReferencedTypes": false,
+                "noBanner": true
+            }
+        }
+    ]
+}

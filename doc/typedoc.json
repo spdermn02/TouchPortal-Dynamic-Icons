@@ -1,0 +1,136 @@
+// TypeDoc config file: https://typedoc.org/documents/Options.html
+{
+  // Configuration
+  "tsconfig": "./typedoc-tsconfig.json",
+  // "compilerOptions": { },
+  "plugin": [
+    // "typedoc-material-theme"
+    // "typedoc-plugin-markdown"
+  ],
+
+  // Input
+  "name": "Dynamic Icons Scripting Reference",
+  // "entryPointStrategy": "expand",
+  "entryPoints": [
+    "./typedoc-definitions.ts"
+    // "src/modules/",
+    // "src/modules/enums.ts",
+    // "src/modules/interfaces.ts",
+    // "src/modules/types.ts",
+    // "src/modules/elements",
+    // "src/modules/geometry",
+    // "src/modules/DynamicIcon.ts",
+    // "src/utils",
+    // "src/utils/extensions.ts"
+  ],
+  // "exclude": [ "../src/utils/consts.ts" ],
+  "excludeInternal": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeReferences": true,
+  "excludeNotDocumented": true,
+  "excludeNotDocumentedKinds": [
+    // "Module",
+    // "Namespace",
+    // "Enum",
+    "Variable",
+    // "Function",
+    "Class",
+    // "Interface",
+    // "Constructor",
+    // "Property",
+    // "Method",
+    // "CallSignature",
+    // "IndexSignature",
+    // "ConstructorSignature",
+    // "Accessor",
+    // "GetSignature",
+    // "SetSignature",
+    // "TypeAlias",
+    // "Reference"
+  ],
+  "alwaysCreateEntryPointModule": false,
+  "disableSources": true,
+  "disableGit": true,
+  "includeVersion": true,
+  "readme": "none",
+  // "readme": "../../TouchPortal-Dynamic-Icons.wiki/Custom-Scripts.md",
+
+  // Output
+  "emit": "both",
+  "navigation": {
+    "compactFolders": true,
+    "excludeReferences": false,
+    "includeCategories": true,
+    "includeFolders": false,
+    "includeGroups": true
+  },
+  "visibilityFilters": {
+    "protected": false,
+    "private": false,
+    "inherited": true,
+    "external": true
+  },
+  "hostedBaseUrl": "https://spdermn02.github.io/TouchPortal-Dynamic-Icons",
+  "hideGenerator": true,
+  "markdownLinkExternal": true,
+  "useFirstParagraphOfCommentAsSummary": true,
+  "navigationLinks": {
+    "GitHub": "https://github.com/spdermn02/TouchPortal-Dynamic-Icons",
+    "Wiki": "https://github.com/spdermn02/TouchPortal-Dynamic-Icons/wiki",
+  },
+  "outputs": [
+    {
+      "name": "html",
+      "path": "./html",
+      "options": {
+        "githubPages": true
+      }
+    },
+    // {
+    //   "name": "json",
+    //   "path": "./docs.json"
+    // },
+    // {
+    //   // requires typedoc-plugin-markdown
+    //   "name": "markdown",
+    //   "path": "./md"
+    // }
+  ],
+  // "theme": "material",
+  // "themeColor": "#000000",
+
+  // Organization
+  "groupReferencesByType": true,
+  "groupOrder": [
+    "Variables",
+    "Interfaces",
+    "Classes",
+    "Functions",
+    "Type Aliases",
+    "Enumerations",
+    "Modules",
+    "*"
+  ],
+  "sort": [
+    "kind",
+    "instance-first",
+    // "enum-value-ascending",
+    "visibility",
+    "source-order"
+    // "alphabetical-ignoring-documents"
+  ],
+  "sortEntryPoints": true,
+
+  // Validation
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "rewrittenLink": false,
+    "notDocumented": false,
+    "unusedMergeModuleWith": true
+  },
+
+  // Other
+  "skipErrorChecking": true
+}

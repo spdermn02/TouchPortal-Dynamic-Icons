@@ -1,0 +1,16 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "typeRoots": [],
+    "noCheck": true,
+    "noEmit": true,
+    "removeComments": false,
+    "rootDir": "./",
+    "skipLibCheck": true,
+    "sourceMap": false
+  },
+  "include": [
+    "dist/src/**/*"
+  ],
+  "exclude": []
+}
