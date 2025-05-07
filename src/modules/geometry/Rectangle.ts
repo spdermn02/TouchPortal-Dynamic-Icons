@@ -15,8 +15,8 @@ export default class Rectangle
     constructor(rect: Rectangle);
     constructor(origin: PointType, size: SizeType);
     constructor(origin: PointType, width: number, height: number);
-    constructor(top: number, left?: number, size?: SizeType);
-    constructor(top: number, left: number, width?: number, height?: number);
+    constructor(x: number, y: number, size?: SizeType);
+    constructor(x?: number, y?: number, width?: number, height?: number);
     // implementation
     constructor(...args: any[]) {
         // @ts-ignore
@@ -26,8 +26,8 @@ export default class Rectangle
     set(rect: Rectangle): this;
     set(origin: PointType, size?: SizeType): this;
     set(origin: PointType, width?: number, height?: number): this;
-    set(top: number, left: number, size?: SizeType): this;
-    set(top?: number, left?: number, width?: number, height?: number): this;
+    set(x: number,  y: number, size?: SizeType): this;
+    set(x?: number, y?: number, width?: number, height?: number): this;
     // implementation
     set(...args: any[]): this {
         // (0?: number | PointType | Rectangle, 1?: number | SizeType, 2?: number | SizeType, 3?: number)
