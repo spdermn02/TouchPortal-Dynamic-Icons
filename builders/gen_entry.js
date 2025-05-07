@@ -89,7 +89,7 @@ const entry_base =
     configuration: {
         colorDark:  "#23272A",
         colorLight: "#7289DA",
-        parentCategory: "misc",
+        parentCategory: "tools",
     },
     settingsDescription: pkgConfig.description + "\n" +
         "For more details, documentation, and examples please visit the plugin's home page at: " + pkgConfig.homepage + "\n" +
