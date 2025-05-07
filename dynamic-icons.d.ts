@@ -8,7 +8,7 @@ import { EventEmitter } from 'events';
 	For now unit types are only "%" or "px", and this object just stores
 	a flag indicating if the value is relative (%) or absolute (px).
 */
-export declare class UnitValue extends Object {
+declare class UnitValue extends Object {
 	value: number;
 	isRelative: boolean;
 	protected _unit: string;
@@ -435,10 +435,11 @@ export declare class DynamicImage implements ILayerElement, IRenderable, IValued
 	/** Tranformation to apply to this image when drawn. See {@link Transformation} for details. */
 	readonly transform: Transformation;
 	/** Constructor argument requires an object with either `iconName: string` or `parentIcon: DynamicIcon` properties. */
-	constructor(init: RequireAtLeastOne<Partial<DynamicImage & {
-		parentIcon: DynamicIcon;
+	constructor(init: RequireAtLeastOne<PartialDeep<DynamicImage & {
 		fit: ResizeFitOption;
-	}>, "iconName" | "parentIcon">);
+	}> & {
+		parentIcon?: DynamicIcon;
+	}, "iconName" | "parentIcon">);
 	/** @internal */
 	readonly layerRole: LayerRole;
 	/** Returns true if source string is empty */
@@ -456,16 +457,21 @@ export declare class DynamicImage implements ILayerElement, IRenderable, IValued
 	/** Loads and draws source image onto the given `ctx` using all current properties such as resize strategy and transformation steps. */
 	render(ctx: RenderContext2D, rect: Rectangle): Promise<void>;
 }
-/** Base class for any element needing size, alignment, and offset properties. Not drawable on its own. */
+type SizedElementInit = PartialDeep<SizedElement> & {
+	width?: number | string;
+	height?: number | string;
+};
+/** Base class for any element needing size, alignment, and offset properties. Not drawable on its own and cannot be created directly. */
 export declare class SizedElement {
 	/** A zero width/height (default) indicates to draw into the full available image area (eg. passed to `render()` in `rect` argument). Negative values are not allowed. */
 	width: UnitValue;
 	height: UnitValue;
 	/** How to align within drawing area if/when `width`/`height` doesn't fill it completely. */
 	alignment: Alignment;
-	/** Extra position offset to apply after alignment. */
-	offset: PointType;
-	constructor(init?: PartialDeep<SizedElement>);
+	/** Extra position offset to apply after alignment. Expressed as a percentage of overall drawing area size. */
+	offset: Vect2d;
+	protected constructor(init?: SizedElementInit);
+	protected init(init?: SizedElementInit, depth?: number): void;
 	/** Always returns false since a zero size will actually fill a drawing area. */
 	get isEmpty(): boolean;
 	/** Alignment value as two string values, first for vertical and second for horizontal. Eg. "top left" or "center middle".
@@ -473,14 +479,23 @@ export declare class SizedElement {
 	get align(): string;
 	set align(value: string | Alignment);
 	/** Horizontal alignment value as string. One of: 'left', 'center', 'right' */
-	get halign(): string;
-	set halign(value: string | Alignment);
+	get halign(): CanvasTextAlign;
+	set halign(value: CanvasTextAlign | Alignment);
 	/** Vertical alignment value as string. One of: 'top', 'middle', 'bottom' */
-	get valign(): string;
-	set valign(value: string | Alignment);
+	get valign(): CanvasTextBaseline;
+	set valign(value: CanvasTextBaseline | Alignment);
 	/** Sets element width and height property values with optional unit type specifier to use for both dimensions.
 		If `unit` is undefined then the current unit types for each dimension remain unchanged. */
 	setSize(size: SizeType, unit?: string, unitY?: string): void;
+	/** Returns actual pixel width of this element, either scaled to `viewWidth` if width unit is `%`
+		or actual width value if it is in pixels already. If this element's width value is zero then return `viewWidth`. */
+	actualWidth(viewWidth: number): number;
+	/** Returns actual pixel height of this element, either scaled to `viewHeight` if height unit is `%`
+		or actual height value if it is in pixels already. If this element's height value is zero then return `viewHeight`. */
+	actualHeight(viewHeight: number): number;
+	/** Returns actual pixel width and height of this element, potentially scaled to `viewSize`.
+		See {@link actualWidth} and {@link actualHeight} for details on returned values. */
+	actualSize(viewSize: SizeType): SizeType;
 	/** Returns true if alignment value was changed, false otherwise. */
 	protected setAlignment(value: Alignment, mask: Alignment): boolean;
 	/** Returns true if any properties were changed. */
@@ -496,6 +511,7 @@ declare class PathCache {
 	clear(): void;
 	isDirtyForSize(size: Size): boolean;
 }
+type PathInit = SizedElementInit & PartialDeep<Path>;
 /** Base class for Path elements. Extends {@link SizedElement} with {@link operation} property and provides helper methods. */
 export declare class Path extends SizedElement {
 	/** Boolean operation to perform with previous path, if any.
@@ -505,7 +521,7 @@ export declare class Path extends SizedElement {
 		@see {@link clearCache}. */
 	protected readonly cache: PathCache;
 	readonly layerRole: LayerRole;
-	constructor(init?: PartialDeep<Path>);
+	protected constructor(init?: PathInit);
 	/** Clears the generated & cached Path2D object (if any). Some `Path` subclasses my not use the cache.
 		Typically the cache management is handled automatically when relevant properties are modified. */
 	clearCache(): void;
@@ -515,6 +531,7 @@ export declare class Path extends SizedElement {
 	protected loadFromDataRecord(dr: TpActionDataRecord): boolean;
 	protected getCombinedPath(path: Path2D, pathStack?: Array<Path2D>): Path2D;
 }
+type EllipsePathInit = PathInit & PartialDeep<EllipsePath>;
 /** Creates a full or partial ellipse/circle/arc path of given diameter, start and end angle values,
 	draw direction, and optional rotation around center. Essentially a proxy for `Path2D.ellipse()` method.
 	The `IValuedElement::setValue()` interface sets the arc's ending angle. */
@@ -527,7 +544,7 @@ export declare class EllipsePath extends Path implements ILayerElement, IPathPro
 	rotation: number;
 	/** Drawing direction, clockwise (0), counter-clockwise (1), or automatic (2) based on value being positive (CW) or negative (CCW). */
 	direction: ArcDrawDirection;
-	constructor(init?: PartialDeep<EllipsePath>);
+	constructor(init?: EllipsePathInit);
 	/** Returns true if the diameter on either axis is empty (width or height are zero) */
 	get isEmpty(): boolean;
 	/** Sets the ending angle of the arc using evaluated string value. */
@@ -537,6 +554,7 @@ export declare class EllipsePath extends Path implements ILayerElement, IPathPro
 		with any paths in the `pathStack` according to value of the {@link operation} property. */
 	getPath(rect: Rectangle, pathStack: Array<Path2D>): Path2D;
 }
+type FreeformPathInit = PathInit & PartialDeep<FreeformPath>;
 /**
 	An element for drawing paths/shapes, eg. for styled drawing or for clipping.
 	A path can be specified with either an array of points or an SVG syntax path.
@@ -550,7 +568,7 @@ export declare class FreeformPath extends Path implements ILayerElement, IPathPr
 	/** `true` if a `closePath()` should be used at the of each line segment when crating
 		paths from arrays of points (ignored for SVG paths, use 'Z'/'z' instead). */
 	closePath: boolean;
-	constructor(init?: PartialDeep<FreeformPath>);
+	constructor(init?: FreeformPathInit);
 	/** Returns `true` if there are fewer than 2 points to draw and has no SVG path. */
 	get isEmpty(): boolean;
 	/** Returns the currently cached Path2D object, if any, or `null` otherwise. */
@@ -594,6 +612,7 @@ export declare class FreeformPath extends Path implements ILayerElement, IPathPr
 		with any paths in the `pathStack` according to value of the {@link operation} property. */
 	getPath(rect: Rectangle, pathStack?: Array<Path2D>): Path2D;
 }
+type RectanglePathInit = PathInit & PartialDeep<RectanglePath>;
 /** Creates a rectangle path with optional radii applied to any/all of the 4 corners (like CSS). */
 export declare class RectanglePath extends Path implements IPathProducer {
 	#private;
@@ -601,7 +620,7 @@ export declare class RectanglePath extends Path implements IPathProducer {
 	radiusIsRelative: boolean;
 	/** This property indicates if any positive radius values have been set. Can be used to determine if a faster `rect()` can be drawn instead of `roundRect()`. */
 	protected haveRadius: boolean;
-	constructor(init?: PartialDeep<RectanglePath>);
+	constructor(init?: RectanglePathInit);
 	/** Validates the value types in given array and that none of the values are `< 0`;
 		Turns all single numeric values into `{x,y}` PointType objects. **Modifies the input array** if needed.
 		Any array members which are neither numeric nor `{x,y}` objects are replaced with a zero value. */
@@ -631,13 +650,14 @@ export declare class RectanglePath extends Path implements IPathProducer {
 		with any paths in the `pathStack` according to value of the {@link operation} property. */
 	getPath(rect: Rectangle, pathStack?: Array<Path2D>): Path2D;
 }
+type StyledRectangleInit = RectanglePathInit & PartialDeep<StyledRectangle>;
 /** Draws a rectangle shape on a canvas context with optional radii applied to any/all of the 4 corners (like CSS). The shape can be fully styled with the embedded `DrawingStyle` property. */
 export declare class StyledRectangle extends RectanglePath implements ILayerElement, IRenderable, IColorElement {
 	/** Fill and stroke style to apply when drawing this element. */
 	style: DrawingStyle;
 	/** Whether to adjust (reduce) the overall drawing area size to account for shadow offset/blur. */
 	adjustSizeForShadow: boolean;
-	constructor(init?: PartialDeep<StyledRectangle>);
+	constructor(init?: StyledRectangleInit);
 	/** @internal */
 	readonly layerRole: LayerRole;
 	/** Returns true if there is nothing to draw: there is no fill and stroke width is zero */
@@ -652,7 +672,8 @@ export declare class StyledRectangle extends RectanglePath implements ILayerElem
 		Returns the area left over "inside" the rectangle after adjusting for stroke and/or shadow. */
 	protected renderImpl(ctx: RenderContext2D, rect: Rectangle): Rectangle;
 }
-declare const enum DrawDirection {
+/** Progress bar incremental direction. */
+export declare const enum DrawDirection {
 	/** Left to right or bottom to top. */
 	Normal = 0,
 	/** Right to left or top to bottom. */
@@ -679,7 +700,7 @@ export declare class LinearProgressBar extends StyledRectangle implements ILayer
 		It determines the final size of the progress bar based on orientation. With `width` value determines padding along
 		the long edges of the bar, and `height` sets the padding around the endpoints (short edges). */
 	padding: SizeType;
-	constructor(init?: PartialDeep<LinearProgressBar>);
+	constructor(init?: StyledRectangleInit & PartialDeep<LinearProgressBar>);
 	/** @internal */
 	readonly layerRole: LayerRole;
 	/** Sets current {@link LinearProgressBar#value} property using an evaluated string. */
@@ -692,6 +713,7 @@ export declare class LinearProgressBar extends StyledRectangle implements ILayer
 	loadFromActionData(state: ParseState): LinearProgressBar;
 	render(ctx: RenderContext2D, rect: Rectangle): void;
 }
+type GaugeTicksInit = SizedElementInit & PartialDeep<GaugeTicks>;
 type TickProperties = {
 	type: 0 | 1;
 	count: number;
@@ -716,7 +738,8 @@ type LabelMetrics = PathMetrics & {
 */
 export declare abstract class GaugeTicks extends SizedElement {
 	#private;
-	constructor(init?: PartialDeep<GaugeTicks>);
+	/** The constructor doesn't call `super.init(init)`, subclasses should do that. */
+	protected constructor(init?: GaugeTicksInit);
 	/** @internal */
 	readonly layerRole: LayerRole;
 	/** Returns true if there is nothing to draw: Zero ticks and labels, zero width or height, or all styling would be invisible. */
@@ -729,6 +752,9 @@ export declare abstract class GaugeTicks extends SizedElement {
 	];
 	protected get majTicks(): TickProperties;
 	protected get minTicks(): TickProperties;
+	/** If `true` (default), scale down the overall size of the generated path (all ticks and labels together) to fit within the available canvas size if it would otherwise overflow. */
+	get scaleToFit(): boolean;
+	set scaleToFit(v: boolean);
 	/** Total number of major tick marks to draw along the curve. This will also determine the spacing (number of degrees) between ticks. */
 	get majTicksCount(): number;
 	set majTicksCount(v: number);
@@ -747,6 +773,9 @@ export declare abstract class GaugeTicks extends SizedElement {
 	/** Major tick marks stroke color. */
 	get majTicksColor(): string;
 	set majTicksColor(v: string);
+	/** Major tick marks stroke size and unit. */
+	get majTicksWidth(): string;
+	set majTicksWidth(v: string);
 	/** Gets or sets the `Path2D` object representing the major ticks marks to be drawn. */
 	get majTicksPath(): Path2D | null;
 	set majTicksPath(v: Path2D | null);
@@ -768,6 +797,9 @@ export declare abstract class GaugeTicks extends SizedElement {
 	/** Minor tick marks stroke color. */
 	get minTicksColor(): string;
 	set minTicksColor(v: string);
+	/** Minor tick marks stroke size and unit. */
+	get minTicksWidth(): string;
+	set minTicksWidth(v: string);
 	/** Gets or sets the `Path2D` object representing the minor ticks marks to be drawn. */
 	get minTicksPath(): Path2D | null;
 	set minTicksPath(v: Path2D | null);
@@ -831,16 +863,17 @@ export declare abstract class GaugeTicks extends SizedElement {
 		lenScl: number;
 	};
 	protected generatePaths(ctx: RenderContext2D, rect: Rectangle): {
-		bounds: Rectangle;
+		offset: PointType;
 		scale: number;
 	};
 	/** Draws the gauge marks with all styling and positioning options applied onto `ctx` using `rect` dimensions for scaling and alignment. */
 	render(ctx: RenderContext2D, rect: Rectangle): void;
 }
+type CircularTicksInit = GaugeTicksInit & PartialDeep<CircularTicks>;
 /** Implementation of GaugeTicks for drawing ticks/labels along a circular/curved path. */
 export declare class CircularTicks extends GaugeTicks implements ILayerElement, IRenderable, IColorElement {
 	#private;
-	constructor(init?: PartialDeep<CircularTicks>);
+	constructor(init?: CircularTicksInit);
 	/** Returns true if there is nothing to draw: Start angle == end, zero ticks or labels, or all styling would be invisible. */
 	get isEmpty(): boolean;
 	/** Starting angle of ticks curve, in degrees. 0° points north. */
@@ -861,10 +894,11 @@ export declare class CircularTicks extends GaugeTicks implements ILayerElement, 
 	protected generateTicksPath(tick: TickProperties, m: TickMetrics): void;
 	protected generateLabelsPath(ctx: RenderContext2D, m: LabelMetrics): void;
 }
+type LinearTicksInit = GaugeTicksInit & PartialDeep<LinearTicks>;
 /** Implementation of `GaugeTicks` for drawing ticks/labels along a linear path, either horizontally or vertically. */
 export declare class LinearTicks extends GaugeTicks implements ILayerElement, IRenderable, IColorElement {
 	#private;
-	constructor(init?: PartialDeep<LinearTicks>);
+	constructor(init?: LinearTicksInit);
 	/** Tick path orientation. Ticks are drawn perpendicular to this path. */
 	get orientation(): Orientation;
 	set orientation(v: Orientation | string);
@@ -1046,20 +1080,30 @@ export declare class StrokeStyle {
 	/** Applies current stroke styling properties to the given canvas `ctx`. `rect` size is used to scale relative-sized stroke width. */
 	render(ctx: RenderContext2D, rect?: Rectangle): void;
 }
-/** Draws text on a canvas context with various options. The text can be fully styled with the embedded {@link style} {@link DrawingStyle} property. */
-export declare class StyledText implements ILayerElement, IRenderable, IValuedElement, IColorElement {
+/** Draws text on a canvas context with various options. The text can be fully styled with the embedded {@link style} {@link DrawingStyle} property.
+
+	@property width The width property can set the maximum width of the text for automatic wrapping.
+		If width value is greater than zero and {@link wrap} is `true` then text will be automatically wrapped if it doesn't already fit into the specified width.
+		The default width is `0` and no automatic wrapping will occur.
+	@property height The height property is not used in the `StyledText` element.
+	@property alignment  How to align the text within given drawing area. See also {@link align}, {@link valign}, {@link halign} properties.
+*/
+export declare class StyledText extends SizedElement implements ILayerElement, IRenderable, IValuedElement, IColorElement {
 	#private;
 	/** The default font variant ensures ligature support, especially useful for named symbol fonts. */
 	static readonly defaultFontVariant = "common-ligatures discretionary-ligatures contextual";
-	/** How to align the text within given drawing area. See also {@link align}, {@link valign}, {@link halign} properties. */
-	alignment: Alignment;
-	/** Extra position offset to apply after alignment. Expressed as a percentage of overall drawing area size. */
-	readonly offset: Vect2d;
 	/** All visual styling options to apply when drawing the text. */
 	readonly style: DrawingStyle;
-	constructor(init?: PartialDeep<StyledText> & {
-		offset?: number | PointType;
-	});
+	/** Horizontal text alignment, if different from overall block {@link halign}.
+		If value is `Alignment.NONE` (default) then block alignment is used. Otherwise can be one of the horizontal alignment types.
+
+		Note that this is really only relevant for multi-line text blocks since it will determine how the lines align in
+		relation to each other. With a single line of text the horizontal alignment will always appear to follow the overall
+		block alignment anyway (eg. if `halign` is 'left' and `textAlign` is 'right' the text will still be aligned with the left
+		side of the image).
+	*/
+	textAlign: Alignment;
+	constructor(init?: PartialDeep<StyledText> & SizedElementInit);
 	/** @internal */
 	readonly layerRole: LayerRole;
 	/** Returns `true` if there is nothing to draw: text is empty, colors are blank or transparent, or there is no fill and stroke width is zero */
@@ -1116,18 +1160,6 @@ export declare class StyledText implements ILayerElement, IRenderable, IValuedEl
 	/** Enables or disables font hinting when drawing text and calculating metrics (for alignment). Default is enabled. */
 	get fontHinting(): boolean;
 	set fontHinting(value: boolean);
-	/** Alignment value as two string values, one for each direction. Eg. "left top" or "middle center".
-	Setting the property can be done with either a single direction or both (separated by space or comma) in either order. */
-	get align(): string;
-	set align(value: string | Alignment);
-	/** Horizontal alignment value as string. One of: 'left', 'center', 'right' */
-	get halign(): CanvasTextAlign;
-	set halign(value: CanvasTextAlign | Alignment);
-	/** Vertical alignment value as string. One of: 'top', 'middle', 'bottom', 'baseline' */
-	get valign(): CanvasTextBaseline;
-	set valign(value: CanvasTextBaseline | Alignment);
-	/** Returns true if alignment value was changed, false otherwise. Direction to set can be limited by `mask` argument. */
-	setAlignment(value: Alignment, mask?: Alignment): boolean;
 	/** Sets the current {@link StyledText#text} property from an evaluated input string (embedded JS is resolved). */
 	setValue(text: string): void;
 	/** @internal */
@@ -1229,23 +1261,27 @@ export declare class Transformation implements ILayerElement, IRenderable {
 	*/
 	transformPaths(paths: Path2D[], _: RenderContext2D, rect: Rectangle, fromIdx?: number): void;
 }
-declare const enum LayerRole {
+/** @internal */
+export declare const enum LayerRole {
 	None = 0,
 	Drawable = 1,
 	Transform = 2,
 	PathProducer = 4,
 	PathConsumer = 8
 }
-declare const enum Orientation {
+/** Describes the orientation of a linear element. */
+export declare const enum Orientation {
 	H = 0,
 	V = 1
 }
-declare const enum ArcDrawDirection {
+/** Describes the drawing direction for a circular path (arc, ellipse, etc). `Auto` value meaning depends on implementation. */
+export declare const enum ArcDrawDirection {
 	CW = 0,
 	CCW = 1,
 	Auto = 2
 }
-declare const enum Placement {
+/** Describes the location of an element in relation to another. */
+export declare const enum Placement {
 	NoPlace = 0,
 	Inside = 1,
 	Outside = 2,
@@ -1253,21 +1289,35 @@ declare const enum Placement {
 	TopLeft = 1,
 	BottomRight = 2
 }
-declare const enum Alignment {
+/** Describes horizontal and vertical alignment values. */
+export declare const enum Alignment {
 	NONE = 0,
 	LEFT = 1,
 	RIGHT = 2,
 	HCENTER = 4,
 	JUSTIFY = 8,
+	H_MASK = 15,// mask
 	TOP = 16,
 	BOTTOM = 32,
 	VCENTER = 64,
 	BASELINE = 128,
+	V_MASK = 240,// mask
 	CENTER = 68,
-	H_MASK = 15,
-	V_MASK = 240
+	TopLeft = 17,
+	TopCenter = 20,
+	TopCtr = 20,
+	TopRight = 18,
+	MidLeft = 65,
+	MidCenter = 68,
+	MidCtr = 68,
+	MidRight = 66,
+	BotLeft = 33,
+	BotCenter = 36,
+	BotCtr = 36,
+	BotRight = 34
 }
-declare const enum PathBoolOperation {
+/** Path combining operations for {@link Path} type and subclasses. */
+export declare const enum PathBoolOperation {
 	None = "none",
 	Add = "add",// actually `addPath()`
 	Complement = "complement",
@@ -1276,13 +1326,17 @@ declare const enum PathBoolOperation {
 	Union = "union",
 	Xor = "xor"
 }
-declare const enum TransformOpType {
+/** Transformation operation type, used by {@link Transformation }. */
+export declare const enum TransformOpType {
 	Offset = "O",
 	Rotate = "R",
 	Scale = "SC",
 	Skew = "SK"
 }
-declare const enum ColorUpdateType {
+/** Used by elements supporting the `setColor(value: string, type: ColorUpdateType)` method (`IColorElement` interface).
+	@internal
+*/
+export declare const enum ColorUpdateType {
 	None = 0,
 	Stroke = 1,
 	Fill = 2,
@@ -1869,7 +1923,7 @@ export interface CanvasTransform {
 	translate(x: number, y: number): void;
 }
 /**
- * The CanvasRenderingContext2D interface provides the 2D rendering context for the drawing surface of a {@link Canvas} instance. It is used for drawing shapes, text, images, and other objects.
+ * The CanvasRenderingContext2D interface, part of the Canvas API, provides the 2D rendering context for the drawing surface of a <canvas> element. It is used for drawing shapes, text, images, and other objects.
  *
  * - [MDN Reference](https://developer.mozilla.org/docs/Web/API/CanvasRenderingContext2D)
  * - [Skia Canvas Docs](https://skia-canvas.org/api/context)
@@ -2126,6 +2180,21 @@ export interface App {
 	quit(): void;
 }
 export const App: App;
+declare namespace types {
+	/** All possible types for canvas fill/stroke style. */
+	type ContextFillStrokeType = string | canvas.CanvasGradient | canvas.CanvasPattern | canvas.CanvasTexture;
+	/** Defines how to resize images (or other block elements). Equivalent to CSS `object-fit` property. */
+	type ResizeFitOption = "contain" | "cover" | "fill" | "scale-down" | "none";
+	type ConstructorType<T> = new (...args: any[]) => T;
+	/** A recursive version of `Partial<>` type. Accepts any existing property of this object, including child objects and their properties. */
+	type PartialDeep<T> = {
+		[P in keyof T]?: T[P] extends (infer U)[] ? PartialDeep<U>[] : T[P] extends object | undefined ? PartialDeep<T[P]> : T[P];
+	};
+	/** Requires at least one of specified properties to be present in an object. */
+	type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Pick<T, Exclude<keyof T, Keys>> & {
+		[K in Keys]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<Keys, K>>>;
+	}[Keys];
+}
 declare global {
 	type CanvasDirection = canvas.CanvasDirection;
 	type CanvasFillRule = canvas.CanvasFillRule;
@@ -2138,38 +2207,25 @@ declare global {
 	type CanvasTextAlign = canvas.CanvasTextAlign;
 	type CanvasTextBaseline = canvas.CanvasTextBaseline;
 	type CanvasTexture = canvas.CanvasTexture;
-	type ContextFillStrokeType = string | CanvasGradient | CanvasPattern | CanvasTexture;
+	type ContextFillStrokeType = types.ContextFillStrokeType;
 	type GlobalCompositeOperation = canvas.GlobalCompositeOperation;
 	type RenderContext2D = CanvasRenderingContext2D;
 	type TextMetrics = canvas.TextMetrics;
 	type TextMetricsLine = canvas.TextMetricsLine;
 	type PointType = geometry.PointType;
 	type SizeType = geometry.SizeType;
-	/** Defines how to resize images (or other block elements). Equivalent to CSS `object-fit` property. */
-	type ResizeFitOption = "contain" | "cover" | "fill" | "scale-down" | "none";
-	/** @internal */
+	type ResizeFitOption = types.ResizeFitOption;
 	type TpActionDataType = {
 		id: string;
 		value: string;
 	};
-	/** @internal */
 	type TpActionDataArrayType = TpActionDataType[];
-	/** @internal */
 	type TpActionDataRecord = Record<string, string>;
-	/** @internal */
-	type ConstructorType<T> = new (...args: any[]) => T;
-	/** Requires at least one of specified properties to be present in an object. */
-	type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Pick<T, Exclude<keyof T, Keys>> & {
-		[K in Keys]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<Keys, K>>>;
-	}[Keys];
-	/** A recursive version of `Partial<>` type. */
-	type PartialDeep<T> = {
-		[P in keyof T]?: T[P] extends (infer U)[] ? PartialDeep<U>[] : T[P] extends object | undefined ? PartialDeep<T[P]> : T[P];
-	};
+	type ConstructorType<T> = types.ConstructorType<T>;
+	type RequireAtLeastOne<T, Keys extends keyof T> = types.RequireAtLeastOne<T, Keys>;
+	type PartialDeep<T> = types.PartialDeep<T>;
 }
 type RenderContext2D = canvas.CanvasRenderingContext2D;
-type TpActionDataArrayType = globalThis.TpActionDataArrayType;
-type TpActionDataRecord = globalThis.TpActionDataRecord;
 /** Stores a collection of `ILayerElement` types as layers and produces a composite image from all the layers when rendered. */
 export declare class DynamicIcon {
 	#private;
@@ -2443,6 +2499,8 @@ declare const enum DataValue {
 	ArcDrawAuto = "Automatic",
 	YesValue = "Yes",
 	NoValue = "No",
+	OnValue = "On",
+	OffValue = "Off",
 	PlaceInside = "Inside",
 	PlaceOutside = "Outside",
 	PlaceInward = "Inward",
@@ -2503,7 +2561,7 @@ declare function normalizeAngle(degrees: number): number;
 declare function elideLeft(str: string, maxLen: number): string;
 declare function elideRight(str: string, maxLen: number): string;
 declare function qualifyFilepath(path: string): string;
-declare function assignExistingProperties(to: {}, from?: {}, recurseLevel?: number): void;
+declare function assignExistingProperties(to: {}, from?: {}, recurseLevel?: number, strToNum?: boolean): void;
 declare function arraysMatchExactly(array1: any[], array2: any[]): boolean;
 declare function evaluateValue(value: string, defaultValue?: number | any): number | typeof defaultValue;
 declare function evaluateStringValue(value: string): string;
@@ -2532,11 +2590,12 @@ declare global {
 	/** A class for writing output to the Dynamic Icons plugin log file. Has `debug()`, `info()`, `warn()`, `error()` and `trace()` methods,
 		which are equivalent to their `console` counterparts. */
 	var logger: Logger;
-	/** The `DI` namespace object contains static properties and methods for invoking Dynamic Icons element constructors and utility functions. */
-	const DI: typeof elements & typeof utils;
+	/** The `DI` namespace object contains static utility functions, enumerations, and constructors for custom Dynamic Icons elements. */
+	const DI: typeof elements & typeof utils & typeof enums;
 	const Point: typeof geometry.Point;
 	const Rectangle: typeof geometry.Rectangle;
 	const Size: typeof geometry.Size;
+	const UnitValue: typeof geometry.UnitValue;
 	const Vect2d: typeof geometry.Vect2d;
 	const Canvas: typeof canvas.Canvas;
 	const DOMMatrix: typeof canvas.DOMMatrix;
@@ -2549,6 +2608,7 @@ declare global {
 	const loadImageData: typeof canvas.loadImageData;
 	type Rectangle = geometry.Rectangle;
 	type Size = geometry.Size;
+	type UnitValue = geometry.UnitValue;
 	type Vect2d = geometry.Vect2d;
 	type Canvas = canvas.Canvas;
 	type DOMMatrix = canvas.DOMMatrix;
@@ -2597,7 +2657,10 @@ declare namespace geometry {
 	export { Point, PointType, Rectangle, Size, SizeType, UnitValue, Vect2d };
 }
 declare namespace elements {
-	export { BarGraph, BrushStyle, CanvasFilter, CircularTicks, ClipAction, ClippingMask, CompositionMode, DrawingStyle, DynamicImage, EllipsePath, FreeformPath, GaugeTicks, LinearProgressBar, LinearTicks, Path, RectanglePath, RoundProgressGauge, Script, ShadowStyle, SizedElement, StrokeStyle, StyledRectangle, StyledText, TransformScope, Transformation };
+	export { BarGraph, BrushStyle, CanvasFilter, CircularTicks, ClipAction, ClippingMask, CompositionMode, DrawDirection, DrawingStyle, DynamicImage, EllipsePath, FreeformPath, GaugeTicks, LinearProgressBar, LinearTicks, Path, RectanglePath, RoundProgressGauge, Script, ShadowStyle, SizedElement, StrokeStyle, StyledRectangle, StyledText, TransformScope, Transformation };
+}
+declare namespace enums {
+	export { Alignment, ArcDrawDirection, ColorUpdateType, LayerRole, Orientation, PathBoolOperation, Placement, TransformOpType };
 }
 declare namespace utils {
 	export { ALIGNMENT_ENUM_NAMES, ARC_DIRECTION_CHOICES, Act, ActData, ActHandler, COLOR_UPDATE_TYPE_CHOICES, CTRL_CMD_ACTION_CHOICES, ChoiceDataId, DEFAULT_TRANSFORM_OP_ORDER, DataValue, M, PATH_BOOL_OPERATION_CHOICES, STYLE_FILL_RULE_CHOICES, SettingName, StateId, Str, arraysMatchExactly, assignExistingProperties, circularLabelsPath, cirularGaugeTicksPath, clamp, elideLeft, elideRight, evaluateStringValue, evaluateValue, evaluateValueAsArray, fuzzyEquals, fuzzyEquals3p, fuzzyEquals4p, fuzzyEquals5p, fuzzyEquals6p, linearGaugeTicksPath, linearLabelsPath, normalizeAngle, parseAlignmentFromValue, parseAlignmentsFromString, parseArcDirection, parseBoolFromValue, parseBoolOrDefault, parseIntOrDefault, parseNumericArrayString, parsePlacement, parsePointFromValue, qualifyFilepath, round2p, round3p, round4p, round5p, round6p };
@@ -2630,9 +2693,11 @@ export {
 	SizeType,
 	TextMetrics,
 	TextMetricsLine,
+	UnitValue,
 	Vect2d,
 	canvas,
 	elements,
+	enums,
 	geometry,
 	loadImage,
 	loadImageData,
