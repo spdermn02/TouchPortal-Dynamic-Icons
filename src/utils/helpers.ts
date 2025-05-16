@@ -1,5 +1,7 @@
 import { Str } from './consts'
-import { Alignment, logging, PointType } from '../modules';
+import { Alignment, logging, Placement, PointType, ArcDrawDirection } from '../modules';
+import { PluginSettings } from '../common';
+import { isAbsolute as pathIsAbs, join as pathJoin } from 'path';
 
 // Used to validate if a string is a single numeric value. Accepts leading sign, base prefix (0x/0b/0o), decimals, and exponential notation.
 const NUMBER_VALIDATION_REGEX = new RegExp(/^[+-]?(?:0[xbo])?\d+(?:\.\d*)?(?:e[+-]?\d+)?$/);
@@ -40,20 +42,52 @@ export function fuzzyEquals5p(value1: number, value2: number): boolean { return 
 /** Returns true if 2 numbers are equal within 6 decimal places of precision. */
 export function fuzzyEquals6p(value1: number, value2: number): boolean { return fuzzyEquals(value1, value2, 0.000_001); }
 
+export function normalizeAngle(degrees: number): number {
+    degrees %= 360;
+    if (degrees < 0)
+        return degrees + 360;
+    return degrees;
+}
+
+// ------------------------
+// String utils.
+
+/** Left-trims `str` to `maxLen` characters and adds an ellipsis at the start if the input string was shortened. */
+export function elideLeft(str: string, maxLen: number): string {
+    if (str.length <= maxLen)
+        return str;
+    return "…" + str.slice(-maxLen);
+}
+
+/** Right-trims `str` to `maxLen` characters and adds an ellipsis to the end if the input string was shortened. */
+export function elideRight(str: string, maxLen: number): string {
+    if (str.length <= maxLen)
+        return str;
+    return str.slice(0, maxLen+1) + "…";
+}
+
+export function qualifyFilepath(path: string): string {
+    if (PluginSettings.imageFilesBasePath && !pathIsAbs(path))
+        return pathJoin(PluginSettings.imageFilesBasePath, path);
+    return path;
+}
+
 // ------------------------
 // Object helpers
 
 /** Assigns property values in `from` object to values in the `to` object, but _only_ if they already exist in `to` _and_ have a matching `typeof` type.
-    Recurses up to `recurseLevel` nested objects, and skips assigning object-type properties beyond the recursion level.
+    Recurses up to `recurseLevel` nested objects, and skips assigning object-type properties beyond the recursion level. Arrays are copied by value.
+    If `strToNum` is `true` then source string types are considered compatible with destination numeric types (destination is responsible for conversion).
 */
-export function assignExistingProperties(to: {}, from: {}, recurseLevel = 0) {
+export function assignExistingProperties(to: {}, from?: {}, recurseLevel = 0, strToNum = false) {
     if (!to || !from)
         return;
     for (const key in from) {
-        if (key in to && typeof to[key] == typeof from[key]) {
-            if (typeof to[key] == 'object') {
+        const toType = typeof to[key], fromType = typeof from[key];
+        if (key in to && (toType == fromType || (strToNum && toType == 'number' && fromType == 'string'))) {
+            if (toType == 'object' && !Array.isArray(to[key])) {
                 if (recurseLevel > 0)
-                    assignExistingProperties(to[key], from[key], --recurseLevel);
+                    assignExistingProperties(to[key], from[key], recurseLevel - 1);
             }
             else {
                 to[key] = from[key];
@@ -72,9 +106,9 @@ export function arraysMatchExactly(array1: any[], array2: any[]) {
 
 /** Evaluates a numeric expression within an arbitrary string. Returns zero if evaluation fails or value string was empty.
     Note that the number formats must be "language neutral," meaning always period for decimal separator and no thousands separators. */
-export function evaluateValue(value: string): number {
+export function evaluateValue(value: string, defaultValue: number | any = 0): number | typeof defaultValue {
     if (!value)
-        return 0
+        return defaultValue;
     try {
         // First try parsing the string as a single number. Even using a regex check this is still ~6x faster overall for single numeric values.
         // For expressions there's a little unnecessary overhead but it's fractions of a percent difference since the regex is fast.
@@ -82,14 +116,14 @@ export function evaluateValue(value: string): number {
         // because they'll return any number at the start of a string and ignore the rest (eg from "2 + 2" they return 2).
         // Use Number() c'tor vs. parseFloat() because it also handles base prefixes (0x/0b/0o).
         if (NUMBER_VALIDATION_REGEX.test(value))
-            return Number(value) || 0;
+            return Number(value) ?? defaultValue;
 
         // If it's not just a plain number then evaluate it as an expression.
-        return (new Function( `"use strict"; return (${value})`))() || 0;
+        return (new Function( `"use strict"; return (${value})`))() ?? defaultValue;
     }
     catch (e) {
-        logging().getLogger('plugin').warn("Error evaluating the numeric expression '" + value + "':", e)
-        return 0
+        logging().getLogger('plugin').warn("Error evaluating the numeric expression '" + value + "':", e);
+        return defaultValue;
     }
 }
 
@@ -162,7 +196,7 @@ export function parseNumericArrayString(
     Results are assigned to the returned Vect2d's `x` and `y` members respectively.
     If only one value is found in the string then it is assigned to the result's `y` member as well as to `x`.
     An empty value string produces a default zero-length vector.
-    See also `parseNumericArrayFromValue()`
+    See also `parseNumericArrayString()`
 */
 export function parsePointFromValue(value: string): PointType {
     const ret: PointType = {x: 0, y: 0},
@@ -174,47 +208,86 @@ export function parsePointFromValue(value: string): PointType {
     return ret;
 }
 
-/** Parses a string value into an Alignment enum type result and returns it.
+/** Parses a string value into an `Alignment` enum type result and returns it.
     Accepted string values (brackets indicate the minimum # of characters required):
+    ```
         Horizontal: "[l]eft", "[c]enter", "[r]ight", "[j]ustify"
         Vertical:   "[t]op", "[m]iddle", "[b]ottom", "[ba]seline"
-    Which direction(s) to evaluate can be specified in the `atype` parameter as one of the alignment type masks.
+    ```
+    Which direction to evaluate can be specified in the `mask` parameter as one of `Alignment.H_MASK` or `Alignment.V_MASK`.
  */
-export function parseAlignmentFromValue(value: string, atype: Alignment = Alignment.H_MASK | Alignment.V_MASK): Alignment {
-    let ret: Alignment = Alignment.NONE;
-
-    if (atype & Alignment.H_MASK) {
+export function parseAlignmentFromValue(value: string, mask: Alignment): Alignment {
+    if (mask & Alignment.H_MASK) {
         // "left", "center", "right", "justify"
         switch (value[0]) {
             case 'c':
-                ret |= Alignment.HCENTER;
-                break;
+                return Alignment.HCENTER;
             case 'l':
-                ret |= Alignment.LEFT;
-                break;
+                return Alignment.LEFT;
             case 'r':
-                ret |= Alignment.RIGHT;
-                break;
+                return Alignment.RIGHT;
             case 'j':
-                ret |= Alignment.JUSTIFY;
-                break;
+                return Alignment.JUSTIFY;
         }
     }
-    if (atype & Alignment.V_MASK) {
+    if (mask & Alignment.V_MASK) {
         // "top", "middle", "bottom", "baseline"
         switch (value[0]) {
             case 'm':
-                ret |= Alignment.VCENTER;
-                break;
+                return Alignment.VCENTER;
             case 't':
-                ret |= Alignment.TOP;
-                break;
+                return Alignment.TOP;
             case 'b':
-                ret |= (value[1] == 'a' ? Alignment.BASELINE : Alignment.BOTTOM);
-                break;
+                return (value[1] == 'a' ? Alignment.BASELINE : Alignment.BOTTOM);
         }
     }
+    return Alignment.NONE;
+}
+
+/** Parses a string containing 1 or 2 alignment values into an `Alignment` enum type result and returns it.
+    See `parseAlignmentFromValue()` for accepted string values for each direction.
+
+    Values may be specified individually or separated by space or comma, in either order. Eg: "top" or "middle" or "left top" or "middle right"
+
+    To determine which direction(s) were specified in the input string, check the mask of the return value.
+
+    To limit the alignment direction to evaluate & return, specified the `mask` parameter as one of `Alignment.H_MASK` or `Alignment.V_MASK`.
+ */
+export function parseAlignmentsFromString(value: string, mask: Alignment = (Alignment.H_MASK | Alignment.V_MASK)): Alignment {
+    let ret: Alignment = Alignment.NONE;
+    const values = value.split(/[\s,]+/, 2);
+    for (const v of values)
+        ret |= parseAlignmentFromValue(v, mask);
     return ret;
+}
+
+/** Parses a string into an `ArcDrawDirection` enum value. If no match is found then `defaultValue` is returned.
+    Strings must match one of: "Clockwise", "Counter CW", or "Automatic" (case-insensitive). */
+export function parseArcDirection(value: string, defaultValue: ArcDrawDirection = ArcDrawDirection.CW): ArcDrawDirection {
+    switch (value[1]) {
+        case 'l':
+            return ArcDrawDirection.CW;
+        case 'o':
+            return ArcDrawDirection.CCW;
+        case 'u':
+            return ArcDrawDirection.Auto;
+        default:
+            return defaultValue;
+    }
+}
+
+export function parsePlacement(v: string, defaultValue: Placement = Placement.NoPlace): Placement {
+    if (!v)
+        return defaultValue;
+    // possible values: "Inside" | "Top/Left", "Outside" | "Bottom/Right", "Center", "Same as ..."
+    switch (v[0].toUpperCase()) {
+        case 'I': return Placement.Inside;
+        case 'O': return Placement.Outside;
+        case 'C': return Placement.Center;
+        case 'T': return Placement.TopLeft;
+        case 'B': return Placement.BottomRight;
+        default: return defaultValue;
+    }
 }
 
 /** Returns true/false based on if a string value looks "truthy", meaning it contains "yes", "on", "true", "enable[d]", or any digit > 0. */

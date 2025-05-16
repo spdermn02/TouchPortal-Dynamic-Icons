@@ -1,15 +1,15 @@
 {
   "compilerOptions": {
     "typeRoots": [
-      "./src/typings/*",
       "./node_modules/@types"
     ], /* List of folders to include type definitions from. */
     "allowSyntheticDefaultImports": true, /* Allow default imports from modules with no default export. This does not affect code emit, just typechecking. */
     "alwaysStrict": true,
-    "declaration": true,
-    "declarationMap": true,
+    "declaration": false,
+    "declarationMap": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
+    "lib": ["es2022"],
     "module": "CommonJS",
     "moduleResolution": "node",
     "noFallthroughCasesInSwitch": true,

@@ -1,0 +1,23 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "declaration": true,
+    "declarationMap": false,
+    "esModuleInterop": true,
+    "noCheck": true,
+    // "noEmit": true,
+    "emitDeclarationOnly": true,
+    "noImplicitAny": false,
+    "outDir": "./dist",
+    "preserveConstEnums": true,
+    "removeComments": false,
+    "rootDir": "../",
+    "skipLibCheck": true,
+    "sourceMap": false
+  },
+  "include": [
+    "./typedoc-definitions.ts",
+    "../src/**/*"
+  ],
+  "exclude": []
+}

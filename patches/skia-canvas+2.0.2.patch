@@ -1,0 +1,448 @@
+diff --git a/node_modules/skia-canvas/lib/classes/context.js b/node_modules/skia-canvas/lib/classes/context.js
+index 22bc9c8..6007a81 100644
+--- a/node_modules/skia-canvas/lib/classes/context.js
++++ b/node_modules/skia-canvas/lib/classes/context.js
+@@ -67,8 +67,8 @@ class CanvasRenderingContext2D extends RustClass{
+     let radii = css.radii(r)
+     if (radii){
+       if (w < 0) radii = [radii[1], radii[0], radii[3], radii[2]]
+-      if (h < 0) radii = [radii[3], radii[2], radii[1], radii[0]]
+-      this.ƒ("roundRect", x, y, w, h, ...radii.map(({x, y}) => [x, y]).flat())
++      if (h < 0) radii.reverse()
++      this.ƒ("roundRect", x, y, w, h, ...radii.flat())
+     }
+   }
+ 
+@@ -202,7 +202,7 @@ class CanvasRenderingContext2D extends RustClass{
+ 
+   // -- typography ------------------------------------------------------------
+   get font(){          return this.prop('font') }
+-  set font(str){              this.prop('font', css.font(str)) }
++  set font(str){              this.prop('font', css.font(str, {vw: this.canvas.width, vh: this.canvas.height})) }
+   get textAlign(){     return this.prop("textAlign") }
+   set textAlign(mode){        this.prop("textAlign", mode) }
+   get textBaseline(){  return this.prop("textBaseline") }
+@@ -212,9 +212,9 @@ class CanvasRenderingContext2D extends RustClass{
+   get fontStretch(){   return this.prop('fontStretch') }
+   set fontStretch(str){       this.prop('fontStretch', css.stretch(str)) }
+   get letterSpacing(){ return this.prop('letterSpacing') }
+-  set letterSpacing(str){     this.prop('letterSpacing', css.spacing(str)) }
++  set letterSpacing(str){     this.prop('letterSpacing', css.spacing(str, {vw: this.canvas.width, vh: this.canvas.height})) }
+   get wordSpacing(){   return this.prop('wordSpacing') }
+-  set wordSpacing(str){       this.prop('wordSpacing', css.spacing(str)) }
++  set wordSpacing(str){       this.prop('wordSpacing', css.spacing(str, {vw: this.canvas.width, vh: this.canvas.height})) }
+ 
+   measureText(text, maxWidth){
+     text = this.textWrap ? text : text + '\u200b' // include trailing whitespace by default
+@@ -262,7 +262,7 @@ class CanvasRenderingContext2D extends RustClass{
+   get shadowOffsetY(){ return this.prop("shadowOffsetY") }
+   set shadowOffsetY(y){       this.prop("shadowOffsetY", y) }
+   get filter(){        return this.prop('filter') }
+-  set filter(str){            this.prop('filter', css.filter(str)) }
++  set filter(str){            this.prop('filter', css.filter(str, {vw: this.canvas.width, vh: this.canvas.height})) }
+ 
+   [REPR](depth, options) {
+     let props = [ "canvas", "currentTransform", "fillStyle", "strokeStyle", "font", "fontStretch", "fontVariant",
+diff --git a/node_modules/skia-canvas/lib/classes/css.js b/node_modules/skia-canvas/lib/classes/css.js
+index 2af9927..5662f04 100644
+--- a/node_modules/skia-canvas/lib/classes/css.js
++++ b/node_modules/skia-canvas/lib/classes/css.js
+@@ -4,133 +4,162 @@
+ 
+ "use strict"
+ 
++/**
++  @typedef {object} SizeReferenceOptions Defines options for calculating absolute sizes based on relative size units.
++  @prop {number} emSize Font "em" size reference for `em`, `rem`, `ex`, `ch` unit types.
++  @prop {number} vw Viewport (canvas) width reference for `vw`, `vmax`, `vmin` unit types.
++  @prop {number} vh Viewport (canvas) height reference for `vh`, `vmax`, `vmin` unit types.
++  @prop {boolean} pctAsVmin Calculate % unit type based on viewport size instead of em size (always `true` if `!emSize`).
++*/
++
+ // -- Font & Variant --------------------------------------------------------------------
+ //    https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant
+ //    https://www.w3.org/TR/css-fonts-3/#font-size-prop
+ 
+ var splitBy = require('string-split-by'),
+-    {DOMPoint} = require('./geometry'),
+     m, cache = {font:{}, variant:{}};
+ 
+ const styleRE = /^(normal|italic|oblique)$/,
+       smallcapsRE = /^(normal|small-caps)$/,
+       stretchRE = /^(normal|(semi-|extra-|ultra-)?(condensed|expanded))$/,
+       namedSizeRE = /(?:xx?-)?small|smaller|medium|larger|(?:xx?-)?large|normal/,
+-      numSizeRE = /^(\-?[\d\.]+)(px|pt|pc|in|cm|mm|%|em|ex|ch|rem|q)/,
++      numSizeRE = /^(\-?[\d\.]+)(px|pt|pc|in|cm|mm|%|ex|ch|r?em|q|vw|vh|vmin|vmax)/,
+       namedWeightRE = /^(normal|bold(er)?|lighter)$/,
+       numWeightRE = /^(1000|\d{1,3})$/,
+       parameterizedRE = /([\w\-]+)\((.*?)\)/,
++      defaultEmSize = 16,
+       unquote = s => s.replace(/^(['"])(.*?)\1$/, "$2"),
+       isSize = s => namedSizeRE.test(s) || numSizeRE.test(s),
+       isWeight = s => namedWeightRE.test(s) || numWeightRE.test(s);
+ 
+-function parseFont(str){
+-  if (cache.font[str]===undefined){
+-    try{
+-      if (typeof str !== 'string') throw new Error('Font specification must be a string')
+-      if (!str) throw new Error('Font specification cannot be an empty string')
+-
+-      let font = {style:'normal', variant:'normal', weight:'normal', stretch:'normal'},
+-          value = str.replace(/\s*\/\*s/, "/"),
+-          tokens = splitBy(value, /\s+/),
+-          token;
+-
+-      while (token = tokens.shift()) {
+-        let match = styleRE.test(token) ? 'style'
+-                  : smallcapsRE.test(token) ? 'variant'
+-                  : stretchRE.test(token) ? 'stretch'
+-                  : isWeight(token) ? 'weight'
+-                  : isSize(token) ? 'size'
+-                  : null;
+-
+-        switch (match){
+-          case "style":
+-          case "variant":
+-          case "stretch":
+-          case "weight":
+-            font[match] = token
+-            break;
+-
+-          case "size":
+-            // size is the pivot point between the style fields and the family name stack,
+-            // so start processing what's been collected
+-            let [emSize, leading] = splitBy(token, '/'),
+-                size = parseSize(emSize),
+-                lineHeight = leading ? parseSize(leading.replace(/(\d)$/, '$1em'), size) : undefined,
+-                weight = parseWeight(font.weight),
+-                family = splitBy(tokens.join(' '), /\s*,\s*/).map(unquote),
+-                features = font.variant=='small-caps' ? {on:['smcp', 'onum']} : {},
+-                {style, stretch, variant} = font;
+-
+-            // make sure all the numeric fields have legitimate values
+-            let invalid = !isFinite(size) ? `font size "${emSize}"`
+-                        : !isFinite(lineHeight) && lineHeight!==undefined ? `line height "${leading}"`
+-                        : !isFinite(weight) ? `font weight "${font.weight}"`
+-                        : family.length==0 ? `font family "${tokens.join(', ')}"`
+-                        : false;
+-
+-            if (!invalid){
+-              // include a re-stringified version of the decoded/absified values
+-              return cache.font[str] = Object.assign(font, {
+-                size, lineHeight, weight, family, features,
+-                canonical:[
+-                  style,
+-                  (variant !== style) && variant,
+-                  ([variant, style].indexOf(weight) == -1) && weight,
+-                  ([variant, style, weight].indexOf(stretch) == -1) && stretch,
+-                  `${size}px${isFinite(lineHeight) ? `/${lineHeight}px`: ''}`,
+-                  family.map(nm => nm.match(/\s/) ? `"${nm}"` : nm).join(", ")
+-                ].filter(Boolean).join(' ')
+-              })
+-            }
+-            throw new Error(`Invalid ${invalid}`)
+-
+-          default:
+-            throw new Error(`Unrecognized font attribute "${token}"`)
+-        }
++/**
++@param {string} str
++@param {SizeReferenceOptions} options
++*/
++function parseFont(str, options = {}){
++  const cacheKey = `${str}${options.vh||''}${options.vw||''}${options.emSize||''}`,
++    f = cache.font[cacheKey]
++  if (f !== undefined)
++    return f
++
++  try{
++    if (typeof str !== 'string') throw new Error('Font specification must be a string')
++    if (!str) throw new Error('Font specification cannot be an empty string')
++
++    let font = {style:'normal', variant:'normal', weight:'normal', stretch:'normal'},
++        value = str.replace(/\s*\/\*s/, "/"),
++        tokens = splitBy(value, /\s+/),
++        token;
++
++    while (token = tokens.shift()) {
++      let match = styleRE.test(token) ? 'style'
++                : smallcapsRE.test(token) ? 'variant'
++                : stretchRE.test(token) ? 'stretch'
++                : isWeight(token) ? 'weight'
++                : isSize(token) ? 'size'
++                : null;
++
++      switch (match){
++        case "style":
++        case "variant":
++        case "stretch":
++        case "weight":
++          font[match] = token
++          break;
++
++        case "size":
++          // size is the pivot point between the style fields and the family name stack,
++          // so start processing what's been collected
++          let [emSize, leading] = splitBy(token, '/'),
++              size = parseSize(emSize, { pctAsVmin: false, ...options }),
++              lineHeight = leading ? parseFloat(leading) * size : undefined,
++              weight = parseWeight(font.weight),
++              family = splitBy(tokens.join(' '), /\s*,\s*/).map(unquote),
++              features = font.variant=='small-caps' ? {on:['smcp', 'onum']} : {},
++              {style, stretch, variant} = font;
++
++          // make sure all the numeric fields have legitimate values
++          let invalid = !isFinite(size) ? `font size "${emSize}"`
++                      : !isFinite(lineHeight) && lineHeight!==undefined ? `line height "${leading}"`
++                      : !isFinite(weight) ? `font weight "${font.weight}"`
++                      : family.length==0 ? `font family "${tokens.join(', ')}"`
++                      : false;
++
++          if (!invalid){
++            // include a re-stringified version of the decoded/absified values
++            return cache.font[cacheKey] = Object.assign(font, {
++              size, lineHeight, weight, family, features,
++              canonical:[
++                style,
++                (variant !== style) && variant,
++                ([variant, style].indexOf(weight) == -1) && weight,
++                ([variant, style, weight].indexOf(stretch) == -1) && stretch,
++                `${size}px${isFinite(lineHeight) ? `/${lineHeight}px`: ''}`,
++                family.map(nm => nm.match(/\s/) ? `"${nm}"` : nm).join(", ")
++              ].filter(Boolean).join(' ')
++            })
++          }
++          throw new Error(`Invalid ${invalid}`)
++
++        default:
++          throw new Error(`Unrecognized font attribute "${token}"`)
+       }
+-      throw new Error('Could not find a font size value')
+-    } catch(e) {
+-      // console.warn(Object.assign(e, {name:"Warning"}))
+-      cache.font[str] = null
+     }
++    throw new Error('Could not find a font size value')
++  } catch(e) {
++    // console.warn(Object.assign(e, {name:"Warning"}))
++    return cache.font[cacheKey] = null
+   }
+-  return cache.font[str]
+ }
+ 
+-function parseSize(str, emSize=16){
++function sizeUnitFactor(unit, {emSize = defaultEmSize, vw = 300, vh = 150, pctAsVmin = true} = {}){
++  switch (unit) {
++    case 'px':   return 1
++    case 'pt':   return 1 / 0.75
++    case '%':    return (pctAsVmin || !emSize ? Math.min(vw, vh) : emSize) / 100
++    case 'pc':   return 16
++    case 'in':   return 96
++    case 'cm':   return 96 / 2.54
++    case 'mm':   return 96 / 25.4
++    case 'q':    return 96 / 25.4 / 4
++    case 'vw':   return vw / 100
++    case 'vh':   return vh / 100
++    case 'vmin': return Math.min(vw, vh) / 100
++    case 'vmax': return Math.max(vw, vh) / 100
++    case 'em':
++    case 'rem':  return emSize
++    case 'ch':
++    case 'ex':   return emSize / 2
++    default:     return NaN
++  }
++}
++
++/**
++@param {string} str
++@param {SizeReferenceOptions} options
++*/
++function parseSize(str, options = {}){
+   if (m = numSizeRE.exec(str)){
+     let [size, unit] = [parseFloat(m[1]), m[2]]
+-    return size * (unit == 'px' ? 1
+-                :  unit == 'pt' ? 1 / 0.75
+-                :  unit == '%' ? emSize / 100
+-                :  unit == 'pc' ? 16
+-                :  unit == 'in' ? 96
+-                :  unit == 'cm' ? 96.0 / 2.54
+-                :  unit == 'mm' ? 96.0 / 25.4
+-                :  unit == 'q' ? 96 / 25.4 / 4
+-                :  unit.match('r?em') ? emSize
+-                :  NaN )
++    return size * sizeUnitFactor(unit, options)
+   }
+ 
+   if (m = namedSizeRE.exec(str)){
+-    return emSize * (sizeMap[m[0]] || 1.0)
++    options = {emSize: defaultEmSize, ...options}
++    return options.emSize * (sizeMap[m[0]] || 1.0)
+   }
+ 
+   return NaN
+ }
+ 
+-function parseFlexibleSize(str){
++/**
++@param {string} str
++@param {SizeReferenceOptions} options
++*/
++function parseFlexibleSize(str, options = {}){
+   if (m = numSizeRE.exec(str)){
+-    let [size, unit] = [parseFloat(m[1]), m[2]],
+-        px = size * (unit == 'px' ? 1
+-          :  unit == 'pt' ? 1 / 0.75
+-          :  unit == 'pc' ? 16
+-          :  unit == 'in' ? 96
+-          :  unit == 'cm' ? 96.0 / 2.54
+-          :  unit == 'mm' ? 96.0 / 25.4
+-          :  unit == 'q' ? 96 / 25.4 / 4
+-          :  NaN )
++    const [size, unit] = [parseFloat(m[1]), m[2]],
++        px = size * sizeUnitFactor(unit, options)
+     return {size, unit, px}
+   }
+   return null
+@@ -224,21 +253,32 @@ function parseFit(mode){
+ //    https://github.com/fserb/canvas2D/blob/master/spec/roundrect.md
+ 
+ function parseCornerRadii(r){
+-  r = [r].flat()
+-         .map(n => n instanceof DOMPoint ? n : new DOMPoint(n, n))
+-         .slice(0, 4)
+-
+-  if (r.some(pt => !Number.isFinite(pt.x) || !Number.isFinite(pt.y))){
+-    return null // silently abort
+-  }else if (r.some(pt => pt.x < 0 || pt.y < 0)){
+-    throw new Error("Corner radius cannot be negative")
++  if (r == undefined)
++    return [[0,0],[0,0],[0,0],[0,0]];
++
++  r = [r].flat().slice(0, 4)
++  for (const [i, v] of Object.entries(r)) {
++    if (typeof v == 'number') {
++      if (!Number.isFinite(v))
++        return null // silently abort
++      if (v < 0)
++        throw new Error("Corner radius cannot be negative")
++      r[i] = [v, v]
++      continue;
++    }
++    // assume value is an object with {x,y} properties, the isFinite() checks will return false if it isn't
++    if (!Number.isFinite(v.x) || !Number.isFinite(v.y))
++      return null // silently abort
++    if (v.x < 0 || v.y < 0)
++      throw new Error("Corner radius cannot be negative")
++    r[i] = [v.x, v.y]
+   }
+ 
+   return r.length == 1 ? [r[0], r[0], r[0], r[0]]
+        : r.length == 2 ? [r[0], r[1], r[0], r[1]]
+        : r.length == 3 ? [r[0], r[1], r[2], r[1]]
+-       : r.length == 4 ? [r[0], r[1], r[2], r[3]]
+-       : [0, 0, 0, 0].map(n => new DOMPoint(n, n))
++       : r.length == 4 ? r
++       : [[0,0],[0,0],[0,0],[0,0]]
+ }
+ 
+ // -- Image Filters -----------------------------------------------------------------------
+@@ -249,7 +289,11 @@ var plainFilterRE = /(blur|hue-rotate|brightness|contrast|grayscale|invert|opaci
+     percentValueRE = /^(\+|-)?\d+%$/,
+     angleValueRE = /([\d\.]+)(deg|g?rad|turn)/;
+ 
+-function parseFilter(str){
++/**
++@param {string} str
++@param {SizeReferenceOptions} options
++*/
++function parseFilter(str, options = {}){
+   let filters = {}
+   let canonical = []
+ 
+@@ -259,14 +303,14 @@ function parseFilter(str){
+           args = m[1].trim().split(/\s+/),
+           lengths = args.slice(0,3),
+           color = args.slice(3).join(' '),
+-          dims = lengths.map(s => parseSize(s)).filter(isFinite);
++          dims = lengths.map(s => parseSize(s, options)).filter(isFinite);
+       if (dims.length==3 && !!color){
+         filters[kind] = [...dims, color]
+         canonical.push(`${kind}(${lengths.join(' ')} ${color.replace(/ /g,'')})`)
+       }
+     }else if (m = plainFilterRE.exec(spec)){
+       let [kind, arg] = m.slice(1)
+-      let val = kind=='blur' ? parseSize(arg)
++      let val = kind=='blur' ? parseSize(arg, options)
+               : kind=='hue-rotate' ? parseAngle(arg)
+               : parsePercentage(arg);
+       if (isFinite(val)){
+diff --git a/node_modules/skia-canvas/lib/classes/path.js b/node_modules/skia-canvas/lib/classes/path.js
+index 043ed0f..212387b 100644
+--- a/node_modules/skia-canvas/lib/classes/path.js
++++ b/node_modules/skia-canvas/lib/classes/path.js
+@@ -65,8 +65,8 @@ class Path2D extends RustClass{
+     let radii = css.radii(r)
+     if (radii){
+       if (w < 0) radii = [radii[1], radii[0], radii[3], radii[2]]
+-      if (h < 0) radii = [radii[3], radii[2], radii[1], radii[0]]
+-      this.ƒ("roundRect", x, y, w, h, ...radii.map(({x, y}) => [x, y]).flat())
++      if (h < 0) radii.reverse()
++      this.ƒ("roundRect", x, y, w, h, ...radii.flat())
+     }
+   }
+ 
+diff --git a/node_modules/skia-canvas/lib/index.d.ts b/node_modules/skia-canvas/lib/index.d.ts
+index 01f977a..0fd5a1b 100644
+--- a/node_modules/skia-canvas/lib/index.d.ts
++++ b/node_modules/skia-canvas/lib/index.d.ts
+@@ -59,6 +59,13 @@ interface DOMRect extends DOMRectReadOnly {
+   y: number;
+ }
+ 
++interface DOMRectInit {
++  height?: number;
++  width?: number;
++  x?: number;
++  y?: number;
++}
++
+ declare var DOMRect: {
+   prototype: DOMRect;
+   new(x?: number, y?: number, width?: number, height?: number): DOMRect;
+@@ -110,8 +117,11 @@ declare var DOMRectReadOnly: {
+ // Images
+ //
+ 
++/** [Skia Canvas Docs](http://skia-canvas.org/api/image#loadimage) */
+ export function loadImage(src: string | Buffer): Promise<Image>
++/** [Skia Canvas Docs](http://skia-canvas.org/api/imagedata#loadimagedata) */
+ export function loadImageData(src: string | Buffer, width: number, height?:number): Promise<ImageData>
++/** [Skia Canvas Docs](http://skia-canvas.org/api/imagedata#loadimagedata) */
+ export function loadImageData(src: string | Buffer, width: number, height:number, settings?:ImageDataSettings): Promise<ImageData>
+ 
+ export type ColorSpace = "srgb" // add "display-p3" when skia_safe supports it
+@@ -127,6 +137,7 @@ interface ImageDataSettings {
+   colorType?: ColorType
+ }
+ 
++/** [Skia Canvas Docs](https://skia-canvas.org/api/imagedata) */
+ export class ImageData {
+   prototype: ImageData
+   constructor(sw: number, sh: number, settings?: ImageDataSettings)
+@@ -141,6 +152,7 @@ export class ImageData {
+   readonly width: number
+ }
+ 
++/** [Skia Canvas Docs](https://skia-canvas.org/api/image) */
+ export class Image extends EventEmitter {
+   constructor()
+   get src(): string
+@@ -249,7 +261,7 @@ declare var DOMMatrix: {
+ // Canvas
+ //
+ 
+-export type ExportFormat = "png" | "jpg" | "jpeg" | "webp" | "pdf" | "svg";
++export type ExportFormat = "png" | "jpg" | "jpeg" | "webp" | "pdf" | "svg" | "raw";
+ 
+ export interface RenderOptions {
+   /** Page to export: Defaults to 1 (i.e., first page) */

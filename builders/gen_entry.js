@@ -32,7 +32,7 @@ const C = require("../dist/utils/consts.js");
 var VERSION = pkgConfig.version;
 var BUILD_NUM = pkgConfig.config.build;
 var OUTPUT_PATH = "base"
-var DOCS_URL_BASE = "https://github.com/spdermn02/TouchPortal-Dynamic-Icons/wiki/Documentation";
+var DOCS_URL_BASE = pkgConfig.homepage + "/wiki/Documentation";
 var DEV_MODE = false;
 
 // Handle CLI arguments
@@ -54,6 +54,7 @@ for (const part of [...VERSION.split('-', 1)[0].split('.', 3), BUILD_NUM])
 const ID_PREFIX = C.Str.IdPrefix;
 const PLUG_PATH = `%TP_PLUGIN_FOLDER%${pkgConfig.name}`;
 const ICON_PATH = `${PLUG_PATH}/icons/`;
+const ACTION_NAME_PREFIX = "Dynamic Icons: ";  // prepended to action descriptions to identify the plugin they belong to
 
 // some useful characters for forcing spacing in action texts
 const NBSP = " ";   // non-breaking narrow space U+202F (TP ignores "no-break space" U+00AD)
@@ -88,8 +89,11 @@ const entry_base =
     configuration: {
         colorDark:  "#23272A",
         colorLight: "#7289DA",
-        parentCategory: "misc",
+        parentCategory: "tools",
     },
+    settingsDescription: pkgConfig.description + "\n" +
+        "For more details, documentation, and examples please visit the plugin's home page at: " + pkgConfig.homepage + "\n" +
+        "Installed plugin version: " + VERSION,
     settings: [
         {
             name: C.SettingName.IconSize,
@@ -115,19 +119,20 @@ const entry_base =
                 docUrl: `${DOCS_URL_BASE}#plugin-settings`
             }
         },
-        /*  Do not use GPU setting for now, possibly revisit if skia-canvas is fixed. **
+        /* Disable GPU option for now, revisit later if GPU usage becomes stable.
         {
             name: C.SettingName.GPU,
-            type: "text",
-            default: PluginSettings.defaultGpuRendering ? "Yes" : "No",
+            type: "switch",
+            default: PluginSettings.defaultGpuRendering ? "on" : "off",
             readOnly: false,
             tooltip: {
                 title: cleanSettingTitle(C.SettingName.GPU),
-                body: "Enables or disables using hardware acceleration (GPU), when available, for generating icon images. One of: \"yes, true, 1, or enable\" to enable, anything else to disable.\n" +
-                    "This setting can be also be overridden per icon. Changing this setting does not affect any icons already generated since the plugin was started.\n\n" +
-                    "When disabled, all image processing happens on the CPU, which may be slower and/or produce slightly different results in some cases.\n\n" +
-                    "GPU rendering is only supported on some hardware/OS/drivers, and is disabled on others regardless of this setting.\n\n" +
-                    "Note that at least some CPU will be used when generating icons in any case, most notably for image file loading and final output PNG compression.",
+                body: "Enables using hardware acceleration (GPU) for generating icon images (on supporrted hardware). " +
+                    "When disabled, all image processing happens on the CPU. Using GPU may provide speed or efficiency benefits in some cases and may produce slightly different visual results.\n\n" +
+                    "This setting can be also be overridden per icon when using layers.\n" +
+                    "GPU rendering is only supported on some hardware/OS/drivers, and is disabled on others regardless of this setting. " +
+                    "Note that at least some CPU will be used when generating icons in any case, most notably for image file loading and final output PNG compression. " +
+                    "Changing this setting will not affect any created icon instances until they're cleared (with \"Delete Icon State\" action) or the plugin is restarted.",
                 docUrl: `${DOCS_URL_BASE}#plugin-settings`
             }
         },
@@ -151,14 +156,41 @@ const entry_base =
             }
         },
         {
+            name: C.SettingName.PngQualityLevel,
+            type: "number",
+            default: PluginSettings.defaultOutputQuality.toString(),
+            minValue: 0,
+            maxValue: 100,
+            readOnly: false,
+            tooltip: {
+                title: cleanSettingTitle(C.SettingName.PngQualityLevel),
+                body: "Sets the default image color quality of generated and compressed icons. The final image will have the lowest number of colors needed to achieve the specified quality.\n" +
+                    "The number of colors affects the final image data size which will be sent to the TP device for display. Using fewer colors produces smaller images, but possibly at the expense of image quality.\n" +
+                    "This option can be also be overridden per icon when using layers. It has no effect on icons generated with compression disabled entirely.",
+                docUrl: `${DOCS_URL_BASE}#plugin-settings`
+            }
+        },
+        {
             name: C.SettingName.MaxImageProcThreads,
             type: "text",
             default: C.Str.Default,
             readOnly: false,
             tooltip: {
                 title: cleanSettingTitle(C.SettingName.MaxImageProcThreads),
-                body: "Sets the maximum number of parallel CPU threads used for image compression. A value of \""+C.Str.Default+"\" (or zero) will use half the available CPU threads (usually twice the number of physical CPU cores).\n\n" +
-                    "When specifying a setting, this should be a number between 1 and the maximum number of threads a CPU can process in parallel, which again is usually twice the number of physical CPU cores.",
+                body: "Sets the maximum number of parallel CPU threads used for image compression. A value of \""+C.Str.Default+"\" (or zero) will use half the available CPU threads (modern CPUs can typically run 2 threads per physical CPU core).\n" +
+                    "When specifying a setting, this should be a number between 1 and the maximum number of threads a CPU can process in parallel.",
+                docUrl: `${DOCS_URL_BASE}#plugin-settings`
+            }
+        },
+        {
+            name: C.SettingName.MaxImageGenThreads,
+            type: "text",
+            default: C.Str.Default,
+            readOnly: false,
+            tooltip: {
+                title: cleanSettingTitle(C.SettingName.MaxImageGenThreads),
+                body: "Sets the maximum number of parallel threads used for image generation (rendering). A value of \""+C.Str.Default+"\" (or zero) will use half the available CPU threads (modern CPUs can typically run 2 threads per physical CPU core).\n" +
+                    "When specifying a setting, this should be a number between 1 and the maximum number of threads a CPU can process in parallel.",
                 docUrl: `${DOCS_URL_BASE}#plugin-settings`
             }
         },
@@ -196,12 +228,6 @@ String.prototype.format = function (args) {
     });
 };
 
-// Wraps a string _once_ at the given width, so at most it creates 2 lines of text, one <= the given width and one (possibly longer) with the remainder.
-String.prototype.wrap = function(width = 280) {
-    const re = new RegExp(`(?![^\\n]{1,${width}}$)([^\\n]{1,${width}})\\s`, 'm');  // replace 'm' flag with 'g' for wrap to multiple lines
-    return this.replace(re, '$1\n').trim();
-}
-
 // Remove any trailing range info like " (0-9)" from settings name for use in tooltip window.
 function cleanSettingTitle(title) {
     return title.replace(/ \(.+\)$/, "");
@@ -212,10 +238,12 @@ function jid(...args) {
     return args.join(C.Str.IdSep);
 }
 
+// Action and action data creation helpers
+
 function addAction(id, name, descript, format, data, subcat = null, hold = false) {
     const action = {
         id: ID_PREFIX + id,
-        prefix: "Dynamic Icons:",
+        prefix: ACTION_NAME_PREFIX,
         name: name,
         subCategoryId: subcat?.id,
         type: "communicate",
@@ -224,6 +252,54 @@ function addAction(id, name, descript, format, data, subcat = null, hold = false
         format: String(format).format(data.map(d => `{$${d.id}$}`)),
         hasHoldFunctionality: hold,
         data: data
+    }
+    entry_base.categories[0].actions.push(action);
+}
+
+function makeActionLinesObj(lines, hold = false) {
+  const key = hold ? "onhold" : "action";
+  return {
+    [key]: [
+      {
+        language: "default",
+        data: lines.map(l => ({ lineFormat: l })),
+        // suggestions: { lineIndentation: 20, firstLineItemLabelWidth: 0 }
+      },
+    ]
+  };
+}
+
+/** Adds an action using the TP v7 API `lines` property for the text formatting layout. These actions only work with TP v4+.
+`descript`, if not empty, gets used as the first line, followed by a line for each member of `format`,
+which can be an array (or null for no format, or a single format string which gets converted to a one-member array).
+Data ID placeholders ("{N}") in `format` string(s) get replaced with corresponding member IDs of `data` array.
+*/
+function addActionV7(id, name, descript, format = null, data = null, subcat = null, hold = false)
+{
+    if (format != null && !Array.isArray(format))
+        format = [format];
+    const dataMapArry = data?.map(d => `{$${d.id}$}`) ?? [];
+    const lines = format?.map(f => String(f).format(dataMapArry)) ?? [];
+    if (descript)
+        lines.unshift(ACTION_NAME_PREFIX + descript);
+    const linesObj = makeActionLinesObj(lines);
+
+    // NOTE: As of TP 4.4 the documented `lines.onhold` specific formatting doesn't actually work to enable use in "on hold" setup.
+    // `hasHoldFunctionality` still has to be `true` and the contents of `lines.action` will be used even if `lines.onhold` exists.
+    // Undocumented `formatOnHold` can be set for an action to use separate format spec in "on hold" setup area, but this is limited
+    // to a single line. Currently none of our actions need different layout/data for holdable actions, so this is a moot point.
+    // Anyway, we'll still add the `lines.onhold` property here so the output complies with API spec... in case it gets "fixed" later, I guess.
+    if (hold)
+        Object.assign(linesObj, makeActionLinesObj(lines, true));
+
+    const action = {
+        id: ID_PREFIX + id,
+        name: name,
+        subCategoryId: subcat?.id,
+        type: "communicate",
+        lines: linesObj,
+        hasHoldFunctionality: hold,
+        data: data ?? []
     }
     entry_base.categories[0].actions.push(action);
 }
@@ -237,7 +313,7 @@ function makeActionData(id, type, label = "", deflt = "") {
     };
 }
 
-function makeTextData(id, label, dflt = "") {
+function makeTextData(id, label = "", dflt = "") {
     return makeActionData(id, "text", label, dflt + '');
 }
 
@@ -260,12 +336,28 @@ function makeNumericData(id, label, dflt, min, max, allowDec = true) {
     return d;
 }
 
-function makeIconNameData(id, label = "Icon Name") {
-    return makeTextData(jid(id, "name"), label);
+function makeFileData(id, extensions = [], dflt = "") {
+    const d = makeActionData(id, "file", "", dflt);
+    d.extensions = extensions;
+    return d;
 }
+
+function makeOnOffSwitchData(id, dflt = true) {
+    return makeChoiceData(id, "", [C.DataValue.OnValue, C.DataValue.OffValue], dflt ? 0 : 1);
+}
+
+function makeYesNoSwitchData(id, dflt = true) {
+    return makeChoiceData(id, "", [C.DataValue.YesValue, C.DataValue.NoValue], dflt ? 0 : 1);
+}
+
+// Specific action data types
 
 function makeSizeTypeData(id, dflt = undefined) {
     return makeChoiceData(jid(id, "unit"), "Unit", ["%", "px"], dflt);
+}
+
+function makeRenderChoiceData(id) {
+    return makeYesNoSwitchData(jid(id, "render"), false);
 }
 
 // Shared functions which create both a format string and data array.
@@ -273,10 +365,10 @@ function makeSizeTypeData(id, dflt = undefined) {
 
 function makeIconLayerCommonData(id, withIndex = false) {
     let format = "Icon\nName {0}";
-    const data = [ makeIconNameData(id) ];
+    const data = [ makeTextData(jid(id, "name"), "Icon Name") ];
     if (withIndex) {
         format += "Element\n@ Position{1}";
-        data.push(makeNumericData(jid(id, "layer_index"), "Layer Position", 1, -99, 99, false));
+        data.push(makeTextData(jid(id, "layer_index"), "Layer Position", "1"));
     }
     return [ format, data ];
 }
@@ -384,10 +476,10 @@ function makeTransformData(opsList, id, /* out */ data) {
     return f;
 }
 
-function makeStrokeStyleData(id, /* out */ data, { withUnitType=true, withCap, withJoin, withMiterLimit, withLineDash, all } = {}) {
+function makeStrokeStyleData(id, /* out */ data, { withUnitType=true, width=0, color="#00000000", withCap, withJoin, withMiterLimit, withLineDash, all } = {}) {
     let i = data.length;
     let format = `Stroke\nWidth {${i++}}`;
-    data.push(makeTextData(jid(id, "line_width"), "Stroke Width", "0"));
+    data.push(makeTextData(jid(id, "line_width"), "Stroke Width", width.toString()));
 
     if (all || withUnitType) {
         format += `{${i++}}`;
@@ -395,7 +487,7 @@ function makeStrokeStyleData(id, /* out */ data, { withUnitType=true, withCap, w
     }
 
     format += ` Stroke\nColor {${i++}}`;
-    data.push(makeColorData(jid(id, "line_color"), "Stroke"));
+    data.push(makeColorData(jid(id, "line_color"), "Stroke", color));
 
     if (all || withCap) {
         format += ` Cap\nStyle {${i++}}`;
@@ -419,11 +511,11 @@ function makeStrokeStyleData(id, /* out */ data, { withUnitType=true, withCap, w
     return format;
 }
 
-function makeDrawStyleData(id, /* out */ data, { withShadow=true, withDrawOrder, withFillRule, all } = {}) {
+function makeDrawStyleData(id, /* out */ data, { withShadow=true, fillColor="#00000000", withDrawOrder, withFillRule, all } = {}) {
     id = jid(id, "style");
     i = data.length;
     let format = `Fill\nColor {${i++}} `;
-    data.push(makeColorData(jid(id, "fillColor"), "Fill"));
+    data.push(makeColorData(jid(id, "fillColor"), "Fill", fillColor));
     if (all || withFillRule) {
         format += ` Fill\nRule {${i++}}`
         data.push(makeChoiceData(jid(id, "fillRule"), "Fill Rule", C.STYLE_FILL_RULE_CHOICES));
@@ -444,9 +536,9 @@ function makeDrawStyleData(id, /* out */ data, { withShadow=true, withDrawOrder,
     return format;
 }
 
-function makeRectSizeData(id, /* out */ data, w = 100, h = 100, label = "Size", wLabel = "W", hLabel = "H") {
+function makeRectSizeData(id, /* out */ data, w = 100, h = 100, label = "Size", wLabel = `${SP_EM}W`, hLabel = "H") {
     let i = data.length;
-    const format = `${label}\n${SP_EM}${wLabel} {${i++}}{${i++}}${NBSP}\n${hLabel} {${i++}}{${i++}}`;
+    const format = `${label}\n${wLabel} {${i++}}{${i++}}${NBSP}\n${hLabel} {${i++}}{${i++}}`;
     data.push(
         makeTextData(jid(id, "size_w"), "Width", w.toString()),
         makeSizeTypeData(jid(id, "size_w")),
@@ -478,7 +570,7 @@ function makeAlignmentData(id, /* out */ data) {
 
 function makeOffsetData(id, /* out */ data) {
     let i = data.length;
-    const format = `Offset\n (%) H {${i++}}${NBSP}\n V{${i++}}`;
+    const format = `Offset\n(±%) H {${i++}}${NBSP}\n V{${i++}}`;
     data.push(
         makeTextData(jid(id, "ofsH"), "Horizontal Offset", "0"),
         makeTextData(jid(id, "ofsV"), "Vertical Offset", "0"),
@@ -529,20 +621,20 @@ function addRectangleAction(id, name, subcat) {
 function addTextAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         `Generate or layer styled text. ${layerInfoText('text')}\n` +
-        "Font is specified like the CSS 'font' shorthand property. Offset is percent of icon size, positive for right/down, negative for left/up. Stroke width in % is based on half the font size.";
+        "Font is specified like the CSS 'font' shorthand property. Set Wrap Width to zero or empty to disable automatic wrapping. Offset is percent of icon size, positive for right/down, negative for left/up. Stroke width in % is based on half the font size.";
     let [format, data] = makeIconLayerCommonData(id);
     let i = data.length;
-    format += `Text {${i++}} Font {${i++}} `;  // Baseline {${i++}}
+    format += `Text {${i++}} Font {${i++}} Letter\nSpacing {${i++}} Wrap\nWidth {${i++}}{${i++}} `;
     data.push(
-        makeActionData("text_str", "text", "Text", ""),
-        makeActionData("text_font", "text", "Font", "1.5em sans-serif"),
-        // makeChoiceData("text_baseline", "Baseline", ["alphabetic", "top", "middle", "bottom", "hanging", "ideographic"]),
+        makeTextData(jid(id, "str"), "Text"),
+        makeTextData(jid(id, "font"), "Font", "10vmin sans-serif"),
+        makeTextData(jid(id, "letterSpacing"), "Letter Spacing", "0px"),
+        makeTextData(jid(id, "size_w"), "Width", "100"),
+        makeSizeTypeData(jid(id, "size_w")),
     );
-    format += makeAlignmentData("text", data)
-    format += makeOffsetData("text", data)
-    format += ` Tracking {${data.length}}`;  // Baseline{${i++}}
-    data.push(makeNumericData("text_tracking", "Tracking", 0, -999999, 999999, true))
-    format += makeDrawStyleData("text", data);
+    format += makeAlignmentData(id, data);
+    format += makeOffsetData(id, data);
+    format += makeDrawStyleData(id, data);
     addAction(id, name, descript, format, data, subcat);
 }
 
@@ -555,7 +647,7 @@ function addImageAction(id, name, subcat) {
     let i = data.length;
     format += `Image\nFile {${i++}}Resize\nFit {${i++}}`;
     data.push(
-        makeActionData(jid(id, "src"), "file", "Image Source"),
+        makeFileData(jid(id, "src"), ["*.avif", "*.gif", "*.jpg", "*.jpeg", "*.png", "*.svg", "*.tif", "*.tiff", "*.webp"]),
         makeChoiceData(jid(id, "fit"), "Resize Fit", ["contain", "cover", "fill", "scale-down", "none"]),
     );
     format += makeTransformData(C.DEFAULT_TRANSFORM_OP_ORDER.slice(0, 3), jid(id, C.Act.IconTx), data);  // don't include skew op
@@ -575,14 +667,14 @@ function addProgressGaugeAction(id, name, subcat) {
         `background\n${SP_EM}${SP_EM}${SP_EM}color {${i++}} shadow\n${SP_EM}color {${i++}}`;
     data.push(
         makeActionData("gauge_color", "color", "Gauge Color", "#FFA500FF"),
-        makeChoiceData("gauge_highlight", "Gauge Highlight", ["On", "Off"]),
+        makeOnOffSwitchData("gauge_highlight"),
         makeTextData("gauge_start_degree", "Gauge Start Degree", "180"),
         makeActionData("gauge_value", "text", "Gauge Value", "0"),
         makeTextData("gauge_line_width", "Line Width", "12"),
         makeSizeTypeData("gauge_line_width"),
         makeChoiceData("gauge_line_cap", "Gauge Icon Cap Type", ["round", "butt", "square"]),
         makeTextData("gauge_radius", "Diameter", "78"),
-        makeChoiceData("gauge_counterclockwise", "Gauge Direction", ["Clockwise", "Counter CW", "Automatic"]),
+        makeChoiceData("gauge_counterclockwise", "Gauge Direction", C.ARC_DIRECTION_CHOICES),
         makeActionData("gauge_background_color", "color", "Gauge Background Color", "#000000FF"),
         makeActionData("gauge_shadow_color", "color", "Gauge Shadow Color", "#282828FF"),
     );
@@ -596,7 +688,7 @@ function addBarGraphAction(id, name, subcat) {
     let i = data.length;
     format += `with background {${i++}} of color {${i++}} using bar color {${i++}} add value {${i++}} with bar width {${i++}}`;
     data.push(
-        makeChoiceData("bar_graph_backround", "Bar Graph Background", ["On", "Off"]),
+        makeOnOffSwitchData("bar_graph_backround"),
         makeActionData("bar_graph_backround_color", "color", "Bar Graph Background Color", "#FFFFFFFF"),
         makeActionData("bar_graph_color", "color", "Bar Graph Color", "#FFA500FF"),
         makeActionData("bar_graph_value", "text", "Bar Graph Value", "0"),
@@ -615,7 +707,7 @@ function addProgressBarAction(id, name, subcat) {
     data.push(
         makeChoiceData("pbar_dir", "Direction", ["➡\tL to R", "⬅\tR to L", "⟺\tL & R", "⬆\tB to T", "⬇\tT to B", "↕\tT & B"]),
     );
-    format += makeRectSizeData("pbar", data, 25, 0, "Padding", "Sides", "Ends") + " ";
+    format += makeRectSizeData("pbar", data, 25, 0, "Padding", `${SP_EM}Sides`, "Ends") + " ";
     format += makeBorderRadiusData("pbar", data);
     format += " Container:\n" + makeDrawStyleData("pbar_ctr", data).replace("Fill\n", "");
     format += " Value:\n" + makeDrawStyleData("pbar_val", data, { withShadow: false }).replace("Fill\n", "");
@@ -623,6 +715,106 @@ function addProgressBarAction(id, name, subcat) {
     data.push(
         makeActionData("pbar_value", "text", "Progress Value", "0"),
     )
+    addAction(id, name, descript, format, data, subcat, true);
+}
+
+function addGaugeTicksAction(id, name, subcat, linear = false) {
+    let descript = "Draw " + (linear ? "Linear" : "Circular") + " Gauge Tick Marks. " + layerInfoText("element", false);
+    if (linear)
+        descript += " Length is the total area from first to last tick/label. ";
+    else
+        descript += " Start and End angles are in ± degrees with 0° pointing north. Width and Height determine the curve radius.";
+    descript += "\nMinor Tick Count is how many to draw between each major tick (not total). Tick Placement determines direction the ticks are drawn in relative to baseline. " +
+        "Label Values can be a numeric range and count, a comma-separated list, or empty.";
+
+    let [format, data] = makeIconLayerCommonData(id);
+    let i = data.length;
+
+    // Dimensions/orientation, alignment and offset line
+    if (linear) {
+        format += ` Orientation {${i++}} Length {${i++}}{${i++}} `;
+        data.push(
+            makeChoiceData(jid(id, "orientation"), "Orientation", ["Horizontal", "Vertical"]),
+            makeTextData(jid(id, "size_w"), "Length", "100"),
+            makeSizeTypeData(jid(id, "size_w")),
+        );
+    }
+    else {
+        format += ` Start\nAngle {${i++}} End\nAngle {${i++}} `;
+        data.push(
+            makeTextData(jid(id, "start"), "Start Angle", "0"),
+            makeTextData(jid(id, "end"), "End Angle", "360"),
+        );
+        format += makeRectSizeData(id, data, 100, 100, "Diam-", `eter H`, "V") + " ";
+    }
+    format += `Scale\nto Fit {${data.length}} `;
+    data.push(makeYesNoSwitchData(jid(id, "scaleToFit"), true));
+    format += makeAlignmentData(id, data) + " ";
+    format += makeOffsetData(id, data) + " ";
+    format = [format];
+
+    const placeOpts = linear ? [C.DataValue.PlaceTopLeft, C.DataValue.PlaceBotRight] : [C.DataValue.PlaceInside, C.DataValue.PlaceOutside];
+    i = data.length;
+
+    // Major and minor tick mark lines
+    const makeTickFields = (n, pfx, {cnt = 8, len = 8, w = 3, place = []} = {}) => {
+        format.push(`${n} Ticks:${SP_EN} Count {${i++}} Length {${i++}}{${i++}} Placement {${i++}} Line\nWidth {${i++}}{${i++}} Color {${i++}} Cap {${i++}}`);
+        data.push(
+            makeTextData(jid(id, pfx, "count"), "Tick Count", `${cnt}`),
+            makeTextData(jid(id, pfx, "len"), "Tick Length", `${len}`),
+            makeSizeTypeData(jid(id, pfx, "len")),
+            makeChoiceData(jid(id, pfx, "place"), "Placement", [...place, ...placeOpts, C.DataValue.PlaceCenter]),
+        );
+        makeStrokeStyleData(jid(id, pfx), data, { width: w, color: "#FFFFFF", withCap: true });
+    }
+    makeTickFields("Major", "maj");
+    makeTickFields("Minor", "min", {cnt: 1, len: 4, w: 2, place: ["Same"]});
+
+    // Labels line
+    let labelFmt = `Labels:${SP_EN} First-Last/Count\n ${SP_EM}${SP_EM}${SP_EM}${SP_EN} or List of Values {${i++}} Placement {${i++}} `;
+    const labelDeflt = linear ? "0 - 3 / 4 or 0,1,2,3" : "0 - 270 / 4 or N,E,S,W";
+    data.push(
+        makeTextData(jid(id, "label_value"), "Label Values", labelDeflt),
+        makeChoiceData(jid(id, "label_place"), "Placement", placeOpts),
+    );
+
+    if (linear) {
+        labelFmt += `Rotate\n${SP_EN}${SP_EN}(±°) {${i++}} Align {${i++}} `;
+        data.push(
+            makeTextData(jid(id, "label_rotate"), "Rotate", "0"),
+            makeChoiceData(jid(id, "label_align"), "Alignment", ["auto", "left", "center", "right"]),
+        );
+    }
+    else {
+        labelFmt += `Rotation {${i++}} ±° {${i++}} `;
+        data.push(
+            makeChoiceData(jid(id, "label_angled"), "Angled", ["None", C.DataValue.PlaceInward, C.DataValue.PlaceOutward]),
+            makeTextData(jid(id, "label_rotate"), "Rotate", "0"),
+        );
+    }
+    labelFmt += `Offset\n${SP_EN} (±%) {${i++}} Font\n(CSS) {${i++}} Letter\nSpacing {${i++}} Color {${i++}}`;
+    format.push(labelFmt);
+    data.push(
+        makeTextData(jid(id, "label_padding"), "Padding", "0"),
+        makeTextData(jid(id, "label_font"), "Font", "10vmin monospace"),
+        makeTextData(jid(id, "label_spacing"), "Spacing", "0px"),
+        makeColorData(jid(id, "label_color"), "Color", "#FFFFFF"),
+    );
+
+    addActionV7(id, name, descript, format, data, subcat);
+}
+
+function addScriptAction(id, name, subcat) {
+    const descript = "Run a Custom Script for drawing. Use JavaScript with standard Canvas API & additions. See plugin documentation for details.\n" +
+        "When Cache is On, Script File is only loaded & parsed once, improving efficiency. Arguments will be available in the script as a global 'scriptArgs' string variable.";
+    let [format, data] = makeIconLayerCommonData(id);
+    let i = data.length;
+    format += `Load Script from File {${i++}} with Cache {${i++}} and run with Arguments {${i++}}`;
+    data.push(
+        makeFileData(jid(id, "src"), ["*.js,*.*"]),
+        makeOnOffSwitchData(jid(id, "cache")),
+        makeTextData(jid(id, "args")),
+    );
     addAction(id, name, descript, format, data, subcat, true);
 }
 
@@ -644,9 +836,9 @@ function addRectanglePathAction(id, name, subcat) {
 function addEllipsePathAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         `Create an full or partial elliptical shape which can then be styled or used as a clip area. An ${layerInfoText('')}\n` +
-        "Size can be specified in percent of icon size or fixed pixels. Angles are in degrees, with zero being North/up. " +
-        "A complete circle is created by using 0 and 360 degrees as start/end angles. Rotation is applied to the final shape, from center. " +
-        "Alignment & Offset control the shape's position within the overall drawing area.";
+        "With and Height control the radius of the arc and can be specified as percent of icon size or fixed pixels. Angles are in degrees, with 0° pointing north. " +
+        "Use a 0 - 360 degree range for a complete circle. Rotation is applied to the final shape, from center. " +
+        "Alignment & Offset adjust the shape's position within the overall drawing area.";
     let [format, data] = makeIconLayerCommonData(id);
     format += makeRectSizeData(id, data) + " ";
     let i = data.length;
@@ -654,7 +846,7 @@ function addEllipsePathAction(id, name, subcat) {
     data.push(
         makeTextData(jid(id, "start"), "Start Angle", "0"),
         makeTextData(jid(id, "end"), "End Angle", "360"),
-        makeChoiceData(jid(id, "dir"), "Draw Direction", ["Clockwise", "Counter CW"]),
+        makeChoiceData(jid(id, "dir"), "Draw Direction", C.ARC_DIRECTION_CHOICES),
         makeTextData(jid(id, "rotate"), "rotation Angle", "0"),
     );
     format += makeAlignmentData(id, data) + " ";
@@ -676,7 +868,7 @@ function addFreeformPathAction(id, name, subcat) {
     data.push(
         makeTextData(jid(id, "path"), "Coordinate List", "[0, 0] [50, 50], [100, 0]"),
         makeSizeTypeData(id),
-        makeChoiceData(jid(id, "close"), "Close Path", ["No", "Yes"]),
+        makeYesNoSwitchData(jid(id, "close"), false),
     );
     format += makeAlignmentData(id, data) + " ";
     format += makeOffsetData(id, data) + " ";
@@ -686,9 +878,9 @@ function addFreeformPathAction(id, name, subcat) {
 
 function addStyleAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
-        "Apply a Style to preceeding Path layer(s). An Icon with same Name and at least one unused Path drawing layer must already be defined.\n" +
+        "Apply a Style to preceding Path layer(s). An Icon with same Name and at least one unused Path drawing layer must already be defined.\n" +
         "Items which can be styled are the Rectangle, Ellipse, and Freeform Path actions (only non-linear paths can have a fill color applied). " +
-        "The style will be applied to any preceeding Path layer(s) which have not already had a style applied or used as a clip mask.";
+        "The style will be applied to any preceding Path layer(s) which have not already had a style applied or used as a clip mask.";
     let [format, data] = makeIconLayerCommonData(id);
     format += makeDrawStyleData(id, data, {all: true});
     addAction(id, name, descript, format, data, subcat);
@@ -696,14 +888,14 @@ function addStyleAction(id, name, subcat) {
 
 function addClipAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
-        "Use preceeding Path layer(s) to create a clipping mask area on the current drawing. " +
-        "The full area will include all preceeding Path layer(s) which have not already had a style applied or been used as another mask. " +
+        "Use preceding Path layer(s) to create a clipping mask area on the current drawing. " +
+        "The full area will include all preceding Path layer(s) which have not already had a style applied or been used as another mask. " +
         "At least one unused Path drawing type layer must be added first for this action to have any effect.\n" +
         "A clip mask defines a shape outside of which nothing is drawn, like a window which hides anything outside the frame. It will hide parts of anything drawn afterwards which fall outside of it." +
         "'Inverse' will create a mask hiding everything inside of the given path(s). The 'Release' action will restore the drawing area back to the full icon's size.";
     let [format, data] = makeIconLayerCommonData(id);
     let i = data.length;
-    format += ` {${i++}} Clipping Mask from preceeding Path layer(s) | Create with Fill Rule {${i++}}`;
+    format += ` {${i++}} Clipping Mask from preceding Path layer(s) | Create with Fill Rule {${i++}}`;
     data.push(
         makeChoiceData(jid(id, "action"), "Action", [C.DataValue.ClipMaskNormal, C.DataValue.ClipMaskInverse, C.DataValue.ClipMaskRelease]),
         makeChoiceData(jid(id, "fillRule"), "Fill Rule", C.STYLE_FILL_RULE_CHOICES)
@@ -758,15 +950,31 @@ function addGenerateLayersAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         "Finalize and/or Render a dynamic image icon which has been created using preceding 'New' and 'Draw/Layer' actions using the same Icon Name.\n" +
         "'Finalize' marks the icon as finished, removing any extra layers which may have been added previously. 'Render' produces the actual icon in its current state and sends it to TP.";
-    const format = "Icon Named {0} {1} with Compression Level {2} (default is set in plugin Settings)";
-    // Do not use GPU setting for now, possibly revisit if skia-canvas is fixed.
-    // const format = "Icon Named {0} {1} | Enable GPU Rendering: {2} Compression Level: {3} (defaults are set in plugin Settings)";
-    const data = [
-        makeIconNameData(id),
-        makeChoiceData("icon_generate_action", "Action", ["Finalize & Render", "Finalize Only", "Render Only"]),
-        // makeChoiceData("icon_generate_gpu", "Enable GPU Rendering", ["default", "Enable", "Disable"]),
-        makeChoiceData("icon_generate_cl", "Image Compression Level", ["default", "None", "1 (low)", "2", "3", "4", "5", "6", "7", "8", "9 (high)"]),
-    ];
+    let [format, data] = makeIconLayerCommonData(id);
+    let i = data.length;
+    format += `{${i++}} with Compression Level {${i++}} and Quality {${i++}} (defaults are set in plugin Settings)`;
+    // Disable GPU option for now, revisit later if GPU usage becomes stable.
+    // format += `{${i++}} with Compression Level {${i++}} Quality {${i++}} and GPU Rendering {${i++}} (defaults are set in plugin Settings)`;
+    data.push(
+        makeChoiceData(jid(id, "action"), "Action", ["Finalize & Render", "Finalize Only", "Render Only"]),
+        makeChoiceData(jid(id, "cl"), "Compression Level", [C.Str.Default, "None", "1 (low)", "2", "3", "4", "5", "6", "7", "8", "9 (high)"]),
+        makeChoiceData(jid(id, "quality"), "Quality", [C.Str.Default, ...Array.from( {length: 100}, (_, i) => (i+1).toString()).reverse() ]),
+        // makeChoiceData(jid(id, "gpu"), "GPU Rendering", [C.Str.Default, "Enabled", "Disabled"]),
+    );
+    addAction(id, name, descript, format, data, subcat);
+}
+
+function addSaveToFileAction(id, name, subcat) {
+    const descript = "Dynamic Icons: " +
+        "Save the generated image to a file (or multiple files for tiled images). File paths are relative to this plugin's \"Default Image Files Path\" setting, or use absolute paths.\n" +
+        "Extension of the given file name determines the format. Supported: AVIF, GIF, JPEG, PNG, TIFF, & WEBP. Each format accepts different options, see plugin documentation wiki for details.";
+    let [format, data] = makeIconLayerCommonData(id);
+    let i = data.length;
+    format += `save to file {${i++}} with options {${i++}} (name=value, name2=value, ...)`;
+    data.push(
+        makeFileData(jid(id, "file"), ["*.avif", "*.gif", "*.jpg", "*.jpeg", "*.png", "*.tif", "*.tiff", "*.webp"]),
+        makeTextData(jid(id, "options")),
+    );
     addAction(id, name, descript, format, data, subcat);
 }
 
@@ -789,7 +997,7 @@ function addTransformAction(id, name, subcat, withIndex = false) {
     format += makeTransformData(C.DEFAULT_TRANSFORM_OP_ORDER, id, data);
     if (withIndex) {
         format += `Render\nIcon?{${data.length}}`;
-        data.push(makeChoiceData(jid(id, "render"), "Render?", ["No", "Yes"]));
+        data.push(makeRenderChoiceData(id));
     }
     else {
         format += `Scope {${data.length}}`
@@ -797,24 +1005,25 @@ function addTransformAction(id, name, subcat, withIndex = false) {
             makeChoiceData(jid(id, "scope"), "Scope", [C.DataValue.TxScopePreviousOne, C.DataValue.TxScopeCumulative, C.DataValue.TxScopeUntilReset, C.DataValue.TxScopeReset])
         );
     }
-    addAction(id, name, descript, format, data, subcat);
+    addAction(id, name, descript, format, data, subcat, withIndex);
 }
+
 function addTransformUpdtAction(id, name, subcat) { addTransformAction(id, name, subcat, true); }
 
 function addValueUpdateAction(id, name, subcat) {
     const descript = "Dynamic Icons: " +
         "Update a value on an element in an existing icon. " +
-        "Elements which can be updated: Gauge, Graph and Bar values, Text content, Image source, and Effect Filter. " +
+        "Elements which can be updated: Gauge, Graph and Bar values, Text content, Image source, Effect Filter and Script arguments. " +
         "Value type must match the element type (numeric/string), and may contain math and other JS expressions.\n" +
         "Icon with same Name must already exist and contain a supported element type at the specified position. " +
         "Position indexes start at 1 (non-layered icons have only one position). Specify a negative index to count from the bottom of a layer stack.";
     let [format, data] = makeIconLayerCommonData(id, true);
     format += `set value to{${data.length}}and render icon? {${data.length+1}}`;
     data.push(
-        makeActionData("value_update_value", "text", "Value", ""),
-        makeChoiceData("value_update_render", "Render?", ["No", "Yes"]),
+        makeActionData(jid(id, "value"), "text", "Value", ""),
+        makeRenderChoiceData(id),
     );
-    addAction(id, name, descript, format, data, subcat);
+    addAction(id, name, descript, format, data, subcat, true);
 }
 
 function addColorUpdateAction(id, name, subcat) {
@@ -829,7 +1038,7 @@ function addColorUpdateAction(id, name, subcat) {
     data.push(
         makeChoiceData(jid(id, "type"), "Type", C.COLOR_UPDATE_TYPE_CHOICES),
         makeColorData(jid(id, "color"), "Color", "#00000000"),
-        makeChoiceData(jid(id, "render"), "Render?", ["No", "Yes"]),
+        makeRenderChoiceData(id),
     );
     addAction(id, name, descript, format, data, subcat);
 }
@@ -854,14 +1063,18 @@ const iid = C.ActHandler.Icon;
 addProgressGaugeAction(  jid(iid, C.Act.IconProgGauge), "Draw - Simple Round Gauge",          ACTION_CATS.gauge );
 addBarGraphAction(       jid(iid, C.Act.IconBarGraph),  "Draw - Simple Bar Graph",            ACTION_CATS.gauge );
 addProgressBarAction(    jid(iid, C.Act.IconProgBar),   "Draw - Linear Progress Bar",         ACTION_CATS.gauge );
+addGaugeTicksAction(     jid(iid, C.Act.IconCircularTicks), "Draw - Circular Tick Marks",     ACTION_CATS.gauge, false );
+addGaugeTicksAction(     jid(iid, C.Act.IconLinearTicks),   "Draw - Linear Tick Marks",       ACTION_CATS.gauge, true );
 addTextAction(           jid(iid, C.Act.IconText),      "Draw - Text",                        ACTION_CATS.basic );
 addImageAction(          jid(iid, C.Act.IconImage),     "Draw - Image",                       ACTION_CATS.basic );
 addRectangleAction(      jid(iid, C.Act.IconRect),      "Draw - Styled Rectangle",            ACTION_CATS.basic );
+addScriptAction(         jid(iid, C.Act.IconScript),    "Draw - Run Custom Script",           ACTION_CATS.basic );
 addStartLayersAction(    jid(iid, C.Act.IconDeclare),   "Layer - New Layered Icon",           ACTION_CATS.layer );
 addTransformAction(      jid(iid, C.Act.IconTx),        "Layer - Add Transformation",         ACTION_CATS.layer );
 addFilterAction(         jid(iid, C.Act.IconFilter),    "Layer - Set Effect Filter",          ACTION_CATS.layer );
 addCompositeModeAction(  jid(iid, C.Act.IconCompMode),  "Layer - Set Composite Mode",         ACTION_CATS.layer );
 addGenerateLayersAction( jid(iid, C.Act.IconGenerate),  "Layer - Generate Layered Icon",      ACTION_CATS.layer );
+addSaveToFileAction(     jid(iid, C.Act.IconSaveFile),  "Layer - Save Icon To File",          ACTION_CATS.layer );
 addRectanglePathAction(  jid(iid, C.Act.IconRectPath),  "Paths - Add Rounded Rectangle",      ACTION_CATS.paths );
 addEllipsePathAction(    jid(iid, C.Act.IconEllipse),   "Paths - Add Ellipse / Arc",          ACTION_CATS.paths );
 addFreeformPathAction(   jid(iid, C.Act.IconPath),      "Paths - Add Freeform Path",          ACTION_CATS.paths );

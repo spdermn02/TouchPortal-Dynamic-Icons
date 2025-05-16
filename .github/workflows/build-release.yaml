@@ -13,15 +13,16 @@ jobs:
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
       version:  ${{ steps.pckg_ver.outputs.version }}
+      name:  ${{ steps.pckg_ver.outputs.name }}
     steps:
       - name: Checkout package.json
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           sparse-checkout: |
             .github/actions
 
       - name: "Get package version and check if release exists"
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         id: pckg_ver
         with:
           result-encoding: string
@@ -30,6 +31,7 @@ jobs:
               const pckgJson = require('./package.json');
               const v = pckgJson.version;
               core.setOutput('version', v);
+              core.setOutput('name', pckgJson.name);
               console.log("Package version is", v);
 
               const { owner, repo } = context.repo;
@@ -78,16 +80,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ windows-latest, macos-latest, ubuntu-latest ]
+        os: [ windows-latest, macos-latest, macos-13, ubuntu-latest ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Use Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
 
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: NPM install
         run: |
@@ -95,15 +97,22 @@ jobs:
           mkdir ./Installers
 
       - name: Build
-        run: npm run build -- -p ${{ runner.os }}
+        run: npm run build
+
+      - id: get_os_arch
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: return `${process.env.RUNNER_OS}-${process.arch}`
 
       - name: Upload assets
         id: upload-release-asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          archive_name: ${{ needs.release.outputs.name }}-${{ steps.get_os_arch.outputs.result }}-${{ needs.release.outputs.version }}.tpp
         with:
           upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: ./Installers/touchportal-dynamic-icons-${{ runner.os }}-${{ needs.release.outputs.version }}.tpp
-          asset_name: touchportal-dynamic-icons-${{ runner.os }}-${{ needs.release.outputs.version }}.tpp
+          asset_path: ./Installers/${{ env.archive_name }}
+          asset_name: ${{ env.archive_name }}
           asset_content_type: application/zip

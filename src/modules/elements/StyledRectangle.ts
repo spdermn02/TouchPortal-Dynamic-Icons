@@ -1,50 +1,53 @@
 
-import { IColorElement, ILayerElement, IRenderable } from '../interfaces';
-import { ColorUpdateType, LayerRole, ParseState, Rectangle, RenderContext2D } from '../';
+import { ColorUpdateType, LayerRole, Rectangle, type ParseState } from '../';
 import { DrawingStyle } from './';
-import { arraysMatchExactly, round3p } from '../../utils';
+import { round3p } from '../../utils';
 import { Act, Str } from '../../utils/consts';
-import RectanglePath from './RectanglePath';  // must be direct import for subclass
+import RectanglePath, { type RectanglePathInit } from './RectanglePath';  // must be direct import for subclass
+import type { IColorElement, ILayerElement, IRenderable } from '../interfaces';
 
-// Draws a rectangle shape on a canvas context with optional radii applied to any/all of the 4 corners (like CSS). The shape can be fully styled with the embedded DrawingStyle property.
+export type StyledRectangleInit = RectanglePathInit & PartialDeep<StyledRectangle>;
+
+/** Draws a rectangle shape on a canvas context with optional radii applied to any/all of the 4 corners (like CSS). The shape can be fully styled with the embedded `DrawingStyle` property. */
 export default class StyledRectangle extends RectanglePath implements ILayerElement, IRenderable, IColorElement
 {
-    style: DrawingStyle = new DrawingStyle();
+    /** Fill and stroke style to apply when drawing this element. */
+    style: DrawingStyle;
     /** Whether to adjust (reduce) the overall drawing area size to account for shadow offset/blur. */
     adjustSizeForShadow: boolean = true;
 
-    // constructor(init?: Partial<StyledRectangle> | any) { assignExistingProperties(this, init, 0); }
+    constructor(init?: StyledRectangleInit) {
+        super();
+        this.style = new DrawingStyle(init?.style);
+        super.init(init);
+    }
 
     // ILayerElement
-    readonly type: string = "StyledRectangle";
+    /** @internal */
     readonly layerRole: LayerRole = LayerRole.Drawable;
 
     /** Returns true if there is nothing to draw: there is no fill and stroke width is zero */
     get isEmpty(): boolean {
-        return this.style.fill.isEmpty && this.style.line.isEmpty;
+        return this.style.fill.isEmpty && this.style.stroke.isEmpty;
     }
 
     // IColorElement
+    /** @internal */
     setColor(value: string, type: ColorUpdateType): void { this.style.setColor(value, type); }
 
+    /** @internal */
     loadFromActionData(state: ParseState): StyledRectangle {
-        super.loadFromActionData(state, Act.IconRect);
-        const stylePos = state.data.findIndex(v => v.id.includes(Act.IconStyle + Str.IdSep, (Str.IdPrefix + Act.IconRect).length));
-        if (stylePos < 0)
-            return this;  // ulikely
+        // const dr = state.dr;
+        super.loadFromDataRecord(state.asRecord(state.pos, Act.IconRect + Str.IdSep));
         // Check for shadow and line style changes which may affect cached path.
-        const sarry = this.adjustSizeForShadow ? [this.style.shadow.blur, this.style.shadow.offset.x, this.style.shadow.offset.y] : null;
-        const lw = this.style.line.width;
-        this.style.loadFromActionData(state.setPos(stylePos));
-        if (lw.value != this.style.line.width.value ||
-                lw.isRelative != this.style.line.width.isRelative ||
-                (sarry && !arraysMatchExactly(sarry, [this.style.shadow.blur, this.style.shadow.offset.x, this.style.shadow.offset.y])))
-            this.cache.clear();
+        if (this.style.loadFromDataRecord(state.asRecord(state.pos, Act.IconRect + Str.IdSep + Act.IconStyle + Str.IdSep)))
+            this.clearCache();
         // console.dir(this, {depth: 5});
         return this;
     }
 
-    // ILayerElement
+    // IRenderable
+    /** Draws the rectangle with all styling and positioning options applied onto `ctx` using `rect` dimensions for scaling and alignment. */
     render(ctx: RenderContext2D, rect: Rectangle): void { this.renderImpl(ctx, rect); }
 
     /** The actual drawing implementation. May be used by subclasses.
@@ -57,12 +60,12 @@ export default class StyledRectangle extends RectanglePath implements ILayerElem
 
         // set stroke scaling and adjust drawing size if needed
         let penW = 0, penW2 = 0;
-        if (!this.style.line.isEmpty) {
+        if (!this.style.stroke.isEmpty) {
             // relative stroke width is percentage of half the overall size where 100% would be half the smaller of width/height (and strokes would overlay the whole shape)
-            if (this.style.line.width.isRelative)
-                this.style.line.widthScale = Math.min(window.width, window.height) * .005;
+            if (this.style.stroke.width.isRelative)
+                this.style.stroke.widthScale = Math.min(window.width, window.height) * .005;
             // adjust size to prevent clipping of stroke which is drawn middle-aligned on the shape border
-            penW = this.style.line.scaledWidth;
+            penW = this.style.stroke.scaledWidth;
             penW2 = round3p(penW * .5);
             window.adjust(penW2, -penW);
         }

@@ -1,0 +1,28 @@
+name: Test Builds
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ windows-latest, macos-latest, macos-13, ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: NPM install
+        run: |
+          npm install
+          mkdir ./Installers
+
+      - name: Build
+        run: npm run build

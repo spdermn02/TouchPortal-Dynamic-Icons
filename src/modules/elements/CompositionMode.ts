@@ -1,12 +1,16 @@
-import { ILayerElement, IRenderable } from '../interfaces';
-import { ParseState, RenderContext2D } from '../';
+import { LayerRole } from '../';
+import type { ILayerElement, IRenderable } from '../interfaces';
+import type { ParseState, RenderContext2D } from '../';
 
 // Applies a globalCompositeOperation to a canvas context.
 export default class CompositionMode implements ILayerElement, IRenderable
 {
     mode: GlobalCompositeOperation = "source-over";
 
-    readonly type: string = "CompositionMode";
+    // ILayerElement
+    /** @internal */
+    readonly layerRole: LayerRole = LayerRole.Drawable;
+
     // returns true mode string is empty
     get isEmpty(): boolean { return !this.mode; }
 
@@ -31,7 +35,7 @@ export default class CompositionMode implements ILayerElement, IRenderable
         return this;
     }
 
-    // ILayerElement
+    // IRenderable
     render(ctx: RenderContext2D): void {
         if (!ctx || this.isEmpty)
             return;
