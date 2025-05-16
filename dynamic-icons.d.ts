@@ -37,13 +37,13 @@ declare class Rectangle {
 	constructor(rect: Rectangle);
 	constructor(origin: PointType, size: SizeType);
 	constructor(origin: PointType, width: number, height: number);
-	constructor(top: number, left?: number, size?: SizeType);
-	constructor(top: number, left: number, width?: number, height?: number);
+	constructor(x: number, y: number, size?: SizeType);
+	constructor(x?: number, y?: number, width?: number, height?: number);
 	set(rect: Rectangle): this;
 	set(origin: PointType, size?: SizeType): this;
 	set(origin: PointType, width?: number, height?: number): this;
-	set(top: number, left: number, size?: SizeType): this;
-	set(top?: number, left?: number, width?: number, height?: number): this;
+	set(x: number, y: number, size?: SizeType): this;
+	set(x?: number, y?: number, width?: number, height?: number): this;
 	clone(): Rectangle;
 	toString(): string;
 	/** Creates a new instance of Rectangle with origin(0,0) and the given size for width and height. */
